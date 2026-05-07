@@ -102,7 +102,7 @@
             class="sponsor-logo__img"
             @error="handleImageError"
           />
-          <span class="sponsor-logo__name">{{ sponsor.name }}</span>
+          
         </a>
       </div>
     </div>
@@ -115,7 +115,7 @@ import { ref } from 'vue'
 const sponsors = ref([
   {
     id: 1,
-    name: 'Pure Insights',
+    name: 'PureInsights',
     link: 'https://mypureinsights.com/?utm_campaign=indy_hackers',
     logo: '/images/sponsors/pureinsights.png'
   },

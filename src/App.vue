@@ -28,6 +28,17 @@ export default {
       return this.pocketbase.authStore.model
     }
   },
+  mounted() {
+    // Givebutter floating donate widget
+    const widget = document.createElement('givebutter-widget')
+    widget.setAttribute('id', 'pdVAqB')
+    document.body.appendChild(widget)
+
+    const script = document.createElement('script')
+    script.src = 'https://widgets.givebutter.com/latest.umd.cjs?acct=H4rBBvimtKt1fpCm&p=other'
+    script.async = true
+    document.head.appendChild(script)
+  },
 }
 </script>
 

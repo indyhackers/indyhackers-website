@@ -19,6 +19,13 @@
             We're volunteer-run and always will be. If you build things in Indiana,
             you're one of us.
           </p>
+          <div class="about-hero__mission">
+            <h2 class="about-hero__mission-heading">Our mission</h2>
+            <p class="about-hero__mission-text">
+              IndyHackers strives to help tech people in Indiana grow by fostering
+              community connections and celebrating individual successes.
+            </p>
+          </div>
         </div>
         <div class="about-hero__coc">
           <h2 class="about-hero__coc-heading">Code of Conduct</h2>
@@ -47,6 +54,7 @@
         <BoardMemberCard
           firstName="Ben"
           lastName="Cochran"
+          title="Vice President"
           imageUrl="/images/board/ben.jpg"
           email="mailto:ben@indyhackers.org"
           linkedin="https://www.linkedin.com/in/cochranb"
@@ -133,6 +141,29 @@ import BoardMemberCard from '@/components/about/BoardMemberCard.vue'
 }
 
 .about-hero__story p {
+  font-size: 1.125rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.about-hero__mission {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 15%, transparent);
+}
+
+.about-hero__mission-heading {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  margin: 0 0 0.5rem;
+}
+
+.about-hero__mission-text {
   font-size: 1.125rem;
   line-height: 1.7;
   color: var(--text-secondary);

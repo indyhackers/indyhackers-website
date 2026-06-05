@@ -136,6 +136,12 @@ const sponsors = ref([
     name: 'E-gineering',
     link: 'https://www.e-gineering.com/?utm_campaign=indy_hackers',
     logo: '/images/sponsors/egineering-logo.png'
+  },
+  {
+    id: 5,
+    name: 'Panfactum',
+    link: 'https://www.panfactum.com/?utm_campaign=indy_hackers',
+    logo: '/images/sponsors/panfactum-logo.png'
   }
 ])
 

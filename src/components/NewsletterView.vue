@@ -93,7 +93,7 @@ import { ref, onMounted } from 'vue'
 import { useNewsletter } from '@/composables/useNewsletter'
 import DOMPurify from 'dompurify'
 
-const { posts, visiblePosts, hasMore, loadMore, loading, error, fetchNewsletter } = useNewsletter({ initialCount: 1 })
+const { posts, visiblePosts, hasMore, loadMore, loading, error, fetchNewsletter } = useNewsletter({ initialCount: 1, loadMoreCount: 10 })
 
 const email = ref('')
 const submitting = ref(false)

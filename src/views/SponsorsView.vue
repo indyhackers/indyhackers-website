@@ -102,7 +102,7 @@
             class="sponsor-logo__img"
             @error="handleImageError"
           />
-          <span class="sponsor-logo__name">{{ sponsor.name }}</span>
+          
         </a>
       </div>
     </div>
@@ -115,7 +115,7 @@ import { ref } from 'vue'
 const sponsors = ref([
   {
     id: 1,
-    name: 'Pure Insights',
+    name: 'PureInsights',
     link: 'https://mypureinsights.com/?utm_campaign=indy_hackers',
     logo: '/images/sponsors/pureinsights.png'
   },
@@ -130,6 +130,18 @@ const sponsors = ref([
     name: 'Java House',
     link: 'https://www.javahouse.com/?utm_campaign=indy_hackers',
     logo: '/images/sponsors/java_house.png'
+  },
+  {
+    id: 4,
+    name: 'E-gineering',
+    link: 'https://www.e-gineering.com/?utm_campaign=indy_hackers',
+    logo: '/images/sponsors/egineering-logo.png'
+  },
+  {
+    id: 5,
+    name: 'Panfactum',
+    link: 'https://www.panfactum.com/?utm_campaign=indy_hackers',
+    logo: '/images/sponsors/panfactum-logo.png'
   }
 ])
 

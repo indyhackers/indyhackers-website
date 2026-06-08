@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 
-export function useNewsletter({ initialCount = 3 } = {}) {
+export function useNewsletter({ initialCount = 3, loadMoreCount } = {}) {
+  const batchSize = loadMoreCount ?? initialCount
   const posts = ref([])
   const loading = ref(false)
   const error = ref(null)
@@ -72,7 +73,7 @@ export function useNewsletter({ initialCount = 3 } = {}) {
   const hasMore = computed(() => visibleCount.value < posts.value.length)
 
   function loadMore() {
-    visibleCount.value += initialCount
+    visibleCount.value += batchSize
   }
 
   return {

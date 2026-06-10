@@ -13,23 +13,23 @@ export const SPONSORS = [
     logoUrl: 'https://www.indyhackers.org/images/sponsors/pureinsights.png',
   },
   {
-    name: 'Stellar.',
-    url: 'https://stellar.org',
-    description: 'Financial technology',
-    logoUrl: 'https://www.indyhackers.org/images/sponsors/stellar.png',
-  },
-  {
-    name: 'OTAVA',
-    url: 'https://otava.com',
-    description: 'Cloud and managed services',
-    logoUrl: 'https://www.indyhackers.org/images/sponsors/otava.png',
-  },
-  {
     name: 'Java House',
     url: 'https://javahouse.com',
     description: 'Coffee and community',
     logoUrl: 'https://www.indyhackers.org/images/sponsors/java_house.png',
-  }
+  },
+  {
+    name: 'E-gineering',
+    url: 'https://www.e-gineering.com',
+    description: '',
+    logoUrl: 'https://www.indyhackers.org/images/sponsors/egineering-logo.png',
+  },
+  {
+    name: 'Panfactum',
+    url: 'https://www.panfactum.com',
+    description: '',
+    logoUrl: 'https://www.indyhackers.org/images/sponsors/panfactum-logo.png',
+  },
 ]
 
 // How many recent approved jobs to include

@@ -1,72 +1,56 @@
-async function exportMocks() {
+// Dev-only helpers for the apply-mocks / export-mocks console commands.
+// Updated for the PocketBase v0.23+ API ($app.* instead of the removed
+// $app.dao()). These run only when the commands are invoked, not at startup.
+
+function exportMocks() {
   try {
-    // Initialize the collections dump object
     const snapshot = {}
 
-    // Get the list of collections
-    const baseCollections = $app.dao().findCollectionsByType('base')
-    const authCollections = $app.dao().findCollectionsByType('auth')
-    const viewCollections = $app.dao().findCollectionsByType('view')
+    const collections = $app.findAllCollections('base', 'auth', 'view')
 
-    const collections = [...baseCollections, ...authCollections, ...viewCollections]
-
-    // Iterate over each collection to fetch schema and data
     for (const collection of collections) {
-      // Fetch collection schema
-      const schema = await $app.dao().findCollectionByNameOrId(collection.name)
+      const schema = $app.findCollectionByNameOrId(collection.name)
+      const records = $app.findAllRecords(collection.name)
 
-      // Fetch all records in the collection
-      const records = await $app.dao().findRecordsByExpr(collection.name)
-
-      // Combine schema and records for each collection
       snapshot[collection.name] = {
         collection: schema,
-        items: records.map((record) => record.publicExport()) // Safely export fields
+        items: records.map((record) => record.publicExport())
       }
     }
 
     console.log(`Writing ${__hooks}/mocks.json`)
-    $os.writeFile(`${__hooks}/mocks.json`, JSON.stringify(snapshot, null, 2), 0644)
+    $os.writeFile(`${__hooks}/mocks.json`, JSON.stringify(snapshot, null, 2), 0o644)
   } catch (error) {
-    console.error('Error fetching collections:', error)
-    return c.json(500, { error: 'An error occurred while fetching collections: ' + error })
+    console.error('Error exporting mocks:', error)
   }
 }
 
-async function applyMocks() {
+function applyMocks() {
   try {
-    const db = $app.dao()
+    const mockData = JSON.parse(String.fromCharCode(...$os.readFile(`${__hooks}/mocks.json`)))
 
-    const mockData = await JSON.parse(
-      String.fromCharCode(...$os.readFile(`/${__hooks}/mocks.json`))
-    )
-
-    // Loop over each collection in the mock data
     for (const [collectionName, collectionData] of Object.entries(mockData)) {
-      // Check if the collection already exists
-      var collection = null
+      // Find or create the collection.
+      let collection = null
       try {
-        collection = await db.findCollectionByNameOrId(collectionName)
+        collection = $app.findCollectionByNameOrId(collectionName)
       } catch (err) {
-        console.log('errr: ' + err)
-        // Create the collection if it doesn't exist
         console.log(`Creating collection: ${collectionName}`)
-        const newCollection = new Collection(collectionData.collection)
-        db.saveCollection(newCollection)
+        collection = new Collection(collectionData.collection)
+        $app.save(collection)
       }
-      // Loop over each record in the collection items
+
+      // Insert any records that don't already exist.
       for (const item of collectionData.items) {
-        // Check if the record already exists by ID
         try {
-          await db.findRecordById(collectionName, item.id)
+          $app.findRecordById(collectionName, item.id)
         } catch (err) {
-          // Insert the record if it doesn't exist
+          console.log(`Inserting record ${item.id} into ${collectionName}`)
           const record = new Record(collection, item)
-          console.log(`Inserting record: ${item.id} into collection: ${collectionName}`)
           if (collection.type === 'auth') {
             record.setPassword($security.randomString(42))
           }
-          await db.saveRecord(record)
+          $app.save(record)
         }
       }
     }

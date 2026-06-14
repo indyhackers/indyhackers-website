@@ -23,7 +23,7 @@
     "dompurify": "^3.3.2",
     "jquery": "^3.7.1",
     "pinia": "^2.1.7",
-    "pocketbase": "^0.26.1",
+    "pocketbase": "^0.27.0",
     "shards-ui": "^1.1.2",
     "tiny-emitter": "2.0.2",
     "vite-plugin-radar": "^0.10.0",

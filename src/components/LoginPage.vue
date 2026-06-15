@@ -18,7 +18,6 @@
       </b-alert>
 
       <div v-if="oauthProviders.length" class="oauth-section">
-        <div class="oauth-divider"><span>or</span></div>
         <div class="oauth-buttons">
           <template v-for="provider in oauthProviders" :key="provider.name">
             <!-- Official "Sign in with Google" button (Google brand guidelines) -->
@@ -228,28 +227,12 @@ a {
 
 .login-submit {
   width: 100%;
+  height: 44px;
   justify-content: center;
 }
 
-/* "or" divider between password login and OAuth */
-.oauth-divider {
-  display: flex;
-  align-items: center;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.875rem;
-  margin: 1.5rem 0 1rem;
-}
-
-.oauth-divider::before,
-.oauth-divider::after {
-  content: '';
-  flex: 1;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
-}
-
-.oauth-divider span {
-  padding: 0 0.75rem;
+.oauth-section {
+  margin-top: 1rem;
 }
 
 .oauth-buttons {
@@ -273,7 +256,7 @@ a {
   cursor: pointer;
   font-family: 'Roboto', arial, sans-serif;
   font-size: 14px;
-  height: 40px;
+  height: 44px;
   letter-spacing: 0.25px;
   outline: none;
   overflow: hidden;

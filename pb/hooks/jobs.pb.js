@@ -36,6 +36,17 @@ onRecordAfterCreateSuccess((e) => {
         }
 
         const r = e.record
+
+        // Escape submitter-controlled values before interpolating into the
+        // email HTML so a job submission can't inject markup.
+        const esc = (v) =>
+            String(v == null ? "" : v)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;")
+
         const fmtSalary = (n) => (n ? "$" + n + "k" : "—")
         const salary =
             r.getInt("salary_min") || r.getInt("salary_max")
@@ -48,13 +59,13 @@ onRecordAfterCreateSuccess((e) => {
             subject: "New job submitted: " + r.getString("title"),
             html:
                 "<h2>A new job was submitted to the board</h2>" +
-                "<p><strong>" + r.getString("title") + "</strong> at <strong>" + r.getString("company") + "</strong></p>" +
+                "<p><strong>" + esc(r.getString("title")) + "</strong> at <strong>" + esc(r.getString("company")) + "</strong></p>" +
                 "<ul>" +
                 "<li>Salary: " + salary + "</li>" +
-                "<li>Submitted by: " + (r.getString("name") || "—") + " (" + (r.getString("email") || "—") + ")</li>" +
+                "<li>Submitted by: " + (esc(r.getString("name")) || "—") + " (" + (esc(r.getString("email")) || "—") + ")</li>" +
                 "<li>Status: " + (r.getBool("approved") ? "approved" : "pending approval") + "</li>" +
                 "</ul>" +
-                (r.getString("description") ? "<p>" + r.getString("description") + "</p>" : "") +
+                (r.getString("description") ? "<p>" + esc(r.getString("description")) + "</p>" : "") +
                 "<p>Review it in the admin to approve.</p>"
         })
 

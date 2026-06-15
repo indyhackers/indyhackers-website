@@ -226,9 +226,11 @@ a {
 }
 
 .login-submit {
+  display: flex;
   width: 100%;
   height: 44px;
   justify-content: center;
+  align-items: center;
 }
 
 .oauth-section {
@@ -244,6 +246,7 @@ a {
 
 /* Official Google "Sign in with Google" button (per brand guidelines). */
 .gsi-material-button {
+  display: block;
   -webkit-user-select: none;
   user-select: none;
   -webkit-appearance: none;

@@ -245,7 +245,12 @@ export const handlers = [
       mfa: { enabled: false, duration: 0 },
       otp: { enabled: false, duration: 0 },
       password: { enabled: true, identityFields: ['email'] },
-      oauth2: { enabled: false, providers: [] }
+      // Surface the Google button in dev. The real OAuth popup needs a backend,
+      // so clicking it won't complete locally — it's here to preview the UI.
+      oauth2: {
+        enabled: true,
+        providers: [{ name: 'google', displayName: 'Google', state: '', authURL: '' }]
+      }
     })
   }),
   http.post('/api/collections/users/auth-with-password', async ({ request }) => {

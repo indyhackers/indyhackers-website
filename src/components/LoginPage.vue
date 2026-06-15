@@ -113,6 +113,7 @@ export default {
     }
 
     const loginWithOAuth = async (provider) => {
+      errorMessage.value = ''
       try {
         const redirectUrl = `${window.location.origin}/api/oauth2-redirect`
 
@@ -128,20 +129,25 @@ export default {
           }
         })
 
-        console.log(`Logged in with ${provider}:`, authData)
-
-        const existingMeta = authData.record.meta || {}
-        await pocketbase.collection('users').update(authData.record.id, {
-          meta: { ...existingMeta, [provider]: authData.meta.rawUser }
-        })
+        // Best-effort: stash the provider's raw profile. Never block login on it.
+        try {
+          const existingMeta = authData.record.meta || {}
+          await pocketbase.collection('users').update(authData.record.id, {
+            meta: { ...existingMeta, [provider]: authData.meta?.rawUser }
+          })
+        } catch (metaErr) {
+          console.warn('Could not store OAuth profile meta:', metaErr)
+        }
 
         emitter.emit('toast', {
           title: 'Logged in with ' + provider,
           variant: 'success'
         })
-        router.push('/')
+        const redirect = router.currentRoute.value.query.redirect
+        router.push(typeof redirect === 'string' ? redirect : '/')
       } catch (err) {
         console.error(`OAuth login failed for ${provider}:`, err)
+        errorMessage.value = 'Could not log in with ' + provider + '. Please try again.'
       }
     }
 

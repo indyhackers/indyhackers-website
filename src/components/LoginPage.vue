@@ -1,47 +1,6 @@
 <template>
   <div class="login-page">
-    <AuthPageLayout title="Log in with">
-      <div class="oauth-section">
-        <div v-for="provider in oauthProviders" :key="provider.name">
-          <b-button
-            :id="'btn-' + provider.name"
-            class="ih-btn-outline oauth-icon-btn"
-            @click="loginWithOAuth(provider.name)"
-          >
-            <template v-if="provider.name === 'github'">
-              <IFaGithub />
-            </template>
-            <template v-else-if="provider.name === 'google'">
-              <IFaGoogle />
-            </template>
-            <template v-else-if="provider.name === 'facebook'">
-              <IFaFacebook />
-            </template>
-            <template v-else-if="provider.name === 'twitter'">
-              <IFaTwitter />
-            </template>
-            <template v-else-if="provider.name === 'linkedin'">
-              <IFaLinkedin />
-            </template>
-            <template v-else-if="provider.name === 'microsoft'">
-              <IMdiMicrosoft />
-            </template>
-            <template v-else-if="provider.name === 'apple'">
-              <IFaApple />
-            </template>
-            <template v-else-if="provider.name === 'discord'">
-              <ICarbonLogoDiscord />
-            </template>
-            <template v-else>
-              <IFaOpenid />
-            </template>
-          </b-button>
-          <b-tooltip :target="'btn-' + provider.name" triggers="hover">
-            {{ provider.displayName }}
-          </b-tooltip>
-          <h3 class="mt-3 mb-3">or</h3>
-        </div>
-      </div>
+    <AuthPageLayout title="Log in">
       <b-form @submit.prevent="login">
         <b-form-group class="form-group" label="Email" label-for="email" label-class="form-label">
           <b-form-input id="email" v-model="email" type="email" required></b-form-input>
@@ -53,10 +12,57 @@
 
         <button type="submit" class="ih-btn-primary login-submit">Login</button>
       </b-form>
+
       <b-alert :model-value="!!errorMessage" variant="danger" class="mt-3">
         {{ errorMessage }}
       </b-alert>
-      <router-link to="/signup">Don't have an account? Sign up here</router-link>
+
+      <div v-if="oauthProviders.length" class="oauth-section">
+        <div class="oauth-divider"><span>or</span></div>
+        <div class="oauth-buttons">
+          <div v-for="provider in oauthProviders" :key="provider.name">
+            <b-button
+              :id="'btn-' + provider.name"
+              class="ih-btn-outline oauth-icon-btn"
+              @click="loginWithOAuth(provider.name)"
+            >
+              <template v-if="provider.name === 'github'">
+                <IFaGithub />
+              </template>
+              <template v-else-if="provider.name === 'google'">
+                <IFaGoogle />
+              </template>
+              <template v-else-if="provider.name === 'facebook'">
+                <IFaFacebook />
+              </template>
+              <template v-else-if="provider.name === 'twitter'">
+                <IFaTwitter />
+              </template>
+              <template v-else-if="provider.name === 'linkedin'">
+                <IFaLinkedin />
+              </template>
+              <template v-else-if="provider.name === 'microsoft'">
+                <IMdiMicrosoft />
+              </template>
+              <template v-else-if="provider.name === 'apple'">
+                <IFaApple />
+              </template>
+              <template v-else-if="provider.name === 'discord'">
+                <ICarbonLogoDiscord />
+              </template>
+              <template v-else>
+                <IFaOpenid />
+              </template>
+              <span class="oauth-icon-btn__label">{{ provider.displayName || provider.name }}</span>
+            </b-button>
+            <b-tooltip :target="'btn-' + provider.name" triggers="hover">
+              {{ provider.displayName }}
+            </b-tooltip>
+          </div>
+        </div>
+      </div>
+
+      <router-link class="signup-link" to="/signup">Don't have an account? Sign up here</router-link>
     </AuthPageLayout>
   </div>
 </template>
@@ -169,25 +175,11 @@ a {
 }
 
 .login-page {
-  padding: 2rem;
+  padding: 1rem;
 }
 
 .form-group {
-  margin-bottom: 2rem;
-}
-
-.oauth-icon-btn {
-  width: auto;
-  padding: 0.75rem 1rem;
-  margin: 0.25rem;
-}
-
-.oauth-section {
-  margin-top: 1rem;
-  text-align: center;
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
 }
 
 .form-label {
@@ -198,5 +190,51 @@ a {
 .login-submit {
   width: 100%;
   justify-content: center;
+}
+
+/* "or" divider between password login and OAuth */
+.oauth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 1.5rem 0 1rem;
+}
+
+.oauth-divider::before,
+.oauth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
+}
+
+.oauth-divider span {
+  padding: 0 0.75rem;
+}
+
+.oauth-buttons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.oauth-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+}
+
+.oauth-icon-btn__label {
+  font-size: 0.9375rem;
+}
+
+.signup-link {
+  display: block;
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.9375rem;
 }
 </style>

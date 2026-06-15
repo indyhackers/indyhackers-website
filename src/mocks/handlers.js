@@ -172,21 +172,64 @@ const mockCalendarEvents = {
   ]
 }
 
+// In-memory Slack invite queue for dev (seeded with a couple of pending rows).
+const mockDisposable = ['mailinator.com', 'guerrillamail.com', '10minutemail.com', 'yopmail.com']
+const mockSlackInvites = [
+  { id: 'inv1', email: 'newdev@gmail.com', status: 'pending', country: 'US', ip: '73.12.44.8', created: '2026-06-15T01:10:00Z' },
+  { id: 'inv2', email: 'visitor@example.org', status: 'pending', country: 'CA', ip: '24.55.1.9', created: '2026-06-15T01:35:00Z' }
+]
+
 export const handlers = [
   http.get('https://www.googleapis.com/calendar/v3/calendars/:calendarId/events', () => {
     return HttpResponse.json(mockCalendarEvents)
   }),
-  // Slack join page. No site key in dev, so the form skips reCAPTCHA and the
-  // invite request resolves to a mocked success.
+  // Slack join page + approval queue. No site key in dev, so the form skips
+  // reCAPTCHA. With no Cloudflare country header in dev, requests aren't
+  // auto-approved — they land in the pending queue, so you can exercise the
+  // admin screen at /admin/slack-invites.
   http.get('/api/slack/config', () => {
-    return HttpResponse.json({ org: 'indyhackers', siteKey: '', channels: ['general', 'jobs', 'introductions'] })
+    return HttpResponse.json({ org: 'indyhackers', siteKey: '' })
   }),
   http.post('/api/slack/invite', async ({ request }) => {
-    const { email } = await request.json().catch(() => ({}))
+    const body = await request.json().catch(() => ({}))
+    const email = (body.email || '').toLowerCase()
+    // Honeypot filled → pretend success, create nothing.
+    if (body.website) {
+      return HttpResponse.json({ ok: true, pending: true, msg: 'Thanks! Your request is in.' })
+    }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return HttpResponse.json({ message: 'Please enter a valid email address.' }, { status: 400 })
     }
-    return HttpResponse.json({ ok: true, msg: 'Invite sent — check your email! (dev mock)' })
+    if (mockDisposable.some((d) => email.endsWith('@' + d))) {
+      return HttpResponse.json({ message: 'Please use a non-disposable email address.' }, { status: 400 })
+    }
+    mockSlackInvites.unshift({
+      id: 'inv' + (mockSlackInvites.length + 1),
+      email,
+      status: 'pending',
+      country: '',
+      ip: '127.0.0.1',
+      created: new Date().toISOString()
+    })
+    return HttpResponse.json({
+      ok: true,
+      pending: true,
+      msg: 'Thanks! Your request is in. A board member will approve it shortly. (dev mock)'
+    })
+  }),
+  // Admin queue, served by the generic collection handlers below in production;
+  // mocked here so the screen works without a backend.
+  http.get('/api/collections/slack_invites/records', () => {
+    const items = mockSlackInvites.filter((i) => i.status === 'pending')
+    return HttpResponse.json({ page: 1, perPage: 100, totalItems: items.length, totalPages: 1, items })
+  }),
+  http.patch('/api/collections/slack_invites/records/:id', async ({ params, request }) => {
+    const patch = await request.json().catch(() => ({}))
+    const rec = mockSlackInvites.find((i) => i.id === params.id)
+    if (!rec) return HttpResponse.json({ message: 'Not found' }, { status: 404 })
+    Object.assign(rec, patch)
+    if (patch.status === 'approved') rec.invited_at = new Date().toISOString()
+    return HttpResponse.json(rec)
   }),
   http.get('/api/collections', ({}) => {
     const paginated = {

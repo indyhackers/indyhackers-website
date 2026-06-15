@@ -28,6 +28,17 @@
           />
         </div>
 
+        <!-- Honeypot: hidden from humans, bots tend to fill it. Server drops it. -->
+        <input
+          v-model="website"
+          type="text"
+          name="website"
+          class="slack-form__hp"
+          tabindex="-1"
+          autocomplete="off"
+          aria-hidden="true"
+        />
+
         <!-- reCAPTCHA renders here when a site key is configured -->
         <div v-show="siteKey" ref="recaptchaEl" class="slack-form__captcha"></div>
 
@@ -50,6 +61,7 @@
 import { ref, onMounted } from 'vue'
 
 const email = ref('')
+const website = ref('') // honeypot — must stay empty
 const siteKey = ref('')
 const recaptchaEl = ref(null)
 
@@ -113,6 +125,7 @@ const requestInvite = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: email.value,
+        website: website.value,
         'g-recaptcha-response': captchaToken
       })
     })
@@ -195,6 +208,15 @@ onMounted(fetchConfig)
 
 .slack-form__input:disabled {
   opacity: 0.6;
+}
+
+/* Honeypot — off-screen, not display:none, so bots still fill it. */
+.slack-form__hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 
 .slack-form__btn {

@@ -86,6 +86,11 @@ const router = createRouter({
       path: '/slack',
       name: 'Slack',
       component: () => import('../components/SlackView.vue')
+    },
+    {
+      path: '/admin/slack-invites',
+      name: 'SlackInvites',
+      component: () => import('../components/admin/SlackInvites.vue')
     }
   ]
 })

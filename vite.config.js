@@ -39,5 +39,9 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
+  },
+  // Temporary: allow the throwaway Cloudflare quick-tunnel host for phone testing.
+  server: {
+    allowedHosts: ['.trycloudflare.com']
   }
 })

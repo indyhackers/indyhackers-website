@@ -9,9 +9,7 @@
           Come hang out.
         </p>
         <div class="hero__ctas">
-          <a href="https://slack.indyhackers.org/" target="_blank" rel="noopener noreferrer" class="ih-btn-primary">
-            Slack it to me!
-          </a>
+          <RouterLink to="/slack" class="ih-btn-primary">Slack it to me!</RouterLink>
           <RouterLink to="/calendar" class="ih-btn-outline">Upcoming Events</RouterLink>
         </div>
       </div>

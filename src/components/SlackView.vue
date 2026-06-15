@@ -28,14 +28,6 @@
           />
         </div>
 
-        <div v-if="channels.length" class="slack-form__row">
-          <label class="slack-form__label" for="slack-channel">Interested in a channel?</label>
-          <select id="slack-channel" v-model="channel" class="slack-form__input" :disabled="submitting">
-            <option value="">No preference</option>
-            <option v-for="c in channels" :key="c" :value="c">#{{ c }}</option>
-          </select>
-        </div>
-
         <!-- reCAPTCHA renders here when a site key is configured -->
         <div v-show="siteKey" ref="recaptchaEl" class="slack-form__captcha"></div>
 
@@ -58,8 +50,6 @@
 import { ref, onMounted } from 'vue'
 
 const email = ref('')
-const channel = ref('')
-const channels = ref([])
 const siteKey = ref('')
 const recaptchaEl = ref(null)
 
@@ -97,7 +87,6 @@ const fetchConfig = async () => {
     const res = await fetch('/api/slack/config')
     if (!res.ok) return
     const cfg = await res.json()
-    channels.value = Array.isArray(cfg.channels) ? cfg.channels : []
     siteKey.value = cfg.siteKey || ''
     loadCaptcha()
   } catch {
@@ -124,7 +113,6 @@ const requestInvite = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: email.value,
-        channel: channel.value,
         'g-recaptcha-response': captchaToken
       })
     })

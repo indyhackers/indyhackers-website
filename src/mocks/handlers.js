@@ -285,6 +285,12 @@ export const handlers = [
     else if (/approved\s*=\s*true/.test(filter)) items = all.filter((j) => j.approved)
     return HttpResponse.json({ page: 1, perPage: 100, totalItems: items.length, totalPages: 1, items })
   }),
+  http.get('/api/collections/jobs/records/:id', ({ params }) => {
+    const base = (mocks['jobs'] && mocks['jobs'].items) || []
+    const rec = mockPendingJobs.find((j) => j.id === params.id) || base.find((j) => j.id === params.id)
+    if (!rec) return HttpResponse.json({ message: 'Not found' }, { status: 404 })
+    return HttpResponse.json(rec)
+  }),
   http.patch('/api/collections/jobs/records/:id', async ({ params, request }) => {
     const patch = await request.json().catch(() => ({}))
     const base = (mocks['jobs'] && mocks['jobs'].items) || []

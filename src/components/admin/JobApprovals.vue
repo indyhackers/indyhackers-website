@@ -36,6 +36,14 @@
             <td>{{ salary(job) }}</td>
             <td>{{ formatDate(job.created) }}</td>
             <td class="job-admin__actions">
+              <a
+                class="ih-btn-outline job-admin__btn"
+                :href="`/job?id=${job.id}&preview=1`"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Preview
+              </a>
               <button
                 class="ih-btn-primary job-admin__btn"
                 :disabled="busyId === job.id"

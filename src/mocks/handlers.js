@@ -176,6 +176,18 @@ export const handlers = [
   http.get('https://www.googleapis.com/calendar/v3/calendars/:calendarId/events', () => {
     return HttpResponse.json(mockCalendarEvents)
   }),
+  // Slack join page. No site key in dev, so the form skips reCAPTCHA and the
+  // invite request resolves to a mocked success.
+  http.get('/api/slack/config', () => {
+    return HttpResponse.json({ org: 'indyhackers', siteKey: '', channels: ['general', 'jobs', 'introductions'] })
+  }),
+  http.post('/api/slack/invite', async ({ request }) => {
+    const { email } = await request.json().catch(() => ({}))
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return HttpResponse.json({ message: 'Please enter a valid email address.' }, { status: 400 })
+    }
+    return HttpResponse.json({ ok: true, msg: 'Invite sent — check your email! (dev mock)' })
+  }),
   http.get('/api/collections', ({}) => {
     const paginated = {
       page: 1,

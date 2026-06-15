@@ -81,6 +81,11 @@ const router = createRouter({
       path: '/code-of-conduct',
       name: 'CodeOfConduct',
       component: () => import('../components/CodeOfConduct.vue')
+    },
+    {
+      path: '/slack',
+      name: 'Slack',
+      component: () => import('../components/SlackView.vue')
     }
   ]
 })

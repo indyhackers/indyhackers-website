@@ -1,6 +1,7 @@
 <template>
   <section class="job-admin">
     <div class="ih-container">
+      <AdminBar />
       <h1>Job approvals</h1>
       <p class="job-admin__sub">
         Jobs submitted to the board that are waiting to be published. Approve to make a
@@ -61,6 +62,7 @@
 
 <script setup>
 import { ref, inject, onMounted } from 'vue'
+import AdminBar from './AdminBar.vue'
 
 const pocketbase = inject('pocketbase')
 

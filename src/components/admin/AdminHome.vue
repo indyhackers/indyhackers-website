@@ -1,6 +1,7 @@
 <template>
   <section class="admin-home">
     <div class="ih-container">
+      <AdminBar is-home />
       <h1>Admin</h1>
       <p class="admin-home__sub">Tools for IndyHackers board members.</p>
 
@@ -20,6 +21,8 @@
 </template>
 
 <script setup>
+import AdminBar from './AdminBar.vue'
+
 const tools = [
   {
     to: '/admin/slack-invites',

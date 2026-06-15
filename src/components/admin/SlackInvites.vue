@@ -1,6 +1,7 @@
 <template>
   <section class="slack-admin">
     <div class="ih-container">
+      <AdminBar />
       <h1>Slack invite requests</h1>
       <p class="slack-admin__sub">
         Pending requests that weren't auto-approved. Approve to send the Slack invite,
@@ -61,6 +62,7 @@
 
 <script setup>
 import { ref, inject, onMounted } from 'vue'
+import AdminBar from './AdminBar.vue'
 
 const pocketbase = inject('pocketbase')
 

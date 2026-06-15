@@ -233,7 +233,11 @@ a {
   align-items: center;
 }
 
+/* Override the global .oauth-section (display:flex; justify-content:center),
+   which would otherwise shrink-wrap the OAuth buttons. Stack them full width. */
 .oauth-section {
+  flex-direction: column;
+  align-items: stretch;
   margin-top: 1rem;
 }
 

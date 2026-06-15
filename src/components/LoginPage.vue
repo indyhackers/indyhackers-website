@@ -53,6 +53,9 @@
 
         <button type="submit" class="ih-btn-primary login-submit">Login</button>
       </b-form>
+      <b-alert :model-value="!!errorMessage" variant="danger" class="mt-3">
+        {{ errorMessage }}
+      </b-alert>
       <router-link to="/signup">Don't have an account? Sign up here</router-link>
     </AuthPageLayout>
   </div>
@@ -76,6 +79,7 @@ export default {
     const email = ref('')
     const password = ref('')
     const oauthProviders = ref([])
+    const errorMessage = ref('')
 
     // Inject pocketbase
     const pocketbase = inject('pocketbase')
@@ -92,14 +96,19 @@ export default {
     })
 
     const login = async () => {
+      errorMessage.value = ''
       try {
-        const user = await pocketbase
+        await pocketbase
           .collection('users')
-          .authWithPassword(email.value, password.value)
-        console.log('Logged in as:', user)
-        router.push('/')
+          .authWithPassword(email.value, password.value, { expand: 'roles' })
+        const redirect = router.currentRoute.value.query.redirect
+        router.push(typeof redirect === 'string' ? redirect : '/')
       } catch (err) {
         console.error('Login failed:', err)
+        errorMessage.value =
+          err?.status === 400
+            ? 'Incorrect email or password.'
+            : 'Could not log in. Please try again.'
       }
     }
 
@@ -140,6 +149,7 @@ export default {
       email,
       password,
       oauthProviders,
+      errorMessage,
       login,
       loginWithOAuth
     }

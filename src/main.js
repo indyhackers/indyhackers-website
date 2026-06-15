@@ -3,7 +3,7 @@ import { createPinia } from 'pinia'
 import { createBootstrap } from 'bootstrap-vue-next'
 //import { BVToastPlugin } from 'bootstrap-vue'
 //import { jQuery } from 'jQuery'
-import PocketBase from 'pocketbase'
+import pocketbase from './pocketbase'
 import mitt from 'mitt'
 
 import 'bootstrap/dist/css/bootstrap.css'
@@ -23,8 +23,6 @@ async function prepareApp() {
   return worker.start()
 }
 
-const pbURL = import.meta.env.DEV ? '/' : window.location.origin
-const pocketbase = new PocketBase(pbURL)
 const emitter = mitt()
 //const toaster = useToast()
 

@@ -6,7 +6,7 @@ services:
       args:
         TARGETOS: linux
         TARGETARCH: ${TARGETARCH:-amd64}
-        PB_VERSION: 0.28.4
+        PB_VERSION: 0.39.4
         PB_ENV: development
     container_name: pocketbase
     environment:

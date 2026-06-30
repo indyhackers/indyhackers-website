@@ -4,6 +4,9 @@ migrate(
     let usersCollection = app.findCollectionByNameOrId('users')
     let jobsCollection = new Collection({
       type: 'base',
+      // Pinned so later migrations (015-018) that reference this id resolve on a
+      // fresh DB, matching the id the existing production DB already has.
+      id: 'pbc_2409499253',
       name: 'jobs',
       fields: [
         {

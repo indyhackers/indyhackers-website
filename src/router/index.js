@@ -30,6 +30,11 @@ const router = createRouter({
       component: () => import('../components/jobs/JobsMarkdown.vue')
     },
     {
+      path: '/jobs/manage',
+      name: 'ManageJob',
+      component: () => import('../components/jobs/ManageJobView.vue')
+    },
+    {
       path: '/about',
       name: 'About',
       component: () => import('../views/AboutView.vue')

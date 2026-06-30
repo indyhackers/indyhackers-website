@@ -172,6 +172,19 @@ const mockCalendarEvents = {
   ]
 }
 
+// In-memory job used by the self-service manage endpoints during local dev.
+let manageJob = {
+  id: 'managejob1',
+  title: 'Senior Frontend Engineer',
+  company: 'Sample Co',
+  salary_min: 90,
+  salary_max: 140,
+  description: '<p>Build delightful UIs with Vue.</p>',
+  how_to_apply: '<p>Email jobs@sample.co</p>',
+  approved: true,
+  filled: false
+}
+
 export const handlers = [
   http.get('https://www.googleapis.com/calendar/v3/calendars/:calendarId/events', () => {
     return HttpResponse.json(mockCalendarEvents)
@@ -239,5 +252,13 @@ export const handlers = [
     } else {
       return HttpResponse.json({ error: 'Record not found' }, { status: 404 })
     }
+  }),
+  http.get('/api/jobs/manage/:token', () => {
+    return HttpResponse.json(manageJob)
+  }),
+  http.patch('/api/jobs/manage/:token', async ({ request }) => {
+    const body = JSON.parse(await request.text())
+    manageJob = { ...manageJob, ...body }
+    return HttpResponse.json(manageJob)
   })
 ]

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite-ssg build",
+    "build": "vite-ssg build && node scripts/generate-sitemap.mjs",
     "build:spa": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest",

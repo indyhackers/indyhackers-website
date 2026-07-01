@@ -18,6 +18,7 @@
     "@tiptap/pm": "^2.6.6",
     "@tiptap/starter-kit": "^2.6.6",
     "@tiptap/vue-3": "^2.6.6",
+    "@unhead/vue": "^2.1.15",
     "bootstrap": "^5.3.3",
     "bootstrap-vue-next": "^0.24.2",
     "dompurify": "^3.3.2",

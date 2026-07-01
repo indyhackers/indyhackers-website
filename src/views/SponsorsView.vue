@@ -140,7 +140,7 @@ const sponsors = ref([
   {
     id: 5,
     name: 'Panfactum',
-    link: 'https://panfactum.com',
+    link: 'https://panfactum.com/?utm_campaign=indy_hackers',
     logo: '/images/sponsors/panfactum-logo.png'
   }
 ])

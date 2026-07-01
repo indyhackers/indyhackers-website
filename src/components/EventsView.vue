@@ -56,9 +56,11 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useHead } from '@unhead/vue'
 import { BAlert, BSpinner } from 'bootstrap-vue-next'
 import { useCalendar } from '@/composables/useCalendar'
+import { jsonLd, stripHtml, SITE_NAME, SITE_URL } from '@/seo'
 import EventListItem from '@/components/EventListItem.vue'
 
 const props = defineProps({
@@ -69,6 +71,40 @@ const props = defineProps({
 })
 
 const { events, loading, error, fetchEvents, visibleEvents, hasMore, loadMore } = useCalendar({ initialCount: props.limit })
+
+// Event structured data for the upcoming events shown here → eligible for
+// Google's event rich results. Rebuilds reactively as events load.
+const eventsSchema = computed(() =>
+  visibleEvents.value
+    .filter((e) => e.title && e.start)
+    .map((e) => {
+      const node = {
+        '@context': 'https://schema.org',
+        '@type': 'Event',
+        name: e.title,
+        startDate: e.start,
+        eventStatus: 'https://schema.org/EventScheduled',
+        organizer: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL }
+      }
+      if (e.end) node.endDate = e.end
+      if (e.description) node.description = stripHtml(e.description)
+      if (e.link) node.url = e.link
+      if (e.location) {
+        node.eventAttendanceMode = 'https://schema.org/OfflineEventAttendanceMode'
+        node.location = { '@type': 'Place', name: e.location, address: e.location }
+      } else {
+        node.eventAttendanceMode = 'https://schema.org/OnlineEventAttendanceMode'
+        node.location = { '@type': 'VirtualLocation', url: e.link || SITE_URL }
+      }
+      return node
+    })
+)
+
+useHead(
+  computed(() => ({
+    script: eventsSchema.value.length ? [jsonLd(eventsSchema.value, 'ld-events')] : []
+  }))
+)
 
 onMounted(() => {
   fetchEvents()

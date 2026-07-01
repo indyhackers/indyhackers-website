@@ -16,6 +16,8 @@ import {
   SITE_NAME,
   DEFAULT_DESCRIPTION,
   DEFAULT_OG_IMAGE,
+  ORGANIZATION_SCHEMA,
+  jsonLd,
   pageTitle,
   canonicalUrl
 } from '@/seo'
@@ -51,7 +53,9 @@ export default {
         { name: 'twitter:title', content: title },
         { name: 'twitter:description', content: description },
         { name: 'twitter:image', content: DEFAULT_OG_IMAGE }
-      ]
+      ],
+      // Site-wide Organization structured data.
+      script: [jsonLd(ORGANIZATION_SCHEMA, 'ld-organization')]
     }
   },
   computed: {

@@ -1,9 +1,19 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 onRecordEnrich((e) => {
-    // hide name and email fields
-    e.record.hide('name', 'email')
+    // hide submitter contact info and the manage token
+    e.record.hide('name', 'email', 'edit_token')
 
+    e.next()
+}, "jobs")
+
+// Generate the unguessable manage token server-side before the record is
+// persisted, so the (account-less) submitter can later edit / take down their
+// own post without anyone being able to forge the link.
+onRecordCreate((e) => {
+    if (!e.record.getString("edit_token")) {
+        e.record.set("edit_token", $security.randomString(40))
+    }
     e.next()
 }, "jobs")
 
@@ -115,6 +125,90 @@ onRecordAfterCreateSuccess((e) => {
         }
     } catch (err) {
         console.error("[jobs] new-job Slack notification failed: " + err)
+    }
+
+    // --- Submitter confirmation ---
+    // Let the person who posted the job know we received it. Best-effort: a
+    // failure here must never block job creation.
+    try {
+        const settings = $app.settings()
+        const submitter = r.getString("email")
+        if (submitter) {
+            const esc = (v) =>
+                String(v == null ? "" : v)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;")
+
+            const message = new MailerMessage({
+                from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
+                to: [{ address: submitter }],
+                subject: "We received your job post: " + r.getString("title"),
+                html:
+                    "<h2>Thanks for posting to the IndyHackers job board!</h2>" +
+                    "<p>We received your submission for <strong>" + esc(r.getString("title")) +
+                    "</strong> at <strong>" + esc(r.getString("company")) + "</strong>.</p>" +
+                    "<p>A moderator will review it shortly. You'll get another email with a " +
+                    "management link once it's approved and live on the board.</p>"
+            })
+
+            $app.newMailClient().send(message)
+            console.log("[jobs] submitter confirmation sent to " + submitter)
+        }
+    } catch (err) {
+        console.error("[jobs] submitter confirmation failed: " + err)
+    }
+
+    e.next()
+}, "jobs")
+
+// When a moderator approves a job (approved flips false -> true), email the
+// submitter that it's live and give them a self-service link to edit the post
+// or mark it as filled. A plain edit keeps approved=true, so it won't re-fire.
+onRecordAfterUpdateSuccess((e) => {
+    const r = e.record
+
+    try {
+        const wasApproved = r.original().getBool("approved")
+        const isApproved = r.getBool("approved")
+        const submitter = r.getString("email")
+
+        if (!wasApproved && isApproved && submitter) {
+            const settings = $app.settings()
+            const esc = (v) =>
+                String(v == null ? "" : v)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;")
+
+            const base = ($os.getenv("SITE_URL") || settings.meta.appURL || "").replace(/\/+$/, "")
+            const manageUrl = base + "/jobs/manage?token=" + r.getString("edit_token")
+
+            const message = new MailerMessage({
+                from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
+                to: [{ address: submitter }],
+                subject: "Your job post is live: " + r.getString("title"),
+                html:
+                    "<h2>Your job post is now live!</h2>" +
+                    "<p><strong>" + esc(r.getString("title")) + "</strong> at <strong>" +
+                    esc(r.getString("company")) + "</strong> has been approved and is now on the " +
+                    "IndyHackers job board.</p>" +
+                    "<p>Need to make a change, or has the role been filled? Use your private " +
+                    "management link to edit the post or take it down:</p>" +
+                    '<p><a href="' + manageUrl + '">' + manageUrl + "</a></p>" +
+                    "<p>Keep this email — anyone with that link can manage the post.</p>"
+            })
+
+            $app.newMailClient().send(message)
+            console.log("[jobs] approval email sent to " + submitter)
+        }
+    } catch (err) {
+        // Never let a notification failure block the approval.
+        console.error("[jobs] approval email failed: " + err)
     }
 
     e.next()

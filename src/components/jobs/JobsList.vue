@@ -41,7 +41,7 @@ export default defineComponent({
         const jobs = await this.pocketbase.collection('jobs').getList(
           1, 100,{
             sort: '-approved_at',
-            filter: `approved = true && approved_at != "" && approved_at >= "${cutoff}"`
+            filter: `approved = true && filled != true && approved_at != "" && approved_at >= "${cutoff}"`
         })
         this.jobs = jobs.items
       } catch (error) {

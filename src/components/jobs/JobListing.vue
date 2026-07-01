@@ -24,11 +24,29 @@
 <script>
 import { defineComponent } from 'vue'
 import DOMPurify from 'dompurify'
+import { SITE_NAME } from '@/seo'
 
 export default defineComponent({
   name: 'JobView',
   props: {},
   components: [],
+  // Per-job document head, overriding App.vue's generic "Job Listing" title
+  // once the job has loaded so each listing has a distinct, indexable title
+  // and description.
+  head() {
+    if (!this.job?.title) return {}
+    const label = this.job.company ? `${this.job.title} at ${this.job.company}` : this.job.title
+    const title = `${label} · ${SITE_NAME}`
+    const description = this.plainDescription
+    return {
+      title,
+      meta: [
+        { name: 'description', content: description },
+        { property: 'og:title', content: title },
+        { property: 'og:description', content: description }
+      ]
+    }
+  },
   data() {
     return {
       job: {
@@ -77,6 +95,15 @@ export default defineComponent({
     },
     sanitizedDescription() {
       return DOMPurify.sanitize(this.job.description)
+    },
+    // Plain-text, length-capped version of the description for use as the meta
+    // description / OG description (search + social snippets).
+    plainDescription() {
+      const text = DOMPurify.sanitize(this.job.description, { ALLOWED_TAGS: [] })
+        .replace(/\s+/g, ' ')
+        .trim()
+      if (!text) return `${this.job.title} at ${this.job.company} — apply via IndyHackers.`
+      return text.length > 160 ? `${text.slice(0, 157).trimEnd()}…` : text
     },
     sanitizedHowToApply() {
       return DOMPurify.sanitize(this.job.how_to_apply)

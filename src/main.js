@@ -1,5 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
+import { createHead } from '@unhead/vue/client'
+import { VueHeadMixin } from '@unhead/vue'
 import { createBootstrap } from 'bootstrap-vue-next'
 //import { BVToastPlugin } from 'bootstrap-vue'
 //import { jQuery } from 'jQuery'
@@ -29,6 +31,7 @@ const emitter = mitt()
 //const toaster = useToast()
 
 const app = createApp(App)
+const head = createHead()
 app.config.globalProperties.pocketbase = pocketbase
 app.config.globalProperties.emitter = emitter
 app.provide('pocketbase', pocketbase)
@@ -38,6 +41,10 @@ app.provide('emitter', emitter)
 
 //window.jQuery = jQuery
 
+app.use(head)
+// Enables the Options-API `head()` component option (reactive) alongside the
+// `useHead()` composable — used by App.vue for route-driven meta.
+app.mixin(VueHeadMixin)
 app.use(createPinia())
 app.use(createBootstrap())
 //app.use(BVToastPlugin)

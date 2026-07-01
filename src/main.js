@@ -1,55 +1,82 @@
-import { createApp } from 'vue'
+import { ViteSSG } from 'vite-ssg'
 import { createPinia } from 'pinia'
-import { createHead } from '@unhead/vue/client'
 import { VueHeadMixin } from '@unhead/vue'
 import { createBootstrap } from 'bootstrap-vue-next'
-//import { BVToastPlugin } from 'bootstrap-vue'
-//import { jQuery } from 'jQuery'
 import PocketBase from 'pocketbase'
 import mitt from 'mitt'
 
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue-next/dist/bootstrap-vue-next.css'
-import '@popperjs/core/dist/umd/popper.min.js'
-import 'bootstrap/dist/js/bootstrap.min.js'
 
 import App from './App.vue'
-import router from './router'
+import { routes, scrollBehavior } from './router'
+import { SITE_URL } from './seo'
 
-async function prepareApp() {
-  if (!import.meta.env.DEV) {
-    return
-  }
+// Routes worth prerendering to static HTML: public, content-bearing pages whose
+// value is indexability. Excludes auth/admin, the query-driven single-job view,
+// the markdown export utilities, and redirects — those stay client-only.
+const PRERENDER_ROUTES = new Set([
+  '/',
+  '/about',
+  '/jobs',
+  '/sponsors',
+  '/newsletter',
+  '/calendar',
+  '/recommend-event',
+  '/code-of-conduct',
+  '/privacy',
+  '/terms',
+  '/support'
+])
 
-  const { worker } = await import('./mocks/browser')
-  return worker.start()
+// vite-ssg reads this named export from the entry to decide which paths to
+// prerender (the ViteSSG options arg does NOT carry it).
+export function includedRoutes(paths) {
+  return paths.filter((path) => PRERENDER_ROUTES.has(path))
 }
 
-const pbURL = import.meta.env.DEV ? '/' : window.location.origin
-const pocketbase = new PocketBase(pbURL)
-const emitter = mitt()
-//const toaster = useToast()
+// ViteSSG builds the app for both the client and the prerender pass. The setup
+// callback runs in both environments, so anything touching the DOM/`window` is
+// guarded behind `isClient`.
+export const createApp = ViteSSG(
+  App,
+  { routes, scrollBehavior },
+  async ({ app, router, isClient }) => {
+    // No PocketBase calls happen during prerender (components fetch in
+    // mounted/onMounted, which don't run server-side), but the client needs the
+    // real origin and `window` is undefined during the build.
+    const pbURL = import.meta.env.DEV
+      ? '/'
+      : isClient && typeof window !== 'undefined'
+        ? window.location.origin
+        : SITE_URL
+    const pocketbase = new PocketBase(pbURL)
+    const emitter = mitt()
 
-const app = createApp(App)
-const head = createHead()
-app.config.globalProperties.pocketbase = pocketbase
-app.config.globalProperties.emitter = emitter
-app.provide('pocketbase', pocketbase)
-app.provide('router', router)
-app.provide('emitter', emitter)
-//app.config.globalProperties.$bvToast = toaster
+    app.config.globalProperties.pocketbase = pocketbase
+    app.config.globalProperties.emitter = emitter
+    app.provide('pocketbase', pocketbase)
+    app.provide('router', router)
+    app.provide('emitter', emitter)
 
-//window.jQuery = jQuery
+    // Enables the Options-API `head()` option (vite-ssg installs the unhead
+    // head instance but not this mixin).
+    app.mixin(VueHeadMixin)
+    app.use(createPinia())
+    app.use(createBootstrap())
 
-app.use(head)
-// Enables the Options-API `head()` component option (reactive) alongside the
-// `useHead()` composable — used by App.vue for route-driven meta.
-app.mixin(VueHeadMixin)
-app.use(createPinia())
-app.use(createBootstrap())
-//app.use(BVToastPlugin)
-app.use(router)
+    if (isClient) {
+      // Popper and Bootstrap's JS bundle both touch `document` at import time,
+      // so they can only load in the browser.
+      import('@popperjs/core/dist/umd/popper.min.js')
+      import('bootstrap/dist/js/bootstrap.min.js')
 
-prepareApp().then(() => {
-  app.mount('#app')
-})
+      // Dev-only: start the MSW mock backend and wait for it before mounting
+      // (vite-ssg awaits this callback), so initial fetches are intercepted.
+      if (import.meta.env.DEV) {
+        const { worker } = await import('./mocks/browser')
+        await worker.start()
+      }
+    }
+  }
+)

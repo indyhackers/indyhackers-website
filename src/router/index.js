@@ -1,12 +1,12 @@
-import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  scrollBehavior() {
-    return { top: 0 }
-  },
-  routes: [
+// vite-ssg owns router creation (it picks web vs. memory history for the client
+// vs. the prerender), so this module just exports the route table and options.
+export function scrollBehavior() {
+  return { top: 0 }
+}
+
+export const routes = [
     {
       path: '/',
       name: 'Home',
@@ -143,6 +143,3 @@ const router = createRouter({
       }
     }
   ]
-})
-
-export default router

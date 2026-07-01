@@ -37,12 +37,14 @@ export const routes = [
     {
       path: '/jobs-markdown',
       name: 'JobsMarkdown',
-      component: () => import('../components/jobs/JobsMarkdown.vue')
+      component: () => import('../components/jobs/JobsMarkdown.vue'),
+      meta: { noindex: true }
     },
     {
       path: '/jobs/manage',
       name: 'ManageJob',
-      component: () => import('../components/jobs/ManageJobView.vue')
+      component: () => import('../components/jobs/ManageJobView.vue'),
+      meta: { noindex: true }
     },
     {
       path: '/about',
@@ -57,8 +59,7 @@ export const routes = [
     {
       path: '/privacy',
       name: 'Privacy',
-      component: () => import('../views/PlaceholderView.vue'),
-      props: { title: 'Privacy Policy', content: 'Our privacy policy.' },
+      component: () => import('../views/PrivacyView.vue'),
       meta: {
         title: 'Privacy Policy',
         description: 'How IndyHackers collects, uses, and protects your data.'
@@ -67,8 +68,7 @@ export const routes = [
     {
       path: '/terms',
       name: 'Terms',
-      component: () => import('../views/PlaceholderView.vue'),
-      props: { title: 'Terms of Service', content: 'Our terms of service.' },
+      component: () => import('../views/TermsView.vue'),
       meta: {
         title: 'Terms of Service',
         description: 'The terms of service for using the IndyHackers website and community.'
@@ -77,16 +77,30 @@ export const routes = [
     {
       path: '/support',
       name: 'Support',
-      component: () => import('../views/PlaceholderView.vue'),
-      props: { title: 'Support', content: 'Get support.' },
+      component: () => import('../views/SupportView.vue'),
       meta: {
         title: 'Support',
         description: 'Get help with the IndyHackers website, events, job board, and Slack.'
       }
     },
-    { path: '/admin', name: 'Admin', component: () => import('../components/AdminLogin.vue') },
-    { path: '/login', name: 'Login', component: () => import('../components/LoginPage.vue') },
-    { path: '/signup', name: 'Signup', component: () => import('../components/SignupPage.vue') },
+    {
+      path: '/admin',
+      name: 'Admin',
+      component: () => import('../components/AdminLogin.vue'),
+      meta: { noindex: true }
+    },
+    {
+      path: '/login',
+      name: 'Login',
+      component: () => import('../components/LoginPage.vue'),
+      meta: { noindex: true }
+    },
+    {
+      path: '/signup',
+      name: 'Signup',
+      component: () => import('../components/SignupPage.vue'),
+      meta: { noindex: true }
+    },
     {
       path: '/sponsors',
       name: 'Sponsors',
@@ -131,7 +145,8 @@ export const routes = [
     {
       path: '/events-markdown',
       name: 'EventsMarkdown',
-      component: () => import('../components/EventsMarkdown.vue')
+      component: () => import('../components/EventsMarkdown.vue'),
+      meta: { noindex: true }
     },
     {
       path: '/code-of-conduct',

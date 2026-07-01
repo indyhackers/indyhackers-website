@@ -38,22 +38,28 @@ export default {
     const title = pageTitle(meta.title)
     const description = meta.description || DEFAULT_DESCRIPTION
     const url = canonicalUrl(this.$route.path)
+    const metaTags = [
+      { name: 'description', content: description },
+      { property: 'og:type', content: 'website' },
+      { property: 'og:site_name', content: SITE_NAME },
+      { property: 'og:title', content: title },
+      { property: 'og:description', content: description },
+      { property: 'og:url', content: url },
+      { property: 'og:image', content: DEFAULT_OG_IMAGE },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: title },
+      { name: 'twitter:description', content: description },
+      { name: 'twitter:image', content: DEFAULT_OG_IMAGE }
+    ]
+    // Keep auth/admin/utility pages out of the index (belt-and-suspenders with
+    // robots.txt, which blocks crawling of the same paths).
+    if (meta.noindex) {
+      metaTags.push({ name: 'robots', content: 'noindex, nofollow' })
+    }
     return {
       title,
       link: [{ rel: 'canonical', href: url }],
-      meta: [
-        { name: 'description', content: description },
-        { property: 'og:type', content: 'website' },
-        { property: 'og:site_name', content: SITE_NAME },
-        { property: 'og:title', content: title },
-        { property: 'og:description', content: description },
-        { property: 'og:url', content: url },
-        { property: 'og:image', content: DEFAULT_OG_IMAGE },
-        { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: title },
-        { name: 'twitter:description', content: description },
-        { name: 'twitter:image', content: DEFAULT_OG_IMAGE }
-      ],
+      meta: metaTags,
       // Site-wide Organization structured data.
       script: [jsonLd(ORGANIZATION_SCHEMA, 'ld-organization')]
     }

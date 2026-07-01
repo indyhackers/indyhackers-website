@@ -15,7 +15,9 @@ RUN wget https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSIO
 
 # --------
 
-FROM node:21 as vue-builder
+# Node 22+ is required: the vite-ssg build pulls in a jsdom dependency
+# (@exodus/bytes) that is ESM-only and cannot be require()'d on Node 21.
+FROM node:24 as vue-builder
 
 WORKDIR /app/ui
 

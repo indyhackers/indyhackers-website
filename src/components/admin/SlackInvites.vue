@@ -82,6 +82,24 @@
             </div>
           </dl>
 
+          <div v-if="inv.signals" class="slack-admin__signals">
+            <p class="slack-admin__signals-title">Auto-approval signals</p>
+            <dl class="slack-admin__meta">
+              <div>
+                <dt>US visitor</dt>
+                <dd>{{ yesNo(inv.signals.is_us) }}</dd>
+              </div>
+              <div>
+                <dt>reCAPTCHA</dt>
+                <dd>{{ captchaLabel(inv) }}</dd>
+              </div>
+              <div>
+                <dt>Disposable email</dt>
+                <dd>{{ yesNo(inv.signals.disposable) }}</dd>
+              </div>
+            </dl>
+          </div>
+
           <div v-if="inv.indiana_connection" class="slack-admin__connection">
             <dt>Connection to Indiana</dt>
             <p>{{ inv.indiana_connection }}</p>
@@ -122,6 +140,20 @@ const formatDate = (d) => {
 }
 
 const fullName = (inv) => [inv.first_name, inv.last_name].filter(Boolean).join(' ') || '(no name given)'
+
+const yesNo = (v) => (v ? 'Yes' : 'No')
+
+// The reCAPTCHA signal: numeric v3 score vs. threshold when available, falling
+// back to the stored pass/fail for older rows that predate score capture.
+const captchaLabel = (inv) => {
+  const s = inv.signals || {}
+  if (s.captcha_ok === 'not_configured') return 'not configured'
+  if (typeof s.captcha_score === 'number') {
+    const min = typeof s.captcha_min_score === 'number' ? ` (min ${s.captcha_min_score})` : ''
+    return `${s.captcha_score}${min} — ${s.captcha_ok ? 'pass' : 'below threshold'}`
+  }
+  return s.captcha_ok ? 'pass' : 'fail'
+}
 
 // Links are stored as free text, so a user may omit the scheme.
 const normalizeUrl = (u) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
@@ -298,6 +330,23 @@ onMounted(load)
   font-size: 0.9375rem;
   color: var(--text-primary);
   overflow-wrap: anywhere;
+}
+
+.slack-admin__signals {
+  margin-top: 1.25rem;
+}
+
+.slack-admin__signals-title {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.slack-admin__signals .slack-admin__meta {
+  margin: 0;
 }
 
 .slack-admin__maplink {

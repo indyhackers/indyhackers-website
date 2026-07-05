@@ -1,9 +1,19 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 onRecordEnrich((e) => {
-    // hide name and email fields
-    e.record.hide('name', 'email')
+    // hide submitter contact info and the manage token
+    e.record.hide('name', 'email', 'edit_token')
 
+    e.next()
+}, "jobs")
+
+// Generate the unguessable manage token server-side before the record is
+// persisted, so the (account-less) submitter can later edit / take down their
+// own post without anyone being able to forge the link.
+onRecordCreate((e) => {
+    if (!e.record.getString("edit_token")) {
+        e.record.set("edit_token", $security.randomString(40))
+    }
     e.next()
 }, "jobs")
 
@@ -17,6 +27,188 @@ onRecordUpdate((e) => {
     } else if (wasApproved && !isApproved) {
         // approved flipped back to false — clear the timestamp
         e.record.set("approved_at", "")
+    }
+
+    e.next()
+}, "jobs")
+
+// Notify the board moderators when a new job is submitted (so it can be
+// reviewed/approved). Fires only after the record is successfully persisted.
+// Sends an email (recipient from JOB_NOTIFY_EMAIL, falling back to the
+// configured sender) and, if SLACK_WEBHOOK_URL is set, posts to Slack. Each
+// channel is independent and best-effort: a failure in one never blocks the
+// other or job creation.
+onRecordAfterCreateSuccess((e) => {
+    const r = e.record
+
+    const status = r.getBool("approved") ? "approved" : "pending approval"
+    const name = r.getString("name") || "—"
+    const email = r.getString("email") || "—"
+    const fmtSalary = (n) => (n ? "$" + n + "k" : "—")
+    const salary =
+        r.getInt("salary_min") || r.getInt("salary_max")
+            ? fmtSalary(r.getInt("salary_min")) + " – " + fmtSalary(r.getInt("salary_max"))
+            : "Not specified"
+
+    // --- Email ---
+    try {
+        const settings = $app.settings()
+        const recipient = $os.getenv("JOB_NOTIFY_EMAIL") || settings.meta.senderAddress
+        if (recipient) {
+            // Escape submitter-controlled values before interpolating into the
+            // email HTML so a job submission can't inject markup.
+            const esc = (v) =>
+                String(v == null ? "" : v)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;")
+
+            const message = new MailerMessage({
+                from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
+                to: [{ address: recipient }],
+                subject: "New job submitted: " + r.getString("title"),
+                html:
+                    "<h2>A new job was submitted to the board</h2>" +
+                    "<p><strong>" + esc(r.getString("title")) + "</strong> at <strong>" + esc(r.getString("company")) + "</strong></p>" +
+                    "<ul>" +
+                    "<li>Salary: " + salary + "</li>" +
+                    "<li>Submitted by: " + esc(name) + " (" + esc(email) + ")</li>" +
+                    "<li>Status: " + status + "</li>" +
+                    "</ul>" +
+                    (r.getString("description") ? "<p>" + esc(r.getString("description")) + "</p>" : "") +
+                    "<p>Review it in the admin to approve.</p>"
+            })
+
+            $app.newMailClient().send(message)
+            console.log("[jobs] new-job email sent to " + recipient)
+        } else {
+            console.warn("[jobs] no JOB_NOTIFY_EMAIL or sender address set; skipping email")
+        }
+    } catch (err) {
+        console.error("[jobs] new-job email failed: " + err)
+    }
+
+    // --- Slack ---
+    try {
+        const webhook = $os.getenv("SLACK_WEBHOOK_URL")
+        if (webhook) {
+            // Slack mrkdwn reserves &, <, > — escape them in submitted text.
+            const slackEsc = (v) =>
+                String(v == null ? "" : v)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+
+            const text =
+                ":briefcase: *New job submitted to the board*\n" +
+                "*" + slackEsc(r.getString("title")) + "* at *" + slackEsc(r.getString("company")) + "*\n" +
+                "Salary: " + salary + "\n" +
+                "Submitted by: " + slackEsc(name) + " (" + slackEsc(email) + ")\n" +
+                "Status: " + status + "\n" +
+                "Review it in the admin to approve."
+
+            const res = $http.send({
+                url: webhook,
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: text }),
+                timeout: 15
+            })
+
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+                console.log("[jobs] new-job Slack notification posted")
+            } else {
+                console.error("[jobs] Slack webhook returned " + res.statusCode + ": " + res.raw)
+            }
+        }
+    } catch (err) {
+        console.error("[jobs] new-job Slack notification failed: " + err)
+    }
+
+    // --- Submitter confirmation ---
+    // Let the person who posted the job know we received it. Best-effort: a
+    // failure here must never block job creation.
+    try {
+        const settings = $app.settings()
+        const submitter = r.getString("email")
+        if (submitter) {
+            const esc = (v) =>
+                String(v == null ? "" : v)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;")
+
+            const message = new MailerMessage({
+                from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
+                to: [{ address: submitter }],
+                subject: "We received your job post: " + r.getString("title"),
+                html:
+                    "<h2>Thanks for posting to the IndyHackers job board!</h2>" +
+                    "<p>We received your submission for <strong>" + esc(r.getString("title")) +
+                    "</strong> at <strong>" + esc(r.getString("company")) + "</strong>.</p>" +
+                    "<p>A moderator will review it shortly. You'll get another email with a " +
+                    "management link once it's approved and live on the board.</p>"
+            })
+
+            $app.newMailClient().send(message)
+            console.log("[jobs] submitter confirmation sent to " + submitter)
+        }
+    } catch (err) {
+        console.error("[jobs] submitter confirmation failed: " + err)
+    }
+
+    e.next()
+}, "jobs")
+
+// When a moderator approves a job (approved flips false -> true), email the
+// submitter that it's live and give them a self-service link to edit the post
+// or mark it as filled. A plain edit keeps approved=true, so it won't re-fire.
+onRecordAfterUpdateSuccess((e) => {
+    const r = e.record
+
+    try {
+        const wasApproved = r.original().getBool("approved")
+        const isApproved = r.getBool("approved")
+        const submitter = r.getString("email")
+
+        if (!wasApproved && isApproved && submitter) {
+            const settings = $app.settings()
+            const esc = (v) =>
+                String(v == null ? "" : v)
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;")
+
+            const base = ($os.getenv("SITE_URL") || settings.meta.appURL || "").replace(/\/+$/, "")
+            const manageUrl = base + "/jobs/manage?token=" + r.getString("edit_token")
+
+            const message = new MailerMessage({
+                from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
+                to: [{ address: submitter }],
+                subject: "Your job post is live: " + r.getString("title"),
+                html:
+                    "<h2>Your job post is now live!</h2>" +
+                    "<p><strong>" + esc(r.getString("title")) + "</strong> at <strong>" +
+                    esc(r.getString("company")) + "</strong> has been approved and is now on the " +
+                    "IndyHackers job board.</p>" +
+                    "<p>Need to make a change, or has the role been filled? Use your private " +
+                    "management link to edit the post or take it down:</p>" +
+                    '<p><a href="' + manageUrl + '">' + manageUrl + "</a></p>" +
+                    "<p>Keep this email — anyone with that link can manage the post.</p>"
+            })
+
+            $app.newMailClient().send(message)
+            console.log("[jobs] approval email sent to " + submitter)
+        }
+    } catch (err) {
+        // Never let a notification failure block the approval.
+        console.error("[jobs] approval email failed: " + err)
     }
 
     e.next()

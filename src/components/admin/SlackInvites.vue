@@ -57,6 +57,21 @@
               <dt>IP</dt>
               <dd>{{ inv.ip || '—' }}</dd>
             </div>
+            <div v-if="geoText(inv)">
+              <dt>Approx. location (IP)</dt>
+              <dd>
+                {{ geoText(inv) }}
+                <a
+                  v-if="mapUrl(inv)"
+                  :href="mapUrl(inv)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="slack-admin__maplink"
+                >
+                  map ↗
+                </a>
+              </dd>
+            </div>
             <div>
               <dt>Code of conduct</dt>
               <dd>{{ inv.coc_agreed ? '✓ agreed' : '⚠ not agreed' }}</dd>
@@ -106,6 +121,21 @@ const fullName = (inv) => [inv.first_name, inv.last_name].filter(Boolean).join('
 
 // Links are stored as free text, so a user may omit the scheme.
 const normalizeUrl = (u) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
+
+// Approximate IP geolocation captured from Cloudflare headers, stashed under
+// signals.geo. Empty unless Cloudflare's visitor-location headers are enabled.
+const geoText = (inv) => {
+  const g = inv.signals?.geo || {}
+  const parts = [g.city, g.region].filter(Boolean)
+  if (!parts.length) return ''
+  return inv.country ? `${parts.join(', ')} · ${inv.country}` : parts.join(', ')
+}
+
+const mapUrl = (inv) => {
+  const g = inv.signals?.geo || {}
+  if (!g.lat || !g.lon) return ''
+  return `https://www.google.com/maps?q=${encodeURIComponent(g.lat)},${encodeURIComponent(g.lon)}`
+}
 
 const load = async () => {
   loading.value = true
@@ -234,6 +264,14 @@ onMounted(load)
   margin: 0;
   font-size: 0.9375rem;
   color: var(--text-primary);
+}
+
+.slack-admin__maplink {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-deep);
+  margin-left: 0.35rem;
+  white-space: nowrap;
 }
 
 .slack-admin__connection {

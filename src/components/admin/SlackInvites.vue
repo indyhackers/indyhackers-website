@@ -8,6 +8,21 @@
         or reject to drop it.
       </p>
 
+      <div
+        v-if="autoApprove !== null"
+        class="slack-admin__mode"
+        :class="autoApprove ? 'slack-admin__mode--on' : 'slack-admin__mode--off'"
+      >
+        <template v-if="autoApprove">
+          🟢 Auto-approval is <strong>ON</strong> — low-risk requests (US visitor + reCAPTCHA
+          pass) are invited automatically, so only requests that need a human land here.
+        </template>
+        <template v-else>
+          🔴 Auto-approval is <strong>OFF</strong> — every invite request is queued here for
+          manual review.
+        </template>
+      </div>
+
       <div v-if="authError" class="slack-admin__notice">
         You need to be signed in as a board admin to review invites.
         <RouterLink to="/login">Log in</RouterLink>.
@@ -82,6 +97,24 @@
             </div>
           </dl>
 
+          <div v-if="inv.signals" class="slack-admin__signals">
+            <p class="slack-admin__signals-title">Auto-approval signals</p>
+            <dl class="slack-admin__meta">
+              <div>
+                <dt>US visitor</dt>
+                <dd>{{ yesNo(inv.signals.is_us) }}</dd>
+              </div>
+              <div>
+                <dt>reCAPTCHA</dt>
+                <dd>{{ captchaLabel(inv) }}</dd>
+              </div>
+              <div>
+                <dt>Disposable email</dt>
+                <dd>{{ yesNo(inv.signals.disposable) }}</dd>
+              </div>
+            </dl>
+          </div>
+
           <div v-if="inv.indiana_connection" class="slack-admin__connection">
             <dt>Connection to Indiana</dt>
             <p>{{ inv.indiana_connection }}</p>
@@ -114,6 +147,7 @@ const loading = ref(true)
 const authError = ref(false)
 const busyId = ref(null)
 const message = ref('')
+const autoApprove = ref(null) // null until /api/slack/config resolves
 
 const formatDate = (d) => {
   if (!d) return '—'
@@ -122,6 +156,20 @@ const formatDate = (d) => {
 }
 
 const fullName = (inv) => [inv.first_name, inv.last_name].filter(Boolean).join(' ') || '(no name given)'
+
+const yesNo = (v) => (v ? 'Yes' : 'No')
+
+// The reCAPTCHA signal: numeric v3 score vs. threshold when available, falling
+// back to the stored pass/fail for older rows that predate score capture.
+const captchaLabel = (inv) => {
+  const s = inv.signals || {}
+  if (s.captcha_ok === 'not_configured') return 'not configured'
+  if (typeof s.captcha_score === 'number') {
+    const min = typeof s.captcha_min_score === 'number' ? ` (min ${s.captcha_min_score})` : ''
+    return `${s.captcha_score}${min} — ${s.captcha_ok ? 'pass' : 'below threshold'}`
+  }
+  return s.captcha_ok ? 'pass' : 'fail'
+}
 
 // Links are stored as free text, so a user may omit the scheme.
 const normalizeUrl = (u) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
@@ -161,6 +209,17 @@ const mapUrl = (inv) => {
   const g = inv.signals?.geo || {}
   if (!g.lat || !g.lon) return ''
   return `https://www.google.com/maps?q=${encodeURIComponent(g.lat)},${encodeURIComponent(g.lon)}`
+}
+
+const loadConfig = async () => {
+  try {
+    const res = await fetch('/api/slack/config')
+    if (!res.ok) return
+    const cfg = await res.json()
+    if (typeof cfg.autoApprove === 'boolean') autoApprove.value = cfg.autoApprove
+  } catch {
+    // Non-fatal: the mode banner just stays hidden.
+  }
 }
 
 const load = async () => {
@@ -203,7 +262,10 @@ const decide = async (inv, status) => {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  loadConfig()
+  load()
+})
 </script>
 
 <style scoped>
@@ -221,6 +283,25 @@ onMounted(load)
   max-width: 40rem;
   line-height: 1.7;
   margin-bottom: 2rem;
+}
+
+.slack-admin__mode {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.slack-admin__mode--on {
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+}
+
+.slack-admin__mode--off {
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
 }
 
 .slack-admin__notice {
@@ -298,6 +379,23 @@ onMounted(load)
   font-size: 0.9375rem;
   color: var(--text-primary);
   overflow-wrap: anywhere;
+}
+
+.slack-admin__signals {
+  margin-top: 1.25rem;
+}
+
+.slack-admin__signals-title {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.slack-admin__signals .slack-admin__meta {
+  margin: 0;
 }
 
 .slack-admin__maplink {

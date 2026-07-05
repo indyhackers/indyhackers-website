@@ -32,6 +32,17 @@ const continentName = (code) => CONTINENTS[String(code || "").toUpperCase()] || 
 // Profile links are stored as free text, so a user may omit the scheme.
 const normalizeUrl = (u) => (/^https?:\/\//i.test(u) ? u : "https://" + u)
 
+// Human-readable reCAPTCHA signal from the stored signals object: the numeric
+// v3 score vs. threshold when captured, else the stored pass/fail.
+const captchaSignalLabel = (signals) => {
+    if (!signals || signals.captcha_ok === "not_configured") return "not configured"
+    if (typeof signals.captcha_score === "number") {
+        const min = typeof signals.captcha_min_score === "number" ? " (min " + signals.captcha_min_score + ")" : ""
+        return signals.captcha_score + min + " — " + (signals.captcha_ok ? "pass" : "below threshold")
+    }
+    return signals.captcha_ok ? "pass" : "fail"
+}
+
 // Sends the Slack invite for an approved record and stamps invited_at (or
 // records the error). Guarded by invited_at so it never double-sends.
 function sendSlackInvite(record) {
@@ -99,14 +110,17 @@ function notifyBoard(record) {
     const github = record.getString("github")
     const cocAgreed = record.getBool("coc_agreed")
 
-    // Approximate IP geolocation (Cloudflare headers) stashed under signals.geo.
-    let geo = {}
+    // Stored risk signals used for the auto-approval decision (geo lives here too).
+    let signals = {}
     try {
-        const s = record.get("signals")
-        geo = (s && s.geo) || {}
+        signals = record.get("signals") || {}
     } catch (_) {
-        geo = {}
+        signals = {}
     }
+    const geo = signals.geo || {}
+    const usVisitor = signals.is_us ? "Yes" : "No"
+    const disposable = signals.disposable ? "Yes" : "No"
+    const captcha = captchaSignalLabel(signals)
     const hasGeo = !!(geo.city || geo.region || geo.continent || (geo.lat && geo.lon))
     const approxLocation = hasGeo
         ? [
@@ -156,6 +170,9 @@ function notifyBoard(record) {
             html += linkRow("LinkedIn", linkedin)
             html += linkRow("GitHub", github)
             html += row("Code of conduct", cocAgreed ? "agreed" : "not agreed")
+            html += row("US visitor (auto-approval)", usVisitor)
+            html += row("reCAPTCHA", captcha)
+            html += row("Disposable email", disposable)
             html += "</ul>"
             if (connection) {
                 html += "<p><strong>Connection to Indiana:</strong><br>" + esc(connection) + "</p>"
@@ -198,6 +215,9 @@ function notifyBoard(record) {
                 linkLine("LinkedIn", linkedin),
                 linkLine("GitHub", github),
                 line("Code of conduct", cocAgreed ? "agreed" : "not agreed"),
+                line("US visitor (auto-approval)", usVisitor),
+                line("reCAPTCHA", captcha),
+                line("Disposable email", disposable),
                 adminUrl
                     ? "Review it: <" + adminUrl + "|Slack invites admin>"
                     : "Approve or reject it on the Slack invites admin screen.",

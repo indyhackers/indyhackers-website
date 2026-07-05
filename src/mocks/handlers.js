@@ -179,8 +179,8 @@ const mockCalendarEvents = {
 // In-memory Slack invite queue for dev (seeded with a couple of pending rows).
 const mockDisposable = ['mailinator.com', 'guerrillamail.com', '10minutemail.com', 'yopmail.com']
 const mockSlackInvites = [
-  { id: 'inv1', email: 'newdev@gmail.com', status: 'pending', country: 'US', ip: '73.12.44.8', created: '2026-06-15T01:10:00Z', first_name: 'Jordan', last_name: 'Lee', indiana_connection: 'Grew up in Bloomington, now building a startup in Indy.', city_region: 'Indianapolis, IN', linkedin: 'https://linkedin.com/in/jordanlee', github: 'https://github.com/jlee', coc_agreed: true, signals: { geo: { city: 'Indianapolis', region: 'Indiana', continent: 'NA', postal: '46204', lat: '39.7684', lon: '-86.1581' } } },
-  { id: 'inv2', email: 'visitor@example.org', status: 'pending', country: 'CA', ip: '24.55.1.9', created: '2026-06-15T01:35:00Z', first_name: 'Sam', last_name: 'Rivera', indiana_connection: 'Relocating to Fort Wayne next month for a new role.', city_region: 'Fort Wayne, IN', linkedin: '', github: 'github.com/srivera', coc_agreed: true, signals: { geo: { city: 'Toronto', region: 'Ontario', continent: 'NA', postal: 'M5H', lat: '43.6532', lon: '-79.3832' } } }
+  { id: 'inv1', email: 'newdev@gmail.com', status: 'pending', country: 'US', ip: '73.12.44.8', created: '2026-06-15T01:10:00Z', first_name: 'Jordan', last_name: 'Lee', indiana_connection: 'Grew up in Bloomington, now building a startup in Indy.', city_region: 'Indianapolis, IN', linkedin: 'https://linkedin.com/in/jordanlee', github: 'https://github.com/jlee', coc_agreed: true, signals: { country: 'US', is_us: true, disposable: false, captcha_ok: true, captcha_score: 0.9, captcha_min_score: 0.5, geo: { city: 'Indianapolis', region: 'Indiana', continent: 'NA', postal: '46204', lat: '39.7684', lon: '-86.1581' } } },
+  { id: 'inv2', email: 'visitor@example.org', status: 'pending', country: 'CA', ip: '24.55.1.9', created: '2026-06-15T01:35:00Z', first_name: 'Sam', last_name: 'Rivera', indiana_connection: 'Relocating to Fort Wayne next month for a new role.', city_region: 'Fort Wayne, IN', linkedin: '', github: 'github.com/srivera', coc_agreed: true, signals: { country: 'CA', is_us: false, disposable: false, captcha_ok: false, captcha_score: 0.3, captcha_min_score: 0.5, geo: { city: 'Toronto', region: 'Ontario', continent: 'NA', postal: 'M5H', lat: '43.6532', lon: '-79.3832' } } }
 ]
 
 // Pending (unapproved) jobs for the job-approval admin screen in dev.
@@ -211,7 +211,7 @@ export const handlers = [
   // auto-approved — they land in the pending queue, so you can exercise the
   // admin screen at /admin/slack-invites.
   http.get('/api/slack/config', () => {
-    return HttpResponse.json({ org: 'indyhackers', siteKey: '' })
+    return HttpResponse.json({ org: 'indyhackers', siteKey: '', autoApprove: true })
   }),
   http.post('/api/slack/invite', async ({ request }) => {
     const body = await request.json().catch(() => ({}))

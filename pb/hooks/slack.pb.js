@@ -40,6 +40,9 @@ routerAdd("GET", "/api/slack/config", (e) => {
     return e.json(200, {
         org: $os.getenv("SLACK_SUBDOMAIN") || "",
         siteKey: $os.getenv("RECAPTCHA_SITE_KEY") || "",
+        // Whether low-risk requests are auto-invited (default on; only "off"
+        // disables). Surfaced so the admin queue can show the current mode.
+        autoApprove: String($os.getenv("SLACK_AUTOAPPROVE") || "").toLowerCase() !== "off",
     })
 })
 
@@ -159,6 +162,8 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     // fast path and falls to the human review queue below.
     const secret = $os.getenv("RECAPTCHA_SECRET")
     let captchaOk = false
+    let captchaScore = null
+    let captchaMinScore = null
     if (secret) {
         if (!captchaResponse) {
             throw new BadRequestError("Captcha check failed. Please try again.")
@@ -181,8 +186,9 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         // v3 always returns a score; v2 tokens (no score) still pass here so a
         // key swap doesn't hard-break. Low score → not "ok" → review queue.
         const rawMin = parseFloat($os.getenv("RECAPTCHA_MIN_SCORE"))
-        const minScore = isNaN(rawMin) ? 0.5 : rawMin
-        captchaOk = typeof result.score !== "number" || result.score >= minScore
+        captchaMinScore = isNaN(rawMin) ? 0.5 : rawMin
+        captchaScore = typeof result.score === "number" ? result.score : null
+        captchaOk = captchaScore === null || captchaScore >= captchaMinScore
     }
 
     // Risk signals → auto-approve decision. Auto-approve only low-risk requests;
@@ -193,6 +199,8 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         is_us: country === "US",
         disposable: false,
         captcha_ok: secret ? captchaOk : "not_configured",
+        captcha_score: secret ? captchaScore : null,
+        captcha_min_score: secret ? captchaMinScore : null,
         geo,
     }
     const autoApprove =

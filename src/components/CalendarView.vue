@@ -23,6 +23,8 @@
             href="webcal://calendar.google.com/calendar/ical/ig7e0j6v8ub9q6kga256n77048%40group.calendar.google.com/public/basic.ics"
           >Subscribe to Calendar</a>
         </div>
+
+        <EventAlertsSignup :topics="topics" />
       </aside>
 
       <!-- Main -->
@@ -75,6 +77,7 @@ import { ref, computed, onMounted } from 'vue'
 import TopicFilters from './events/TopicFilters.vue'
 import CalendarGrid from './events/CalendarGrid.vue'
 import EventList from './events/EventList.vue'
+import EventAlertsSignup from './events/EventAlertsSignup.vue'
 import {
   useEvents,
   filterEvents,

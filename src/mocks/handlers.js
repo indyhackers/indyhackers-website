@@ -240,6 +240,26 @@ export const handlers = [
       msg: 'Thanks! Your request is in. A board member will approve it shortly. (dev mock)'
     })
   }),
+  // Topic-based event alert signup on the Calendar page. No real confirm
+  // email in dev — just pretend the double opt-in step succeeded.
+  http.post('/api/event-alerts/subscribe', async ({ request }) => {
+    const body = await request.json().catch(() => ({}))
+    const email = (body.email || '').toLowerCase()
+    if (body.website) {
+      return HttpResponse.json({ ok: true, pending: true, msg: 'Thanks! Check your email to confirm.' })
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return HttpResponse.json({ message: 'Please enter a valid email address.' }, { status: 400 })
+    }
+    if (!Array.isArray(body.topics) || body.topics.length === 0) {
+      return HttpResponse.json({ message: 'Please select at least one topic.' }, { status: 400 })
+    }
+    return HttpResponse.json({
+      ok: true,
+      pending: true,
+      msg: 'Thanks! Check your email to confirm. (dev mock)'
+    })
+  }),
   // Admin queue, served by the generic collection handlers below in production;
   // mocked here so the screen works without a backend.
   http.get('/api/collections/slack_invites/records', () => {

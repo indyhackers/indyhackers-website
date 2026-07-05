@@ -84,6 +84,16 @@ export const routes = [
       }
     },
     {
+      path: '/resources',
+      name: 'Resources',
+      component: () => import('../views/ResourcesView.vue'),
+      meta: {
+        title: 'Slack Resources',
+        description:
+          "Information about our Slack such as channel info and more!"
+      }
+    },
+    {
       path: '/admin',
       name: 'Admin',
       component: () => import('../components/admin/AdminHome.vue'),
@@ -195,5 +205,5 @@ export const routes = [
         description:
           "Request an invite to the IndyHackers Slack — Indianapolis's community of developers, designers, and tech founders."
       }
-    }
+    },
   ]

@@ -14,7 +14,7 @@
     - [x] Code — `VITE_USE_MSW` gate in `main.js`, Vite proxy `/api` + `/_` → `:8090`, `npm run dev:backend`, `.env.example`
     - [x] CONTRIBUTING — backend work pointer; interim note that tests still use MSW (no Docker in CI yet)
     - [x] CLAUDE.md — Linux vs arm64 docker-compose, three dev modes, link to README backend section
-    - [ ] **Follow-up issue** (separate from #73): containerized PocketBase test fixture for CI — ephemeral Docker + `apply-mocks`, replace MSW in Playwright smoke. Create on [#community-projects Website Project Board](https://github.com/orgs/indyhackers/projects/2) and link from CONTRIBUTING Known gaps
+    - [ ] **Follow-up issue:** [#87 — Add containerized PocketBase test fixture for CI](https://github.com/indyhackers/indyhackers-website/issues/87) (ephemeral Docker + `apply-mocks`, replace MSW in Playwright smoke; on [#community-projects Website Project Board](https://github.com/orgs/indyhackers/projects/2))
 
 # Cursor Changes
 

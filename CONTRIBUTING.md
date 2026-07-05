@@ -27,7 +27,7 @@ We use two complementary tools: **Vitest** for fast unit and component tests, **
 
 Commands: [README.md — Vitest](README.md#run-tests-with-vitest) and [Playwright](README.md#run-end-to-end-tests-with-playwright). CI on pull requests: [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) runs Vitest and Playwright (Chromium smoke tests).
 
-Vitest and Playwright currently use MSW — no Docker or PocketBase container is required to run tests locally or in CI. Containerized PocketBase integration tests are tracked separately (see follow-up issue linked below once created).
+Vitest and Playwright currently use MSW — no Docker or PocketBase container is required to run tests locally or in CI. Containerized PocketBase integration tests are tracked in [#87](https://github.com/indyhackers/indyhackers-website/issues/87).
 
 ### Vitest — default for most tests
 
@@ -72,3 +72,4 @@ The current smoke suite ([`e2e/smoke.spec.js`](e2e/smoke.spec.js)) covers five p
 
 - Auth-flow e2e is deferred until MSW auth handlers exist; Vitest covers login/signup component behavior today.
 - Expanded Vitest coverage is tracked separately.
+- Containerized PocketBase test fixture for CI — [#87](https://github.com/indyhackers/indyhackers-website/issues/87)

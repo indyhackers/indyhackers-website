@@ -57,6 +57,25 @@
               <dt>IP</dt>
               <dd>{{ inv.ip || '—' }}</dd>
             </div>
+            <div v-if="geoText(inv)">
+              <dt>Approx. location (IP)</dt>
+              <dd>{{ geoText(inv) }}</dd>
+            </div>
+            <div v-if="geoCoords(inv)">
+              <dt>Coordinates</dt>
+              <dd>
+                {{ geoCoords(inv) }}
+                <a
+                  v-if="mapUrl(inv)"
+                  :href="mapUrl(inv)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="slack-admin__maplink"
+                >
+                  map ↗
+                </a>
+              </dd>
+            </div>
             <div>
               <dt>Code of conduct</dt>
               <dd>{{ inv.coc_agreed ? '✓ agreed' : '⚠ not agreed' }}</dd>
@@ -106,6 +125,43 @@ const fullName = (inv) => [inv.first_name, inv.last_name].filter(Boolean).join('
 
 // Links are stored as free text, so a user may omit the scheme.
 const normalizeUrl = (u) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
+
+// Approximate IP geolocation captured from Cloudflare headers, stashed under
+// signals.geo. Empty unless Cloudflare's visitor-location headers are enabled.
+const CONTINENTS = {
+  AF: 'Africa',
+  AN: 'Antarctica',
+  AS: 'Asia',
+  EU: 'Europe',
+  NA: 'North America',
+  OC: 'Oceania',
+  SA: 'South America'
+}
+const continentName = (code) => CONTINENTS[String(code || '').toUpperCase()] || code || ''
+
+const hasGeo = (inv) => {
+  const g = inv.signals?.geo || {}
+  return !!(g.city || g.region || g.continent || (g.lat && g.lon))
+}
+
+const geoText = (inv) => {
+  if (!hasGeo(inv)) return ''
+  const g = inv.signals?.geo || {}
+  const locality = [g.city, g.region].filter(Boolean).join(', ')
+  const wider = [continentName(g.continent), inv.country].filter(Boolean).join(' · ')
+  return [locality, wider].filter(Boolean).join(' · ')
+}
+
+const geoCoords = (inv) => {
+  const g = inv.signals?.geo || {}
+  return g.lat && g.lon ? `${g.lat}, ${g.lon}` : ''
+}
+
+const mapUrl = (inv) => {
+  const g = inv.signals?.geo || {}
+  if (!g.lat || !g.lon) return ''
+  return `https://www.google.com/maps?q=${encodeURIComponent(g.lat)},${encodeURIComponent(g.lon)}`
+}
 
 const load = async () => {
   loading.value = true
@@ -234,6 +290,14 @@ onMounted(load)
   margin: 0;
   font-size: 0.9375rem;
   color: var(--text-primary);
+}
+
+.slack-admin__maplink {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--accent-deep);
+  margin-left: 0.35rem;
+  white-space: nowrap;
 }
 
 .slack-admin__connection {

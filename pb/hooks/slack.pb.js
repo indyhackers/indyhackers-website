@@ -88,6 +88,19 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     const country = String(headers["cf-ipcountry"] || "").toUpperCase()
     const userAgent = String(headers["user_agent"] || headers["user-agent"] || "")
 
+    // Approximate IP geolocation from Cloudflare. These headers are only present
+    // when the "Add visitor location headers" managed transform is enabled in
+    // the Cloudflare dashboard (cf-ipcountry is always sent; the rest are not).
+    // All empty locally / off Cloudflare — the admin card just hides what's blank.
+    const geo = {
+        city: String(headers["cf-ipcity"] || ""),
+        region: String(headers["cf-region"] || ""),
+        continent: String(headers["cf-ipcontinent"] || ""),
+        postal: String(headers["cf-postal-code"] || ""),
+        lat: String(headers["cf-iplatitude"] || ""),
+        lon: String(headers["cf-iplongitude"] || ""),
+    }
+
     // Rate limit per IP.
     const perHour = parseInt($os.getenv("SLACK_RATE_PER_HOUR") || "5", 10)
     if (ip) {
@@ -172,6 +185,7 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         is_us: country === "US",
         disposable: false,
         captcha_ok: secret ? captchaOk : "not_configured",
+        geo,
     }
     const autoApprove =
         autoApproveEnabled && country === "US" && (!secret || captchaOk)

@@ -10,7 +10,7 @@ test.describe('Smoke', () => {
 
   test('login page loads', async ({ page }) => {
     await page.goto('/login')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Log in with')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Log in')
     await expect(page.locator('#email')).toBeVisible()
     await expect(page.locator('#password')).toBeVisible()
   })
@@ -32,5 +32,12 @@ test.describe('Smoke', () => {
     await expect(page.getByRole('searchbox', { name: 'Search events' })).toBeVisible()
     // Topic filters come from MSW (static seed data) — not tied to upcoming event dates.
     await expect(page.getByRole('button', { name: 'Python' })).toBeVisible()
+  })
+
+  test('slack page loads', async ({ page }) => {
+    await page.goto('/slack')
+    await expect(page.getByRole('heading', { level: 1, name: 'Join us on Slack' })).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Email address' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Send me an invite' })).toBeVisible()
   })
 })

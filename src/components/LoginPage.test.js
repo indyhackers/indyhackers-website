@@ -5,7 +5,7 @@ import LoginPage from './LoginPage.vue'
 describe('LoginPage', () => {
   it('renders properly', () => {
     const wrapper = mount(LoginPage)
-    expect(wrapper.find('h1').text()).toBe('Log in with')
+    expect(wrapper.find('h1').text()).toBe('Log in')
   })
 
   it('submits the form with correct data', async () => {

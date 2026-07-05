@@ -97,7 +97,7 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         if (existing) {
             const st = existing.getString("status")
             if (st === "approved") {
-                return e.json(200, { ok: true, msg: "You've already been invited — check your email." })
+                return e.json(200, { ok: true, msg: "You've already been invited — check your email for an invitation, or email admin@indyhackers.org if you need assistance." })
             }
             if (st === "pending") {
                 return e.json(200, {

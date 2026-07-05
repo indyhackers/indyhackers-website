@@ -167,6 +167,11 @@ export const routes = [
     },
     { path: '/events', redirect: '/calendar' },
     {
+      path: '/event/:id',
+      name: 'EventDetail',
+      component: () => import('../views/EventDetailView.vue')
+    },
+    {
       path: '/events-markdown',
       name: 'EventsMarkdown',
       component: () => import('../components/EventsMarkdown.vue'),

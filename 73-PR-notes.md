@@ -19,7 +19,25 @@
 - [x] added .example.env to readme
 
 ## CHANGELOG.md
-- [ ] Decide: Should we keep this? Remove it? How out of date is it?
+- [x] **Removed** — see rationale below (for PR description)
+
+### Rationale (for PR)
+
+**What we did:** Deleted `CHANGELOG.md`.
+
+**Why:**
+- The file was written once at project bootstrap (Oct 2024) and never maintained. It described WIP/planning state ("working on OmniController", "TBD") rather than shipped changes.
+- ~192 commits and dozens of merged PRs since then are undocumented (events/calendar, SEO, job emails, design refresh, PocketBase upgrades, etc.).
+- This repo is a continuously deployed website, not a published library: no semver, no git tags, no GitHub Releases, deployments keyed to commit SHA.
+- Nothing linked to the file (README, CI, CONTRIBUTING).
+- For a volunteer community project, a stale doc creates false expectations and maintenance debt with no clear consumer.
+
+**Where change history lives instead:**
+- Git history and merged PR descriptions
+- GitHub Issues and the [#community-projects Website Project Board](https://github.com/orgs/indyhackers/projects/2)
+- (Future) `CONTRIBUTING.md` will point contributors to those sources
+
+**If we need user-facing release notes later:** use GitHub Releases or Slack announcements tied to deploy milestones — not a hand-maintained dev changelog unless someone commits to owning it.
 
 ## CONTRIBUTING.md
 
@@ -59,7 +77,19 @@
 
 # Lint, etc.
 
-- [ ] Are there any existing lints, etc. setup? 
+- [x] Are there any existing lints, etc. setup?
+    - **Local only:** ESLint (`.eslintrc.cjs`) + Prettier (`.prettierrc.json`); `npm run lint` (with `--fix`) and `npm run format` (writes `src/` only). Documented in README.md and CLAUDE.md; VS Code recommends ESLint + Prettier extensions.
+    - **Not enforced:** no CI lint step, no git hooks, no mention in CONTRIBUTING.md.
+    - **Current violation count** (ESLint without `--fix`, same scope as `npm run lint`): **185 errors, 0 warnings**
+        - `pb/hooks/` + `pb/migrations/` (~172): false positives — PocketBase globals (`$app`, `routerAdd`, `migrate`, etc.) not declared to ESLint
+        - `scripts/` (7): `process` not defined in `lighthouse-*.mjs`
+        - `src/` (6): real frontend issues — unused components in `AuthPageLayout.vue` (4), unused var in `SponsorList.vue` (1), empty destructuring in `handlers.js` (1)
+- [ ] **Defer to a clean follow-up PR** — don't bundle with #73
+    - [ ] Exclude or add PocketBase globals for `pb/hooks/` and `pb/migrations/` (or separate ESLint config)
+    - [ ] Add `node` env for `scripts/` (or exclude)
+    - [ ] Fix the 6 `src/` violations
+    - [ ] Add `lint:ci` script (no `--fix`) and a CI job step
+    - [ ] Document lint/format in CONTRIBUTING.md
 
 # CI comms
 

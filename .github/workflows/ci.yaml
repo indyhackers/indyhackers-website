@@ -52,6 +52,16 @@ jobs:
       - name: Run Playwright smoke tests
         run: npm run test:e2e
 
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
   # Posts to #community-projects when a PR to dev passes CI — see .github/README.md
   notify-community-projects:
     if: >

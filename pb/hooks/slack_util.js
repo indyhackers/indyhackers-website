@@ -54,6 +54,48 @@ const timezoneLabel = (tz, sameAsIndy) => {
     return tz
 }
 
+// Cloudflare's cf-metro-code is the US-only Nielsen DMA (market) code. Curated
+// subset — Indiana markets and the major US metros; anything unlisted just keeps
+// showing the raw number.
+const DMA_NAMES = {
+    "527": "Indianapolis, IN",
+    "509": "Fort Wayne, IN",
+    "588": "South Bend–Elkhart, IN",
+    "649": "Evansville, IN",
+    "581": "Terre Haute, IN",
+    "582": "Lafayette, IN",
+    "529": "Louisville, KY",
+    "515": "Cincinnati, OH",
+    "602": "Chicago, IL",
+    "505": "Detroit, MI",
+    "535": "Columbus, OH",
+    "542": "Dayton, OH",
+    "510": "Cleveland–Akron, OH",
+    "617": "Milwaukee, WI",
+    "501": "New York, NY",
+    "803": "Los Angeles, CA",
+    "807": "San Francisco–Oakland–San Jose, CA",
+    "504": "Philadelphia, PA",
+    "506": "Boston, MA",
+    "511": "Washington, DC",
+    "618": "Houston, TX",
+    "623": "Dallas–Ft. Worth, TX",
+    "641": "San Antonio, TX",
+    "524": "Atlanta, GA",
+    "613": "Minneapolis–St. Paul, MN",
+    "819": "Seattle–Tacoma, WA",
+    "820": "Portland, OR",
+    "751": "Denver, CO",
+    "753": "Phoenix, AZ",
+    "862": "Sacramento–Stockton–Modesto, CA",
+    "528": "Miami–Ft. Lauderdale, FL",
+    "534": "Orlando, FL",
+    "539": "Tampa–St. Petersburg, FL",
+    "560": "Raleigh–Durham, NC",
+    "517": "Charlotte, NC",
+}
+const metroName = (code) => (code && DMA_NAMES[String(code)]) || ""
+
 // Human-readable reCAPTCHA signal from the stored signals object: the numeric
 // v3 score vs. threshold when captured, else the stored pass/fail.
 const captchaSignalLabel = (signals) => {
@@ -158,7 +200,9 @@ function notifyBoard(record) {
           ].filter(Boolean).join(" · ")
         : ""
     const postal = geo.postal || ""
-    const metroCode = geo.metro_code || ""
+    const metroCode = geo.metro_code
+        ? (geo.metro_name ? geo.metro_code + " — " + geo.metro_name : geo.metro_code)
+        : ""
     const coords = geo.lat && geo.lon ? geo.lat + ", " + geo.lon : ""
     const mapUrl = geo.lat && geo.lon
         ? "https://www.google.com/maps?q=" + encodeURIComponent(geo.lat) + "," + encodeURIComponent(geo.lon)
@@ -283,6 +327,7 @@ module.exports = {
     emailDomain,
     isDisposable,
     sameTimezoneAsIndy,
+    metroName,
     sendSlackInvite,
     notifyBoard,
 }

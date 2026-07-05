@@ -82,7 +82,10 @@
             </div>
             <div v-if="inv.signals?.geo?.metro_code">
               <dt>Metro code</dt>
-              <dd>{{ inv.signals.geo.metro_code }}</dd>
+              <dd>
+                {{ inv.signals.geo.metro_code
+                }}<span v-if="inv.signals.geo.metro_name"> — {{ inv.signals.geo.metro_name }}</span>
+              </dd>
             </div>
             <div v-if="geoCoords(inv)">
               <dt>Coordinates</dt>

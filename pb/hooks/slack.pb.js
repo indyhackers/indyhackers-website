@@ -116,6 +116,8 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     }
     // Whether the visitor shares Indianapolis's clock (US/Canada Eastern).
     geo.same_tz_as_indy = util.sameTimezoneAsIndy(geo.timezone)
+    // Resolve the Nielsen DMA (metro) code to a market name where known.
+    geo.metro_name = util.metroName(geo.metro_code)
 
     // Rate limit per IP.
     const perHour = parseInt($os.getenv("SLACK_RATE_PER_HOUR") || "5", 10)

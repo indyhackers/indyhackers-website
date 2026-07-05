@@ -50,6 +50,13 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     const email = String(body.email || "").trim().toLowerCase()
     const captchaResponse = String(body["g-recaptcha-response"] || "")
     const honeypot = String(body.website || "").trim()
+    const firstName = String(body.first_name || "").trim()
+    const lastName = String(body.last_name || "").trim()
+    const indianaConnection = String(body.indiana_connection || "").trim()
+    const cityRegion = String(body.city_region || "").trim()
+    const linkedin = String(body.linkedin || "").trim()
+    const github = String(body.github || "").trim()
+    const cocAgreed = body.coc_agreed === true || body.coc_agreed === "true"
 
     // Honeypot: real users never fill the hidden "website" field. Pretend it
     // worked so bots don't learn they were caught, but create nothing.
@@ -62,6 +69,18 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     }
     if (util.isDisposable(email)) {
         throw new BadRequestError("Please use a non-disposable email address.")
+    }
+    if (!firstName || !lastName) {
+        throw new BadRequestError("Please enter your first and last name.")
+    }
+    if (!indianaConnection) {
+        throw new BadRequestError("Please tell us your connection to Indiana.")
+    }
+    if (!cityRegion) {
+        throw new BadRequestError("Please enter the city or region you're based in.")
+    }
+    if (!cocAgreed) {
+        throw new BadRequestError("Please agree to the code of conduct to continue.")
     }
 
     const ip = e.realIP()
@@ -160,6 +179,13 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     const collection = $app.findCollectionByNameOrId("slack_invites")
     const record = new Record(collection)
     record.set("email", email)
+    record.set("first_name", firstName)
+    record.set("last_name", lastName)
+    record.set("indiana_connection", indianaConnection)
+    record.set("city_region", cityRegion)
+    record.set("linkedin", linkedin)
+    record.set("github", github)
+    record.set("coc_agreed", cocAgreed)
     record.set("status", autoApprove ? "approved" : "pending")
     record.set("auto", autoApprove)
     record.set("ip", ip)

@@ -179,8 +179,8 @@ const mockCalendarEvents = {
 // In-memory Slack invite queue for dev (seeded with a couple of pending rows).
 const mockDisposable = ['mailinator.com', 'guerrillamail.com', '10minutemail.com', 'yopmail.com']
 const mockSlackInvites = [
-  { id: 'inv1', email: 'newdev@gmail.com', status: 'pending', country: 'US', ip: '73.12.44.8', created: '2026-06-15T01:10:00Z' },
-  { id: 'inv2', email: 'visitor@example.org', status: 'pending', country: 'CA', ip: '24.55.1.9', created: '2026-06-15T01:35:00Z' }
+  { id: 'inv1', email: 'newdev@gmail.com', status: 'pending', country: 'US', ip: '73.12.44.8', created: '2026-06-15T01:10:00Z', first_name: 'Jordan', last_name: 'Lee', indiana_connection: 'Grew up in Bloomington, now building a startup in Indy.', city_region: 'Indianapolis, IN', linkedin: 'https://linkedin.com/in/jordanlee', github: 'https://github.com/jlee', coc_agreed: true },
+  { id: 'inv2', email: 'visitor@example.org', status: 'pending', country: 'CA', ip: '24.55.1.9', created: '2026-06-15T01:35:00Z', first_name: 'Sam', last_name: 'Rivera', indiana_connection: 'Relocating to Fort Wayne next month for a new role.', city_region: 'Fort Wayne, IN', linkedin: '', github: 'github.com/srivera', coc_agreed: true }
 ]
 
 // Pending (unapproved) jobs for the job-approval admin screen in dev.
@@ -232,7 +232,14 @@ export const handlers = [
       status: 'pending',
       country: '',
       ip: '127.0.0.1',
-      created: new Date().toISOString()
+      created: new Date().toISOString(),
+      first_name: body.first_name || '',
+      last_name: body.last_name || '',
+      indiana_connection: body.indiana_connection || '',
+      city_region: body.city_region || '',
+      linkedin: body.linkedin || '',
+      github: body.github || '',
+      coc_agreed: body.coc_agreed === true
     })
     return HttpResponse.json({
       ok: true,

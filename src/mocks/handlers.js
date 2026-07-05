@@ -1,6 +1,10 @@
 import { http, HttpResponse } from 'msw'
 
 import * as mocks from './mocks.json'
+import { eventMocks } from './eventMocks'
+
+// Resolve a collection from the events mock data first, then mocks.json.
+const collectionData = (name) => eventMocks[name] || mocks[name]
 
 const mockCalendarEvents = {
   items: [
@@ -207,20 +211,24 @@ export const handlers = [
   }),
   http.get('/api/collections/:collection/records', ({ params }) => {
     const { collection } = params
+    const items = collectionData(collection).items
 
     const paginated = {
       page: 1,
       perPage: 100,
-      totalItems: mocks[collection].items.length,
+      totalItems: items.length,
       totalPages: 1,
-      items: mocks[collection].items
+      items
     }
     return HttpResponse.json(paginated)
   }),
   http.get('/api/collections/:collection/records/:id', ({ params }) => {
     const { collection, id } = params
-    console.log('hi')
-    return HttpResponse.json(mocks[collection].items.find((el) => el.id === id))
+    const record = collectionData(collection).items.find((el) => el.id === id)
+    if (!record) {
+      return HttpResponse.json({ code: 404, message: 'Not found' }, { status: 404 })
+    }
+    return HttpResponse.json(record)
   }),
   http.post('/api/collections/:collection/records', async ({ params, request }) => {
     const { collection } = params
@@ -228,7 +236,7 @@ export const handlers = [
     let body = await request.text()
     let newRecord = JSON.parse(body)
 
-    mocks[collection].items.push(newRecord)
+    collectionData(collection).items.push(newRecord)
     return HttpResponse.json(newRecord)
   }),
   http.patch('/api/collections/:collection/records/:id', async ({ params, request }) => {
@@ -237,7 +245,7 @@ export const handlers = [
     let body = await request.text()
     let recordUpdate = JSON.parse(body)
 
-    let recordToUpdate = mocks[collection].items.find((el) => el.id === id)
+    let recordToUpdate = collectionData(collection).items.find((el) => el.id === id)
     //merge fields of recordUpdate and recordToUpdate
 
     if (recordToUpdate) {
@@ -245,13 +253,20 @@ export const handlers = [
       let updatedRecord = { ...recordToUpdate, ...recordUpdate }
 
       // Update the entry in mocks (assuming you want to save the updated record)
-      let recordIndex = mocks[collection].items.findIndex((el) => el.id === id)
-      mocks[collection].items[recordIndex] = updatedRecord
+      let recordIndex = collectionData(collection).items.findIndex((el) => el.id === id)
+      collectionData(collection).items[recordIndex] = updatedRecord
 
       return HttpResponse.json(updatedRecord)
     } else {
       return HttpResponse.json({ error: 'Record not found' }, { status: 404 })
     }
+  }),
+  http.delete('/api/collections/:collection/records/:id', ({ params }) => {
+    const { collection, id } = params
+    const items = collectionData(collection).items
+    const idx = items.findIndex((el) => el.id === id)
+    if (idx !== -1) items.splice(idx, 1)
+    return new HttpResponse(null, { status: 204 })
   }),
   http.get('/api/jobs/manage/:token', () => {
     return HttpResponse.json(manageJob)

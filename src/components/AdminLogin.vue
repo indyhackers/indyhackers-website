@@ -47,17 +47,12 @@ export default {
           throw new Error(errorData.error || 'Unknown error')
         }
 
-        const data = await response.json()
-
-        localStorage.setItem(
-          '__pb_superuser_auth__',
-          JSON.stringify({
-            token: data.token,
-            record: data.record
-          })
-        )
-
-        // Redirect to PocketBase admin console
+        // The promote endpoint ensures this user has a _superusers record so
+        // they can reach the console. We intentionally do NOT persist the
+        // returned superuser token in web storage: a superuser JWT sitting in
+        // localStorage is readable by any XSS on the page and would escalate
+        // straight to full backend compromise. (Nothing read this key anyway —
+        // PocketBase's admin console manages its own auth.) Hand off to /_/.
         window.location.href = '/_/'
       } catch (error) {
         errorMessage.value = error.message || 'Failed to promote user to admin'

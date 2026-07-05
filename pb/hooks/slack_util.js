@@ -335,7 +335,7 @@ function sendSlackInvite(record) {
 
 // Notifies the board about a pending request (email + optional Slack webhook),
 // reusing the same best-effort pattern as new-job notifications.
-function notifyBoard(record) {
+function notifyBoard(record, autoApproved) {
     // Everything the /admin/slack-invites review card shows, so a reviewer can
     // triage straight from the notification.
     const email = record.getString("email")
@@ -391,6 +391,15 @@ function notifyBoard(record) {
     const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
     const adminUrl = base ? base + "/admin/slack-invites" : ""
 
+    // Same notification either way; only the framing changes when the request
+    // was auto-approved (nothing to review — it's already been invited).
+    const heading = autoApproved ? "A Slack invite was auto-approved" : "A new Slack invite request needs review"
+    const subject = (autoApproved ? "Slack invite auto-approved: " : "Slack invite request pending: ") + email
+    const slackHeader = autoApproved
+        ? ":white_check_mark: *New Slack invite was auto-approved*"
+        : ":envelope_with_arrow: *New Slack invite request pending review*"
+    const ctaVerb = autoApproved ? "View it on" : "Approve or reject it on"
+
     try {
         const settings = $app.settings()
         const recipient =
@@ -412,7 +421,7 @@ function notifyBoard(record) {
                     ? '<li><strong>' + esc(label) + ':</strong> <a href="' + esc(normalizeUrl(url)) + '">' + esc(url) + "</a></li>"
                     : ""
 
-            let html = "<h2>A new Slack invite request needs review</h2><ul>"
+            let html = "<h2>" + heading + "</h2><ul>"
             html += row("Name", name)
             html += row("Email", email)
             html += row("Based in", cityRegion)
@@ -438,13 +447,13 @@ function notifyBoard(record) {
                 html += "<p><strong>Connection to Indiana:</strong><br>" + esc(connection) + "</p>"
             }
             html += adminUrl
-                ? '<p>Approve or reject it on the <a href="' + esc(adminUrl) + '">Slack invites admin screen</a>.</p>'
-                : "<p>Approve or reject it on the Slack invites admin screen.</p>"
+                ? "<p>" + ctaVerb + ' the <a href="' + esc(adminUrl) + '">Slack invites admin screen</a>.</p>'
+                : "<p>" + ctaVerb + " the Slack invites admin screen.</p>"
 
             const message = new MailerMessage({
                 from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
                 to: [{ address: recipient }],
-                subject: "Slack invite request pending: " + email,
+                subject: subject,
                 html: html,
             })
             $app.newMailClient().send(message)
@@ -464,7 +473,7 @@ function notifyBoard(record) {
                 url ? "*" + label + ":* <" + normalizeUrl(url) + "|" + slackEsc(url) + ">" : ""
 
             const lines = [
-                ":envelope_with_arrow: *New Slack invite request pending review*",
+                slackHeader,
                 line("Name", name),
                 line("Email", email),
                 line("Based in", cityRegion),
@@ -484,8 +493,8 @@ function notifyBoard(record) {
                 line("reCAPTCHA", captcha),
                 line("Disposable email", disposable),
                 adminUrl
-                    ? "Review it: <" + adminUrl + "|Slack invites admin>"
-                    : "Approve or reject it on the Slack invites admin screen.",
+                    ? (autoApproved ? "Invited automatically. View it: <" : "Review it: <") + adminUrl + "|Slack invites admin>"
+                    : ctaVerb + " the Slack invites admin screen.",
             ].filter(Boolean)
 
             const res = $http.send({

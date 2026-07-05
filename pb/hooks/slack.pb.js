@@ -271,9 +271,12 @@ onRecordAfterCreateSuccess((e) => {
     const util = require(`${__hooks}/slack_util.js`)
     const status = e.record.getString("status")
     if (status === "approved") {
+        // Auto-approved: send the invite, and notify the board too (same details,
+        // framed as auto-approved rather than pending review).
         util.sendSlackInvite(e.record)
+        util.notifyBoard(e.record, true)
     } else if (status === "pending") {
-        util.notifyBoard(e.record)
+        util.notifyBoard(e.record, false)
     }
     e.next()
 }, "slack_invites")

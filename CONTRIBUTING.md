@@ -7,9 +7,9 @@ Thanks for helping improve the site. This is a living document—update it when 
 1. Clone the repo.
     - No push access? Fork it on GitHub, then clone your fork.
 2. Follow [README.md](README.md) for install, env setup, and local dev.
-3. Branch from `dev` (ideally linked to a github issue)
+3. Branch from `dev` (ideally linked to a GitHub issue)
 4. Work locally until satisfied (don't forget tests!)
-5. Open a PR agains `dev`
+5. Open a PR against `dev`
 
 The [#community-projects Website Project Board](https://github.com/orgs/indyhackers/projects/2) is where that group tracks and prioritizes website work—you do not need to use it to contribute. Open an issue or PR anytime; Slack membership is not required.
 
@@ -21,13 +21,50 @@ The [#community-projects Website Project Board](https://github.com/orgs/indyhack
 
 ## Testing
 
-Commands: [README.md — Vitest](README.md#run-tests-with-vitest) and [Playwright](README.md#run-end-to-end-tests-with-playwright). CI: [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml).
+We use two complementary tools: **Vitest** for fast unit and component tests, **Playwright** for a small end-to-end smoke suite. They answer different questions—Vitest catches logic and component bugs in milliseconds; Playwright confirms the app boots, routes resolve, and public pages render in a real browser.
 
-**Vitest:** co-locate `*.test.js` beside the file under test (e.g. `LoginPage.vue` + `LoginPage.test.js`).
+Commands: [README.md — Vitest](README.md#run-tests-with-vitest) and [Playwright](README.md#run-end-to-end-tests-with-playwright). CI on pull requests: [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) runs Vitest and Playwright (Chromium smoke tests).
 
-**Playwright e2e:** `e2e/*.spec.js` — different tool, different suffix.
+### Vitest — default for most tests
 
-**Date-sensitive tests:** calendar helpers and views assume “today” is mid-June 2026. Use `vi.useFakeTimers()` and `vi.setSystemTime(new Date('2026-06-14T12:00:00-04:00'))` when testing upcoming-event logic (see `useEvents.test.js`).
+- **Where:** co-locate `*.test.js` beside the file under test under `src/` (e.g. `LoginPage.vue` + `LoginPage.test.js`).
+- **How:** runs in jsdom with MSW ([`vitest.setup.js`](vitest.setup.js)) or `fakePocketBase()` for isolated components.
+- **Use for:** utilities, composables, component render and interaction, form validation, API response handling, Pinia stores.
+- **Runs in CI** on every pull request (`vitest` job).
 
-**PocketBase in component tests:** use `fakePocketBase()` from `src/mocks/fakePocketBase.js` for calendar-related components, or mock `$pocketbase` / `inject('pocketbase')` as other job tests do.
+Pure functions, single components, and anything you can mock with MSW or `fakePocketBase()` belong here. These tests should give sub-second feedback during development.
 
+### Playwright — smoke and critical paths
+
+- **Where:** `e2e/*.spec.js` (different tool, different suffix—[`vitest.config.js`](vitest.config.js) excludes `e2e/**`).
+- **Use for:** app shell loads, Vue Router resolves URLs, MSW service worker intercepts API calls in a real browser, critical public pages render.
+- **Do not use for:** logic already covered by Vitest, single-component CRUD, styling details, OAuth flows, or auth success/failure flows (until MSW auth handlers exist).
+- **Local:** `npm run test:e2e` — Playwright starts the Vite dev server automatically; MSW is active; no PocketBase container needed.
+- **CI:** `playwright` job on pull requests — Chromium only, same dev server + MSW setup as local.
+- **Debug:** `npm run test:e2e:ui` (interactive) or `npm run test:e2e:headed` (visible browser).
+
+The current smoke suite ([`e2e/smoke.spec.js`](e2e/smoke.spec.js)) covers five public routes: home, login, signup, jobs, and calendar. Keep e2e small and curated—a flaky or duplicated e2e test is worse than none.
+
+- **Runs in CI** on every pull request (`playwright` job, Chromium only).
+
+### When to use which
+
+| Question | If yes → |
+|----------|----------|
+| Pure function or single component? | Vitest |
+| Needs mocked PocketBase or API responses? | Vitest + MSW or `fakePocketBase()` |
+| Spans multiple routes or needs a real browser? | Playwright |
+| Would duplicate an existing Vitest test? | Don't add Playwright |
+
+### Conventions
+
+**Date-sensitive tests:** calendar helpers and views assume “today” is mid-June 2026 in Vitest. Use `vi.useFakeTimers()` and `vi.setSystemTime(new Date('2026-06-14T12:00:00-04:00'))` when testing upcoming-event logic (see `useEvents.test.js`). Playwright calendar smoke asserts page shell and static topic filters from MSW—not specific upcoming event titles.
+
+**PocketBase in component tests:** use `fakePocketBase()` from [`src/mocks/fakePocketBase.js`](src/mocks/fakePocketBase.js) for calendar-related components, or mock `$pocketbase` / `inject('pocketbase')` as other job tests do.
+
+**Playwright selectors:** prefer `getByRole` and `getByText` (user-visible, resilient to refactors). Use `#id` locators only where forms already expose stable ids. Always use relative URLs (`page.goto('/jobs')`)—never hardcode ports; Playwright's `baseURL` in [`playwright.config.js`](playwright.config.js) handles that.
+
+### Known gaps (follow-ups)
+
+- Auth-flow e2e is deferred until MSW auth handlers exist; Vitest covers login/signup component behavior today.
+- Expanded Vitest coverage is tracked separately.

@@ -23,7 +23,7 @@ npm run test:e2e:headed  # Playwright with visible browser windows
 Run a single Vitest file: `npx vitest run src/components/jobs/JobListing.test.js`
 Run a single e2e test: `npm run test:e2e -- --project=chromium e2e/some.spec.js`
 
-CI runs the `vitest` job on pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md#testing).
+CI runs `vitest` and `playwright` jobs on pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md#testing).
 
 Docker/Task commands for local PocketBase development:
 ```bash

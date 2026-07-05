@@ -84,14 +84,13 @@ npm run test:e2e:ui
 # Local: visible browser windows (debugging locators or visuals)
 npm run test:e2e:headed
 
-# CI: build first, then run against the production preview server
-npm run build
+# Match CI: Chromium only (CI also sets this via playwright.config.js)
 CI=true npm run test:e2e
 
-# Runs the tests only on Chromium
+# Runs the tests only on Chromium (local shortcut)
 npm run test:e2e -- --project=chromium
 # Runs the tests of a specific file
-npm run test:e2e -- e2e/vue.spec.js
+npm run test:e2e -- e2e/smoke.spec.js
 # Runs the tests in debug mode
 npm run test:e2e -- --debug
 ```

@@ -84,13 +84,13 @@
         - `pb/hooks/` + `pb/migrations/` (~172): false positives — PocketBase globals (`$app`, `routerAdd`, `migrate`, etc.) not declared to ESLint
         - `scripts/` (7): `process` not defined in `lighthouse-*.mjs`
         - `src/` (6): real frontend issues — unused components in `AuthPageLayout.vue` (4), unused var in `SponsorList.vue` (1), empty destructuring in `handlers.js` (1)
-- [ ] **Defer to a clean follow-up PR** — don't bundle with #73
-    - [ ] Exclude or add PocketBase globals for `pb/hooks/` and `pb/migrations/` (or separate ESLint config)
-    - [ ] Add `node` env for `scripts/` (or exclude)
-    - [ ] Fix the 6 `src/` violations
-    - [ ] Add `lint:ci` script (no `--fix`) and a CI job step
-    - [ ] Document lint/format in CONTRIBUTING.md
+- **Defer to a clean follow-up PR** — don't bundle with #73
+    - Exclude or add PocketBase globals for `pb/hooks/` and `pb/migrations/` (or separate ESLint config)
+    - Add `node` env for `scripts/` (or exclude)
+    - Fix the 6 `src/` violations
+    - Add `lint:ci` script (no `--fix`) and a CI job step
+    - Document lint/format in CONTRIBUTING.md
 
 # CI comms
 
-- [ ] If a PR is opened against dev use a github incomming webhook to post a message to #committee-website channel  (maybe only do this once tests are passing? Think through this)
+- [x] If a PR is opened against dev use a github incoming webhook to post a message to #community-projects channel once CI tests pass

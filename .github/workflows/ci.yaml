@@ -52,6 +52,51 @@ jobs:
       - name: Run Playwright smoke tests
         run: npm run test:e2e
 
+  # Posts to #community-projects when a PR to dev passes CI — see .github/README.md
+  notify-community-projects:
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.base.ref == 'dev' &&
+      github.event.pull_request.draft == false
+    needs: [vitest, playwright]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if already notified
+        id: notified
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/slack-notified
+          key: slack-notified-pr-${{ github.event.pull_request.number }}
+          lookup-only: true
+
+      - name: Post to Slack
+        if: steps.notified.outputs.cache-hit != 'true'
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_COMMUNITY_PROJECTS_WEBHOOK }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          payload=$(jq -n \
+            --arg title "$PR_TITLE" \
+            --arg author "$PR_AUTHOR" \
+            --arg url "$PR_URL" \
+            '{text: ("New PR ready for review: *" + $title + "* by " + $author + "\n" + $url + "\nCI passed (Vitest + Playwright).")}')
+          curl -sf -X POST -H 'Content-type: application/json' \
+            --data "$payload" \
+            "$SLACK_WEBHOOK"
+
+      - name: Mark PR as notified
+        if: steps.notified.outputs.cache-hit != 'true'
+        run: mkdir -p /tmp/slack-notified && touch /tmp/slack-notified/sent
+
+      - name: Save notification state
+        if: steps.notified.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/slack-notified
+          key: slack-notified-pr-${{ github.event.pull_request.number }}
+
   build:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest

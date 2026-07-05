@@ -18,6 +18,7 @@ The [#community-projects Website Project Board](https://github.com/orgs/indyhack
 - Smaller PRs are easier to review, but use whatever scope fits your change.
 - Run tests locally before opening a PR — commands in [README.md](README.md#run-tests-with-vitest).
 - Ensure CI passes on your PR — see [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) for what runs when.
+- PRs targeting `dev` that pass CI notify `#community-projects` once. Maintainers: see [`.github/README.md`](.github/README.md) for webhook setup.
 
 ## Testing
 

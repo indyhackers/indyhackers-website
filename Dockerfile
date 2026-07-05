@@ -28,7 +28,12 @@ RUN npm i && npm run build
 # --------
 
 FROM alpine:3
-RUN apk update && apk upgrade && apk add ca-certificates && rm -rf /var/cache/apk/*
+RUN apk update && apk upgrade && apk add ca-certificates tzdata && rm -rf /var/cache/apk/*
+
+# Indiana observes US Eastern time incl. DST — named zone (not a fixed UTC
+# offset) so the event-alerts weekly cron keeps firing at 8am local
+# year-round without manual adjustment at DST changeovers.
+ENV TZ=America/Indiana/Indianapolis
 
 ARG NODE_ENV=production
 ENV NODE_ENV=$NODE_ENV

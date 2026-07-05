@@ -40,6 +40,9 @@ routerAdd("GET", "/api/slack/config", (e) => {
     return e.json(200, {
         org: $os.getenv("SLACK_SUBDOMAIN") || "",
         siteKey: $os.getenv("RECAPTCHA_SITE_KEY") || "",
+        // Whether low-risk requests are auto-invited (default on; only "off"
+        // disables). Surfaced so the admin queue can show the current mode.
+        autoApprove: String($os.getenv("SLACK_AUTOAPPROVE") || "").toLowerCase() !== "off",
     })
 })
 

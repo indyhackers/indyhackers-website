@@ -8,6 +8,21 @@
         or reject to drop it.
       </p>
 
+      <div
+        v-if="autoApprove !== null"
+        class="slack-admin__mode"
+        :class="autoApprove ? 'slack-admin__mode--on' : 'slack-admin__mode--off'"
+      >
+        <template v-if="autoApprove">
+          🟢 Auto-approval is <strong>ON</strong> — low-risk requests (US visitor + reCAPTCHA
+          pass) are invited automatically, so only requests that need a human land here.
+        </template>
+        <template v-else>
+          🔴 Auto-approval is <strong>OFF</strong> — every invite request is queued here for
+          manual review.
+        </template>
+      </div>
+
       <div v-if="authError" class="slack-admin__notice">
         You need to be signed in as a board admin to review invites.
         <RouterLink to="/login">Log in</RouterLink>.
@@ -132,6 +147,7 @@ const loading = ref(true)
 const authError = ref(false)
 const busyId = ref(null)
 const message = ref('')
+const autoApprove = ref(null) // null until /api/slack/config resolves
 
 const formatDate = (d) => {
   if (!d) return '—'
@@ -195,6 +211,17 @@ const mapUrl = (inv) => {
   return `https://www.google.com/maps?q=${encodeURIComponent(g.lat)},${encodeURIComponent(g.lon)}`
 }
 
+const loadConfig = async () => {
+  try {
+    const res = await fetch('/api/slack/config')
+    if (!res.ok) return
+    const cfg = await res.json()
+    if (typeof cfg.autoApprove === 'boolean') autoApprove.value = cfg.autoApprove
+  } catch {
+    // Non-fatal: the mode banner just stays hidden.
+  }
+}
+
 const load = async () => {
   loading.value = true
   authError.value = false
@@ -235,7 +262,10 @@ const decide = async (inv, status) => {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  loadConfig()
+  load()
+})
 </script>
 
 <style scoped>
@@ -253,6 +283,25 @@ onMounted(load)
   max-width: 40rem;
   line-height: 1.7;
   margin-bottom: 2rem;
+}
+
+.slack-admin__mode {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.slack-admin__mode--on {
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+  background: color-mix(in srgb, var(--success) 10%, transparent);
+}
+
+.slack-admin__mode--off {
+  border-color: color-mix(in srgb, var(--warning) 45%, transparent);
+  background: color-mix(in srgb, var(--warning) 10%, transparent);
 }
 
 .slack-admin__notice {

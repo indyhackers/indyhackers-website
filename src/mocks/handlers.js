@@ -211,7 +211,7 @@ export const handlers = [
   // auto-approved — they land in the pending queue, so you can exercise the
   // admin screen at /admin/slack-invites.
   http.get('/api/slack/config', () => {
-    return HttpResponse.json({ org: 'indyhackers', siteKey: '' })
+    return HttpResponse.json({ org: 'indyhackers', siteKey: '', autoApprove: true })
   }),
   http.post('/api/slack/invite', async ({ request }) => {
     const body = await request.json().catch(() => ({}))

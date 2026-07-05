@@ -85,20 +85,28 @@ routerAdd("POST", "/api/slack/invite", (e) => {
 
     const ip = e.realIP()
     const headers = info.headers || {}
-    const country = String(headers["cf-ipcountry"] || "").toUpperCase()
-    const userAgent = String(headers["user_agent"] || headers["user-agent"] || "")
+    // PocketBase normalizes request header keys to lowercase with hyphens turned
+    // into underscores (e.g. "CF-IPCity" -> "cf_ipcity"). Read both forms so the
+    // Cloudflare headers match regardless — the previous hyphenated lookups never
+    // hit, which is why country and geolocation came back empty.
+    const header = (name) => {
+        const key = name.toLowerCase()
+        return String(headers[key.replace(/-/g, "_")] || headers[key] || "")
+    }
+    const country = header("cf-ipcountry").toUpperCase()
+    const userAgent = header("user-agent")
 
     // Approximate IP geolocation from Cloudflare. These headers are only present
     // when the "Add visitor location headers" managed transform is enabled in
     // the Cloudflare dashboard (cf-ipcountry is always sent; the rest are not).
     // All empty locally / off Cloudflare — the admin card just hides what's blank.
     const geo = {
-        city: String(headers["cf-ipcity"] || ""),
-        region: String(headers["cf-region"] || ""),
-        continent: String(headers["cf-ipcontinent"] || ""),
-        postal: String(headers["cf-postal-code"] || ""),
-        lat: String(headers["cf-iplatitude"] || ""),
-        lon: String(headers["cf-iplongitude"] || ""),
+        city: header("cf-ipcity"),
+        region: header("cf-region"),
+        continent: header("cf-ipcontinent"),
+        postal: header("cf-postal-code"),
+        lat: header("cf-iplatitude"),
+        lon: header("cf-iplongitude"),
     }
 
     // Rate limit per IP.

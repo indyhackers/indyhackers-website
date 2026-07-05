@@ -17,13 +17,91 @@
 
       <form v-else class="slack-form" @submit.prevent="requestInvite">
         <div class="slack-form__row">
+          <label class="slack-form__label" for="slack-email">Email</label>
           <input
+            id="slack-email"
             v-model="email"
             type="email"
             required
             placeholder="you@example.com"
             class="slack-form__input"
-            aria-label="Email address"
+            :disabled="submitting"
+          />
+        </div>
+
+        <div class="slack-form__names">
+          <div class="slack-form__row">
+            <label class="slack-form__label" for="slack-first">First name</label>
+            <input
+              id="slack-first"
+              v-model="firstName"
+              type="text"
+              required
+              autocomplete="given-name"
+              class="slack-form__input"
+              :disabled="submitting"
+            />
+          </div>
+          <div class="slack-form__row">
+            <label class="slack-form__label" for="slack-last">Last name</label>
+            <input
+              id="slack-last"
+              v-model="lastName"
+              type="text"
+              required
+              autocomplete="family-name"
+              class="slack-form__input"
+              :disabled="submitting"
+            />
+          </div>
+        </div>
+
+        <div class="slack-form__row">
+          <label class="slack-form__label" for="slack-connection">What is your connection to Indiana?</label>
+          <textarea
+            id="slack-connection"
+            v-model="indianaConnection"
+            required
+            rows="3"
+            class="slack-form__input slack-form__textarea"
+            :disabled="submitting"
+          ></textarea>
+        </div>
+
+        <div class="slack-form__row">
+          <label class="slack-form__label" for="slack-city">City or region you're currently based in?</label>
+          <input
+            id="slack-city"
+            v-model="cityRegion"
+            type="text"
+            required
+            class="slack-form__input"
+            :disabled="submitting"
+          />
+        </div>
+
+        <div class="slack-form__row">
+          <label class="slack-form__label" for="slack-linkedin">LinkedIn profile (optional)</label>
+          <input
+            id="slack-linkedin"
+            v-model="linkedin"
+            type="text"
+            inputmode="url"
+            placeholder="https://linkedin.com/in/…"
+            class="slack-form__input"
+            :disabled="submitting"
+          />
+        </div>
+
+        <div class="slack-form__row">
+          <label class="slack-form__label" for="slack-github">GitHub profile (optional)</label>
+          <input
+            id="slack-github"
+            v-model="github"
+            type="text"
+            inputmode="url"
+            placeholder="https://github.com/…"
+            class="slack-form__input"
             :disabled="submitting"
           />
         </div>
@@ -43,6 +121,14 @@
              configured, a token is fetched via grecaptcha.execute() on submit
              and Google shows its badge in the corner of the page. -->
 
+        <label class="slack-form__check">
+          <input v-model="cocAgreed" type="checkbox" required :disabled="submitting" />
+          <span>
+            I agree to the
+            <RouterLink to="/code-of-conduct">code of conduct</RouterLink>.
+          </span>
+        </label>
+
         <button type="submit" class="ih-btn-primary slack-form__btn" :disabled="submitting">
           {{ submitting ? 'Sending…' : 'Send me an invite' }}
         </button>
@@ -50,10 +136,6 @@
         <div v-if="error" class="slack-error">{{ error }}</div>
       </form>
 
-      <p class="slack-coc">
-        By joining you agree to our
-        <RouterLink to="/code-of-conduct">code of conduct</RouterLink>.
-      </p>
     </div>
   </section>
 </template>
@@ -64,6 +146,13 @@ import { ref, onMounted } from 'vue'
 const CAPTCHA_ACTION = 'slack_invite'
 
 const email = ref('')
+const firstName = ref('')
+const lastName = ref('')
+const indianaConnection = ref('')
+const cityRegion = ref('')
+const linkedin = ref('')
+const github = ref('')
+const cocAgreed = ref(false)
 const website = ref('') // honeypot — must stay empty
 const siteKey = ref('')
 
@@ -128,6 +217,13 @@ const requestInvite = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: email.value,
+        first_name: firstName.value,
+        last_name: lastName.value,
+        indiana_connection: indianaConnection.value,
+        city_region: cityRegion.value,
+        linkedin: linkedin.value,
+        github: github.value,
+        coc_agreed: cocAgreed.value,
         website: website.value,
         'g-recaptcha-response': captchaToken
       })
@@ -211,6 +307,43 @@ onMounted(fetchConfig)
   opacity: 0.6;
 }
 
+.slack-form__textarea {
+  resize: vertical;
+  min-height: 3.5rem;
+  line-height: 1.5;
+}
+
+.slack-form__names {
+  display: flex;
+  gap: 1rem;
+}
+
+.slack-form__names .slack-form__row {
+  flex: 1;
+}
+
+.slack-form__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.slack-form__check input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.slack-form__check a {
+  color: var(--accent-deep);
+}
+
+.slack-form__check a:hover {
+  color: var(--text-primary);
+}
+
 /* Honeypot — off-screen, not display:none, so bots still fill it. */
 .slack-form__hp {
   position: absolute;
@@ -245,21 +378,11 @@ onMounted(fetchConfig)
   color: var(--danger);
 }
 
-.slack-coc {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  margin-top: 1.5rem;
-}
-
-.slack-coc a {
-  color: var(--accent-deep);
-}
-
-.slack-coc a:hover {
-  color: var(--text-primary);
-}
-
 @media (max-width: 480px) {
+  .slack-form__names {
+    flex-direction: column;
+  }
+
   .slack-form__btn {
     align-self: stretch;
     text-align: center;

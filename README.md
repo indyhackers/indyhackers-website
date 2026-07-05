@@ -66,18 +66,26 @@ npm run test:unit
 ### Run End-to-End Tests with [Playwright](https://playwright.dev)
 
 ```sh
-# Install browsers for thVe first run
+# Install browsers for the first run
 npx playwright install
 
-# When testing on CI, must build the project first
-npm run build
-
-# Runs the end-to-end tests
+# Local: headless run (starts vite dev automatically; no build needed)
 npm run test:e2e
+
+# Local: interactive UI for writing/debugging tests
+npm run test:e2e:ui
+
+# Local: visible browser windows (debugging locators or visuals)
+npm run test:e2e:headed
+
+# CI: build first, then run against the production preview server
+npm run build
+CI=true npm run test:e2e
+
 # Runs the tests only on Chromium
 npm run test:e2e -- --project=chromium
 # Runs the tests of a specific file
-npm run test:e2e -- tests/example.spec.ts
+npm run test:e2e -- e2e/vue.spec.js
 # Runs the tests in debug mode
 npm run test:e2e -- --debug
 ```

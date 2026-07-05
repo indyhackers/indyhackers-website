@@ -14,7 +14,9 @@ npm run build        # Production build
 npm run lint         # ESLint with auto-fix
 npm run format       # Prettier formatting
 npm run test:unit    # Vitest unit tests (interactive watch mode)
-npm run test:e2e     # Playwright e2e tests (install browsers first: npx playwright install)
+npm run test:e2e     # Playwright e2e tests headless (install browsers first: npx playwright install)
+npm run test:e2e:ui  # Playwright interactive UI (local dev)
+npm run test:e2e:headed  # Playwright with visible browser windows
 ```
 
 Run a single unit test file: `npx vitest run src/components/__tests__/SomeTest.spec.js`

@@ -35,8 +35,10 @@
 
 # Playwright changes
 
-- [ ] Add a `-- ui` command for playwright
-    - [ ] Document it's usage, and/or fix playwright instructions in README.md
-- [ ] Move to headless playwright, with an override command
+- [x] Add a `--ui` command for playwright (`test:e2e:ui` in package.json)
+    - [x] Document its usage, and fix playwright instructions in README.md
+- [x] Move to headless playwright, with an override command (`test:e2e:headed`)
+    - Default `headless: true` in playwright.config.js; headed via `npm run test:e2e:headed`
+    - README and CLAUDE.md updated with local vs CI workflows and new scripts
 - [ ] fix all failing tests—Are these failing because my local isn't running correctly... or cause tests aren't part of CI and became stale
 - [ ] Add to CI

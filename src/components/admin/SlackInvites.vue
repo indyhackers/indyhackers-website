@@ -59,8 +59,12 @@
             </div>
             <div v-if="geoText(inv)">
               <dt>Approx. location (IP)</dt>
+              <dd>{{ geoText(inv) }}</dd>
+            </div>
+            <div v-if="geoCoords(inv)">
+              <dt>Coordinates</dt>
               <dd>
-                {{ geoText(inv) }}
+                {{ geoCoords(inv) }}
                 <a
                   v-if="mapUrl(inv)"
                   :href="mapUrl(inv)"
@@ -124,11 +128,33 @@ const normalizeUrl = (u) => (/^https?:\/\//i.test(u) ? u : `https://${u}`)
 
 // Approximate IP geolocation captured from Cloudflare headers, stashed under
 // signals.geo. Empty unless Cloudflare's visitor-location headers are enabled.
-const geoText = (inv) => {
+const CONTINENTS = {
+  AF: 'Africa',
+  AN: 'Antarctica',
+  AS: 'Asia',
+  EU: 'Europe',
+  NA: 'North America',
+  OC: 'Oceania',
+  SA: 'South America'
+}
+const continentName = (code) => CONTINENTS[String(code || '').toUpperCase()] || code || ''
+
+const hasGeo = (inv) => {
   const g = inv.signals?.geo || {}
-  const parts = [g.city, g.region].filter(Boolean)
-  if (!parts.length) return ''
-  return inv.country ? `${parts.join(', ')} · ${inv.country}` : parts.join(', ')
+  return !!(g.city || g.region || g.continent || (g.lat && g.lon))
+}
+
+const geoText = (inv) => {
+  if (!hasGeo(inv)) return ''
+  const g = inv.signals?.geo || {}
+  const locality = [g.city, g.region].filter(Boolean).join(', ')
+  const wider = [continentName(g.continent), inv.country].filter(Boolean).join(' · ')
+  return [locality, wider].filter(Boolean).join(' · ')
+}
+
+const geoCoords = (inv) => {
+  const g = inv.signals?.geo || {}
+  return g.lat && g.lon ? `${g.lat}, ${g.lon}` : ''
 }
 
 const mapUrl = (inv) => {

@@ -95,6 +95,7 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     const geo = {
         city: String(headers["cf-ipcity"] || ""),
         region: String(headers["cf-region"] || ""),
+        continent: String(headers["cf-ipcontinent"] || ""),
         postal: String(headers["cf-postal-code"] || ""),
         lat: String(headers["cf-iplatitude"] || ""),
         lon: String(headers["cf-iplongitude"] || ""),

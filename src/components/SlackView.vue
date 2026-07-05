@@ -202,6 +202,16 @@ const fetchConfig = async () => {
   }
 }
 
+// The browser's own IANA time zone (from the OS locale, not the IP), so a
+// VPN/proxy that masks the IP still reveals the real zone. Best-effort.
+const browserTimezone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+  } catch {
+    return ''
+  }
+}
+
 const requestInvite = async () => {
   error.value = null
   submitting.value = true
@@ -224,6 +234,7 @@ const requestInvite = async () => {
         linkedin: linkedin.value,
         github: github.value,
         coc_agreed: cocAgreed.value,
+        browser_timezone: browserTimezone(),
         website: website.value,
         'g-recaptcha-response': captchaToken
       })

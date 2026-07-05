@@ -60,6 +60,9 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     const linkedin = String(body.linkedin || "").trim()
     const github = String(body.github || "").trim()
     const cocAgreed = body.coc_agreed === true || body.coc_agreed === "true"
+    // The browser's own IANA time zone (OS locale, not the IP) — survives a
+    // VPN/proxy that masks the IP, so it's a stronger locale signal.
+    const browserTimezone = String(body.browser_timezone || "").trim()
 
     // Honeypot: real users never fill the hidden "website" field. Pretend it
     // worked so bots don't learn they were caught, but create nothing.
@@ -201,17 +204,34 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     // Risk signals → auto-approve decision. Auto-approve only low-risk requests;
     // everything else queues for a human. Auto-approval can be disabled via env.
     const autoApproveEnabled = String($os.getenv("SLACK_AUTOAPPROVE") || "").toLowerCase() !== "off"
+    // Location + timezone-consistency signals feeding the auto-approve decision.
+    const inIndiana =
+        country === "US" &&
+        (geo.region_code === "IN" || String(geo.region).toLowerCase() === "indiana")
+    const browserSameIndy = util.sameTimezoneAsIndy(browserTimezone)
+    const tzKnown = !!(browserTimezone && geo.timezone)
+    // Two Eastern zones count as matching (e.g. browser America/New_York vs IP
+    // America/Indiana/Indianapolis) — the JSVM can't compare UTC offsets, so we
+    // lean on the Eastern classification rather than exact-string equality.
+    const bothEastern = browserSameIndy === true && geo.same_tz_as_indy === true
+    const tzMatch = tzKnown && (browserTimezone === geo.timezone || bothEastern)
+
     const signals = {
         country: country || "unknown",
-        is_us: country === "US",
+        in_indiana: inIndiana,
         disposable: false,
         captcha_ok: secret ? captchaOk : "not_configured",
         captcha_score: secret ? captchaScore : null,
         captcha_min_score: secret ? captchaMinScore : null,
+        browser_timezone: browserTimezone,
+        browser_same_tz_as_indy: browserSameIndy,
+        // Browser zone disagreeing with the IP zone is a classic VPN/proxy tell.
+        tz_mismatch: tzKnown && !tzMatch,
         geo,
     }
+    // Auto-approve only low-risk Indiana requests whose browser & IP zones agree.
     const autoApprove =
-        autoApproveEnabled && country === "US" && (!secret || captchaOk)
+        autoApproveEnabled && inIndiana && tzMatch && (!secret || captchaOk)
 
     const collection = $app.findCollectionByNameOrId("slack_invites")
     const record = new Record(collection)

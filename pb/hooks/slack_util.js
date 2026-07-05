@@ -361,7 +361,7 @@ function notifyBoard(record) {
         signals = {}
     }
     const geo = signals.geo || {}
-    const usVisitor = signals.is_us ? "Yes" : "No"
+    const inIndiana = signals.in_indiana ? "Yes" : "No"
     const disposable = signals.disposable ? "Yes" : "No"
     const captcha = captchaSignalLabel(signals)
     const hasGeo = !!(geo.city || geo.region || geo.continent || (geo.lat && geo.lon))
@@ -383,6 +383,10 @@ function notifyBoard(record) {
         ? "https://www.google.com/maps?q=" + encodeURIComponent(geo.lat) + "," + encodeURIComponent(geo.lon)
         : ""
     const timezone = timezoneLabel(geo.timezone, geo.same_tz_as_indy)
+    const browserTz = timezoneLabel(signals.browser_timezone, signals.browser_same_tz_as_indy)
+    const tzMismatch = signals.browser_timezone
+        ? (signals.tz_mismatch ? "differ (possible VPN/proxy)" : "agree")
+        : ""
 
     const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
     const adminUrl = base ? base + "/admin/slack-invites" : ""
@@ -417,14 +421,16 @@ function notifyBoard(record) {
                 html += "<li><strong>Coordinates:</strong> " + esc(coords) +
                     (mapUrl ? ' (<a href="' + esc(mapUrl) + '">map</a>)' : "") + "</li>"
             }
-            html += row("Time zone", timezone)
+            html += row("Time zone (IP)", timezone)
+            html += row("Time zone (browser)", browserTz)
+            html += row("IP vs browser TZ", tzMismatch)
             html += row("Postal code", postal)
             html += row("Metro code", metroCode)
             html += row("IP", ip)
             html += linkRow("LinkedIn", linkedin)
             html += linkRow("GitHub", github)
             html += row("Code of conduct", cocAgreed ? "agreed" : "not agreed")
-            html += row("US visitor (auto-approval)", usVisitor)
+            html += row("In Indiana", inIndiana)
             html += row("reCAPTCHA", captcha)
             html += row("Disposable email", disposable)
             html += "</ul>"
@@ -464,7 +470,9 @@ function notifyBoard(record) {
                 line("Based in", cityRegion),
                 line("Approx. location (IP)", approxLocation),
                 coords ? "*Coordinates:* " + slackEsc(coords) + (mapUrl ? " (<" + mapUrl + "|map>)" : "") : "",
-                line("Time zone", timezone),
+                line("Time zone (IP)", timezone),
+                line("Time zone (browser)", browserTz),
+                line("IP vs browser TZ", tzMismatch),
                 line("Postal code", postal),
                 line("Metro code", metroCode),
                 line("IP", ip),
@@ -472,7 +480,7 @@ function notifyBoard(record) {
                 linkLine("LinkedIn", linkedin),
                 linkLine("GitHub", github),
                 line("Code of conduct", cocAgreed ? "agreed" : "not agreed"),
-                line("US visitor (auto-approval)", usVisitor),
+                line("In Indiana", inIndiana),
                 line("reCAPTCHA", captcha),
                 line("Disposable email", disposable),
                 adminUrl

@@ -14,8 +14,9 @@
         :class="autoApprove ? 'slack-admin__mode--on' : 'slack-admin__mode--off'"
       >
         <template v-if="autoApprove">
-          🟢 Auto-approval is <strong>ON</strong> — low-risk requests (US visitor + reCAPTCHA
-          pass) are invited automatically, so only requests that need a human land here.
+          🟢 Auto-approval is <strong>ON</strong> — low-risk requests (in Indiana, matching
+          IP/browser time zone, reCAPTCHA pass) are invited automatically, so only requests
+          that need a human land here.
         </template>
         <template v-else>
           🔴 Auto-approval is <strong>OFF</strong> — every invite request is queued here for
@@ -103,8 +104,12 @@
               </dd>
             </div>
             <div v-if="tzText(inv)">
-              <dt>Time zone</dt>
+              <dt>Time zone (IP)</dt>
               <dd>{{ tzText(inv) }}</dd>
+            </div>
+            <div v-if="browserTzText(inv)">
+              <dt>Time zone (browser)</dt>
+              <dd>{{ browserTzText(inv) }}</dd>
             </div>
             <div>
               <dt>Code of conduct</dt>
@@ -116,8 +121,8 @@
             <p class="slack-admin__signals-title">Auto-approval signals</p>
             <dl class="slack-admin__meta">
               <div>
-                <dt>US visitor</dt>
-                <dd>{{ yesNo(inv.signals.is_us) }}</dd>
+                <dt>In Indiana</dt>
+                <dd>{{ yesNo(inv.signals.in_indiana) }}</dd>
               </div>
               <div>
                 <dt>reCAPTCHA</dt>
@@ -126,6 +131,10 @@
               <div>
                 <dt>Disposable email</dt>
                 <dd>{{ yesNo(inv.signals.disposable) }}</dd>
+              </div>
+              <div v-if="inv.signals.browser_timezone">
+                <dt>IP vs browser TZ</dt>
+                <dd>{{ inv.signals.tz_mismatch ? '⚠ differ (possible VPN/proxy)' : 'agree' }}</dd>
               </div>
             </dl>
           </div>
@@ -228,6 +237,15 @@ const tzText = (inv) => {
   if (g.same_tz_as_indy === true) return `${g.timezone} — same as Indianapolis`
   if (g.same_tz_as_indy === false) return `${g.timezone} — different from Indianapolis`
   return g.timezone
+}
+
+// The browser-reported timezone (from the OS locale, not the IP).
+const browserTzText = (inv) => {
+  const s = inv.signals || {}
+  if (!s.browser_timezone) return ''
+  if (s.browser_same_tz_as_indy === true) return `${s.browser_timezone} — same as Indianapolis`
+  if (s.browser_same_tz_as_indy === false) return `${s.browser_timezone} — different from Indianapolis`
+  return s.browser_timezone
 }
 
 const mapUrl = (inv) => {

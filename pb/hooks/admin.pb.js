@@ -10,11 +10,13 @@ routerAdd('POST', '/api/admin/promote', async (e) => {
       throw new Error('Invalid user token')
     }
 
-    // Check if the user has an "admin" role
-    $app.expandRecord(userAuth, ['role'], null)
-    const userRole = userAuth.expandedOne('role')
-    console.log(JSON.stringify(userRole))
-    if (!userRole || userRole.get('name') !== 'admin') {
+    // Check if the user has the "admin" role. `roles` is a multi-relation, so
+    // expand all of them and look for one named "admin" (matches the frontend
+    // guard and the slack_invites API rule).
+    $app.expandRecord(userAuth, ['roles'], null)
+    const userRoles = userAuth.expandedAll('roles') || []
+    const isAdmin = userRoles.some((r) => r.get('name') === 'admin')
+    if (!isAdmin) {
       throw new Error('User does not have the admin role')
     }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import JobsList from '../jobs/JobsList.vue'
+import JobsList from './JobsList.vue'
 
 const mockJobs = [
   {
@@ -10,7 +10,7 @@ const mockJobs = [
     salary_min: 100,
     salary_max: 150,
     approved: true,
-    created: '2025-01-15T12:00:00.000Z',
+    created: '2025-01-15T12:00:00.000Z'
   },
   {
     id: 'job2',
@@ -19,7 +19,7 @@ const mockJobs = [
     salary_min: 80,
     salary_max: 0,
     approved: true,
-    created: '2025-01-10T12:00:00.000Z',
+    created: '2025-01-10T12:00:00.000Z'
   },
   {
     id: 'job3',
@@ -28,7 +28,7 @@ const mockJobs = [
     salary_min: 0,
     salary_max: 40,
     approved: true,
-    created: '2025-01-05T12:00:00.000Z',
+    created: '2025-01-05T12:00:00.000Z'
   },
   {
     id: 'job4',
@@ -37,21 +37,21 @@ const mockJobs = [
     salary_min: 0,
     salary_max: 0,
     approved: true,
-    created: '2025-01-01T12:00:00.000Z',
-  },
+    created: '2025-01-01T12:00:00.000Z'
+  }
 ]
 
 function createMockPocketBase(jobs = mockJobs) {
   return {
     collection: vi.fn().mockReturnValue({
-      getList: vi.fn().mockResolvedValue({ items: jobs }),
-    }),
+      getList: vi.fn().mockResolvedValue({ items: jobs })
+    })
   }
 }
 
 function createMockRouter() {
   return {
-    push: vi.fn(),
+    push: vi.fn()
   }
 }
 
@@ -61,8 +61,8 @@ function mountJobsList(pb, router) {
       config: {
         globalProperties: {
           pocketbase: pb,
-          $router: router,
-        },
+          $router: router
+        }
       },
       stubs: {
         'b-container': { template: '<div><slot /></div>' },
@@ -70,12 +70,12 @@ function mountJobsList(pb, router) {
         'b-col': { template: '<div><slot /></div>' },
         'b-card': {
           template: '<div class="b-card" @click="$emit(\'click\')"><slot /></div>',
-          props: ['title'],
+          props: ['title']
         },
         'b-badge': { template: '<span class="b-badge"><slot /></span>' },
-        'create-job-modal': { template: '<div />' },
-      },
-    },
+        'create-job-modal': { template: '<div />' }
+      }
+    }
   })
 }
 
@@ -99,11 +99,9 @@ describe('JobsList', () => {
     expect(callArgs[0]).toBe(1)
     expect(callArgs[1]).toBe(100)
     expect(callArgs[2].sort).toBe('-approved_at')
-    // filter should inline the cutoff date directly
     expect(callArgs[2].filter).toContain('approved = true')
     expect(callArgs[2].filter).toContain('approved_at != ""')
     expect(callArgs[2].filter).toContain('approved_at >= "')
-    // no server-side placeholder syntax — client SDK requires inlined values
     expect(callArgs[2].filter).not.toMatch(/\{:/)
     expect(callArgs[2].filterParams).toBeUndefined()
   })
@@ -147,8 +145,6 @@ describe('JobsList', () => {
     const wrapper = mountJobsList(pb, router)
     await flushPromises()
 
-    // The 4th job has salary_min=0 and salary_max=0, so salary() returns null
-    // The badge renders but with empty content
     const badges = wrapper.findAll('.b-badge')
     expect(badges[3].text()).toBe('')
   })

@@ -57,11 +57,17 @@ npm run dev
 npm run build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+### Run Tests with [Vitest](https://vitest.dev/)
 
 ```sh
-npm run test:unit
+npm run test:vitest      # watch mode
+npm run test:vitest:ci   # single run (matches CI on PRs)
+
+# one file
+npx vitest run src/components/jobs/JobListing.test.js
 ```
+
+Test conventions (co-located `*.test.js`, patterns): [CONTRIBUTING.md](CONTRIBUTING.md#testing).
 
 ### Run End-to-End Tests with [Playwright](https://playwright.dev)
 

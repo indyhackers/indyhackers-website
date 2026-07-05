@@ -13,14 +13,17 @@ npm run dev          # Vite dev server (localhost:5173)
 npm run build        # Production build
 npm run lint         # ESLint with auto-fix
 npm run format       # Prettier formatting
-npm run test:unit    # Vitest unit tests (interactive watch mode)
+npm run test:vitest      # Vitest watch mode
+npm run test:vitest:ci   # Vitest single run (CI)
 npm run test:e2e     # Playwright e2e tests headless (install browsers first: npx playwright install)
 npm run test:e2e:ui  # Playwright interactive UI (local dev)
 npm run test:e2e:headed  # Playwright with visible browser windows
 ```
 
-Run a single unit test file: `npx vitest run src/components/__tests__/SomeTest.spec.js`
+Run a single Vitest file: `npx vitest run src/components/jobs/JobListing.test.js`
 Run a single e2e test: `npm run test:e2e -- --project=chromium e2e/some.spec.js`
+
+CI runs the `vitest` job on pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md#testing).
 
 Docker/Task commands for local PocketBase development:
 ```bash

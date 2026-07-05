@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import ManageJobView from '../jobs/ManageJobView.vue'
+import ManageJobView from './ManageJobView.vue'
 
 const mockJob = {
   id: 'job1',
@@ -122,7 +122,6 @@ describe('ManageJobView', () => {
     await takedownBtn.trigger('click')
     await flushPromises()
 
-    // only the initial GET happened — no PATCH
     expect(send).toHaveBeenCalledTimes(1)
     confirmSpy.mockRestore()
   })

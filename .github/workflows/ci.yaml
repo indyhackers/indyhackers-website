@@ -1,13 +1,37 @@
 name: CI
 
-on: push
-
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - dev
 
 env:
   IMAGE_NAME: apoland/indyhackers
 
 jobs:
+  vitest:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest
+        run: npm run test:vitest:ci
+
   build:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.build-image.outputs.image }}
@@ -46,7 +70,7 @@ jobs:
 
   cd-dev:
     if: github.ref == 'refs/heads/dev'
-    needs: [ build ]
+    needs: [build]
     uses: ./.github/workflows/cd.yaml
     with:
       image: ${{ needs.build.outputs.image }}
@@ -57,4 +81,3 @@ jobs:
       ts_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       ts_oauth_secret: ${{ secrets.TS_OAUTH_SECRET }}
       slack_webhook: ${{secrets.SLACK_NOTIFY_WEBHOOK }}
-

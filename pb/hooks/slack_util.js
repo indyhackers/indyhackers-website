@@ -111,9 +111,13 @@ function notifyBoard(record) {
     const cocAgreed = record.getBool("coc_agreed")
 
     // Stored risk signals used for the auto-approval decision (geo lives here too).
+    // A JSON field comes back from record.get() as raw JSON in the JSVM, not a
+    // live JS object, so signals.* would read as undefined (the notification
+    // showed reCAPTCHA "fail" and blank geo/US-visitor even though the stored
+    // record was correct). Parse the string form so the values are usable.
     let signals = {}
     try {
-        signals = record.get("signals") || {}
+        signals = JSON.parse(record.getString("signals") || "{}")
     } catch (_) {
         signals = {}
     }

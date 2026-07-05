@@ -2,6 +2,9 @@
   <div class="job-view">
     <div class="ih-container">
       <div class="job-content">
+        <div v-if="isPreview" class="preview-banner">
+          Preview — this posting hasn't been published yet.
+        </div>
         <b-card class="job-card">
           <h2 class="job-title">{{ job.title }}</h2>
           <p class="company-name">{{ job.company }}</p>
@@ -72,6 +75,9 @@ export default defineComponent({
     }
   },
   computed: {
+    isPreview() {
+      return !!this.$route.query.preview
+    },
     formattedDate() {
       const job = this.job
       if (job.approved_at != null && job.approved_at !== '') {
@@ -181,6 +187,18 @@ export default defineComponent({
 .job-content {
   max-width: 800px;
   margin: 4rem auto 0;
+}
+
+.preview-banner {
+  background: var(--accent-deep);
+  color: var(--surface-1);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: bold;
+  text-align: center;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
 }
 
 .job-card {

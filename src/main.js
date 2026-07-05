@@ -66,6 +66,37 @@ export const createApp = ViteSSG(
     app.use(createBootstrap())
 
     if (isClient) {
+      // Gate everything under /admin: must be signed in as a user with the
+      // admin role, otherwise bounce to /login (preserving where they were
+      // headed). Client-only — the prerender pass never visits /admin routes.
+      const hasAdminRole = (record) => {
+        const roles = record?.expand?.roles ?? record?.roles ?? []
+        const list = Array.isArray(roles) ? roles : [roles]
+        return list.some((r) => (typeof r === 'object' ? r?.name : r) === 'admin')
+      }
+      router.beforeEach(async (to) => {
+        if (!to.path.startsWith('/admin')) return true
+
+        // Not signed in at all → login (preserving the destination).
+        if (!pocketbase.authStore.isValid) {
+          return { name: 'Login', query: { redirect: to.fullPath } }
+        }
+        if (hasAdminRole(pocketbase.authStore.record)) return true
+
+        // Signed in but the auth record didn't carry roles (e.g. older session)
+        // — verify once against the server before deciding.
+        try {
+          const me = await pocketbase
+            .collection('users')
+            .getOne(pocketbase.authStore.record.id, { expand: 'roles' })
+          if (hasAdminRole(me)) return true
+        } catch {
+          // fall through
+        }
+        // Signed in but not an admin → not authorized.
+        return { name: 'NotAuthorized' }
+      })
+
       // Popper and Bootstrap's JS bundle both touch `document` at import time,
       // so they can only load in the browser.
       import('@popperjs/core/dist/umd/popper.min.js')

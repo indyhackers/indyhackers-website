@@ -86,7 +86,31 @@ export const routes = [
     {
       path: '/admin',
       name: 'Admin',
+      component: () => import('../components/admin/AdminHome.vue'),
+      meta: { noindex: true }
+    },
+    {
+      path: '/admin/console',
+      name: 'AdminConsole',
       component: () => import('../components/AdminLogin.vue'),
+      meta: { noindex: true }
+    },
+    {
+      path: '/admin/jobs',
+      name: 'JobApprovals',
+      component: () => import('../components/admin/JobApprovals.vue'),
+      meta: { noindex: true }
+    },
+    {
+      path: '/admin/slack-invites',
+      name: 'SlackInvites',
+      component: () => import('../components/admin/SlackInvites.vue'),
+      meta: { noindex: true }
+    },
+    {
+      path: '/not-authorized',
+      name: 'NotAuthorized',
+      component: () => import('../components/NotAuthorized.vue'),
       meta: { noindex: true }
     },
     {
@@ -160,6 +184,16 @@ export const routes = [
       meta: {
         title: 'Code of Conduct',
         description: 'The code of conduct for the IndyHackers community, events, and Slack.'
+      }
+    },
+    {
+      path: '/slack',
+      name: 'Slack',
+      component: () => import('../components/SlackView.vue'),
+      meta: {
+        title: 'Join the IndyHackers Slack',
+        description:
+          "Request an invite to the IndyHackers Slack — Indianapolis's community of developers, designers, and tech founders."
       }
     }
   ]

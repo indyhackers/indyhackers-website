@@ -76,6 +76,17 @@
               <dt>Approx. location (IP)</dt>
               <dd>{{ geoText(inv) }}</dd>
             </div>
+            <div v-if="inv.signals?.geo?.postal">
+              <dt>Postal code</dt>
+              <dd>{{ inv.signals.geo.postal }}</dd>
+            </div>
+            <div v-if="inv.signals?.geo?.metro_code">
+              <dt>Metro code</dt>
+              <dd>
+                {{ inv.signals.geo.metro_code
+                }}<span v-if="inv.signals.geo.metro_name"> — {{ inv.signals.geo.metro_name }}</span>
+              </dd>
+            </div>
             <div v-if="geoCoords(inv)">
               <dt>Coordinates</dt>
               <dd>
@@ -90,6 +101,10 @@
                   map ↗
                 </a>
               </dd>
+            </div>
+            <div v-if="tzText(inv)">
+              <dt>Time zone</dt>
+              <dd>{{ tzText(inv) }}</dd>
             </div>
             <div>
               <dt>Code of conduct</dt>
@@ -195,7 +210,8 @@ const hasGeo = (inv) => {
 const geoText = (inv) => {
   if (!hasGeo(inv)) return ''
   const g = inv.signals?.geo || {}
-  const locality = [g.city, g.region].filter(Boolean).join(', ')
+  const region = g.region && g.region_code ? `${g.region} (${g.region_code})` : g.region || g.region_code || ''
+  const locality = [g.city, region].filter(Boolean).join(', ')
   const wider = [continentName(g.continent), inv.country].filter(Boolean).join(' · ')
   return [locality, wider].filter(Boolean).join(' · ')
 }
@@ -203,6 +219,15 @@ const geoText = (inv) => {
 const geoCoords = (inv) => {
   const g = inv.signals?.geo || {}
   return g.lat && g.lon ? `${g.lat}, ${g.lon}` : ''
+}
+
+// IANA timezone from Cloudflare + how it relates to Indianapolis (Eastern).
+const tzText = (inv) => {
+  const g = inv.signals?.geo || {}
+  if (!g.timezone) return ''
+  if (g.same_tz_as_indy === true) return `${g.timezone} — same as Indianapolis`
+  if (g.same_tz_as_indy === false) return `${g.timezone} — different from Indianapolis`
+  return g.timezone
 }
 
 const mapUrl = (inv) => {

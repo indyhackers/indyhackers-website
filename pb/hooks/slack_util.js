@@ -32,6 +32,245 @@ const continentName = (code) => CONTINENTS[String(code || "").toUpperCase()] || 
 // Profile links are stored as free text, so a user may omit the scheme.
 const normalizeUrl = (u) => (/^https?:\/\//i.test(u) ? u : "https://" + u)
 
+// IANA zones that share Indianapolis's clock. Indianapolis has observed Eastern
+// Time since 2006, so US/Canada Eastern zones line up with it year-round. An
+// allowlist (not offset math — the JSVM has no Intl); the raw zone is shown
+// alongside so a reviewer can sanity-check. Note NW-Indiana zones like
+// America/Indiana/Knox are Central, so they're deliberately excluded.
+const INDY_EASTERN_TZS = [
+    "America/Indiana/Indianapolis", "America/Indianapolis", "America/New_York",
+    "America/Detroit", "America/Kentucky/Louisville", "America/Kentucky/Monticello",
+    "America/Toronto", "America/Montreal",
+]
+
+// true/false when a timezone is known, null when it wasn't captured.
+const sameTimezoneAsIndy = (tz) => (tz ? INDY_EASTERN_TZS.indexOf(tz) !== -1 : null)
+
+// Human-readable timezone signal: the IANA zone plus how it relates to Indy.
+const timezoneLabel = (tz, sameAsIndy) => {
+    if (!tz) return ""
+    if (sameAsIndy === true) return tz + " — same as Indianapolis"
+    if (sameAsIndy === false) return tz + " — different from Indianapolis"
+    return tz
+}
+
+// Cloudflare's cf-metro-code is the US-only Nielsen DMA (market) code. Full
+// DMA→market map (210 markets; Alaska/Hawaii use their standard codes 743–747).
+// Sourced from github.com/simzou/nielsen-dma. Unknown codes show the raw number.
+const DMA_NAMES = {
+    "500": "Portland-Auburn, ME",
+    "501": "New York, NY",
+    "502": "Binghamton, NY",
+    "503": "Macon, GA",
+    "504": "Philadelphia, PA",
+    "505": "Detroit, MI",
+    "506": "Boston, MA (Manchester, NH)",
+    "507": "Savannah, GA",
+    "508": "Pittsburgh, PA",
+    "509": "Ft. Wayne, IN",
+    "510": "Cleveland-Akron (Canton), OH",
+    "511": "Washington, DC (Hagerstown, MD)",
+    "512": "Baltimore, MD",
+    "513": "Flint-Saginaw-Bay City, MI",
+    "514": "Buffalo, NY",
+    "515": "Cincinnati, OH",
+    "516": "Erie, PA",
+    "517": "Charlotte, NC",
+    "518": "Greensboro-High Point-Winston Salem, NC",
+    "519": "Charleston, SC",
+    "520": "Augusta, GA",
+    "521": "Providence, RI-New Bedford, MA",
+    "522": "Columbus, GA",
+    "523": "Burlington, VT-Plattsburgh, NY",
+    "524": "Atlanta, GA",
+    "525": "Albany, GA",
+    "526": "Utica, NY",
+    "527": "Indianapolis, IN",
+    "528": "Miami-Fort Lauderdale, FL",
+    "529": "Louisville, KY",
+    "530": "Tallahassee, FL-Thomasville, GA",
+    "531": "Tri-Cities, TN-VA",
+    "532": "Albany-Schenectady-Troy, NY",
+    "533": "Hartford & New Haven, CT",
+    "534": "Orlando-Daytona Beach-Melbourne, FL",
+    "535": "Columbus, OH",
+    "536": "Youngstown, OH",
+    "537": "Bangor, ME",
+    "538": "Rochester, NY",
+    "539": "Tampa-St. Petersburg (Sarasota), FL",
+    "540": "Traverse City-Cadillac, MI",
+    "541": "Lexington, KY",
+    "542": "Dayton, OH",
+    "543": "Springfield-Holyoke, MA",
+    "544": "Norfolk-Portsmouth-Newport News, VA",
+    "545": "Greenville-New Bern-Washington, NC",
+    "546": "Columbia, SC",
+    "547": "Toledo, OH",
+    "548": "West Palm Beach-Ft. Pierce, FL",
+    "549": "Watertown, NY",
+    "550": "Wilmington, NC",
+    "551": "Lansing, MI",
+    "552": "Presque Isle, ME",
+    "553": "Marquette, MI",
+    "554": "Wheeling, WV-Steubenville, OH",
+    "555": "Syracuse, NY",
+    "556": "Richmond-Petersburg, VA",
+    "557": "Knoxville, TN",
+    "558": "Lima, OH",
+    "559": "Bluefield-Beckley-Oak Hill, WV",
+    "560": "Raleigh-Durham (Fayetteville), NC",
+    "561": "Jacksonville, FL",
+    "563": "Grand Rapids-Kalamazoo-Battle Creek, MI",
+    "564": "Charleston-Huntington, WV",
+    "565": "Elmira, NY",
+    "566": "Harrisburg-Lancaster-Lebanon-York, PA",
+    "567": "Greenville-Spartanburg, SC-Asheville, NC-Anderson,SC",
+    "569": "Harrisonburg, VA",
+    "570": "Myrtle Beach-Florence, SC",
+    "571": "Ft. Myers-Naples, FL",
+    "573": "Roanoke-Lynchburg, VA",
+    "574": "Johnstown-Altoona, PA",
+    "575": "Chattanooga, TN",
+    "576": "Salisbury, MD",
+    "577": "Wilkes Barre-Scranton, PA",
+    "581": "Terre Haute, IN",
+    "582": "Lafayette, IN",
+    "583": "Alpena, MI",
+    "584": "Charlottesville, VA",
+    "588": "South Bend-Elkhart, IN",
+    "592": "Gainesville, FL",
+    "596": "Zanesville, OH",
+    "597": "Parkersburg, WV",
+    "598": "Clarksburg-Weston, WV",
+    "600": "Corpus Christi, TX",
+    "602": "Chicago, IL",
+    "603": "Joplin, MO-Pittsburg, KS",
+    "604": "Columbia-Jefferson City, MO",
+    "605": "Topeka, KS",
+    "606": "Dothan, AL",
+    "609": "St. Louis, MO",
+    "610": "Rockford, IL",
+    "611": "Rochester, MN-Mason City, IA-Austin, MN",
+    "612": "Shreveport, LA",
+    "613": "Minneapolis-St. Paul, MN",
+    "616": "Kansas City, MO",
+    "617": "Milwaukee, WI",
+    "618": "Houston, TX",
+    "619": "Springfield, MO",
+    "622": "New Orleans, LA",
+    "623": "Dallas-Ft. Worth, TX",
+    "624": "Sioux City, IA",
+    "625": "Waco-Temple-Bryan, TX",
+    "626": "Victoria, TX",
+    "627": "Wichita Falls, TX-Lawton, OK",
+    "628": "Monroe, LA-El Dorado, AR",
+    "630": "Birmingham (Anniston and Tuscaloosa), AL",
+    "631": "Ottumwa, IA-Kirksville, MO",
+    "632": "Paducah, KY-Cape Girardeau, MO-Harrisburg, IL",
+    "633": "Odessa-Midland, TX",
+    "634": "Amarillo, TX",
+    "635": "Austin, TX",
+    "636": "Harlingen-Weslaco-Brownsville-McAllen, TX",
+    "637": "Cedar Rapids-Waterloo-Iowa City & Dubuque, IA",
+    "638": "St. Joseph, MO",
+    "639": "Jackson, TN",
+    "640": "Memphis, TN",
+    "641": "San Antonio, TX",
+    "642": "Lafayette, LA",
+    "643": "Lake Charles, LA",
+    "644": "Alexandria, LA",
+    "647": "Greenwood-Greenville, MS",
+    "648": "Champaign & Springfield-Decatur, IL",
+    "649": "Evansville, IN",
+    "650": "Oklahoma City, OK",
+    "651": "Lubbock, TX",
+    "652": "Omaha, NE",
+    "656": "Panama City, FL",
+    "657": "Sherman, TX-Ada, OK",
+    "658": "Green Bay-Appleton, WI",
+    "659": "Nashville, TN",
+    "661": "San Angelo, TX",
+    "662": "Abilene-Sweetwater, TX",
+    "669": "Madison, WI",
+    "670": "Ft. Smith-Fayetteville-Springdale-Rogers, AR",
+    "671": "Tulsa, OK",
+    "673": "Columbus-Tupelo-West Point, MS",
+    "675": "Peoria-Bloomington, IL",
+    "676": "Duluth, MN-Superior, WI",
+    "678": "Wichita-Hutchinson, KS Plus",
+    "679": "Des Moines-Ames, IA",
+    "682": "Davenport, IA-Rock Island-Moline, IL",
+    "686": "Mobile, AL-Pensacola (Ft. Walton Beach), FL",
+    "687": "Minot-Bismarck-Dickinson(Williston), ND",
+    "691": "Huntsville-Decatur (Florence), AL",
+    "692": "Beaumont-Port Arthur, TX",
+    "693": "Little Rock-Pine Bluff, AR",
+    "698": "Montgomery-Selma, AL",
+    "702": "La Crosse-Eau Claire, WI",
+    "705": "Wausau-Rhinelander, WI",
+    "709": "Tyler-Longview(Lufkin & Nacogdoches), TX",
+    "710": "Hattiesburg-Laurel, MS",
+    "711": "Meridian, MS",
+    "716": "Baton Rouge, LA",
+    "717": "Quincy, IL-Hannibal, MO-Keokuk, IA",
+    "718": "Jackson, MS",
+    "722": "Lincoln & Hastings-Kearney, NE",
+    "724": "Fargo-Valley City, ND",
+    "725": "Sioux Falls (Mitchell), SD",
+    "734": "Jonesboro, AR",
+    "736": "Bowling Green, KY",
+    "737": "Mankato, MN",
+    "740": "North Platte, NE",
+    "743": "Anchorage, AK",
+    "744": "Honolulu, HI",
+    "745": "Fairbanks, AK",
+    "746": "Biloxi-Gulfport, MS",
+    "747": "Juneau, AK",
+    "749": "Laredo, TX",
+    "751": "Denver, CO",
+    "752": "Colorado Springs-Pueblo, CO",
+    "753": "Phoenix, AZ",
+    "754": "Butte-Bozeman, MT",
+    "755": "Great Falls, MT",
+    "756": "Billings, MT",
+    "757": "Boise, ID",
+    "758": "Idaho Falls-Pocatello, ID",
+    "759": "Cheyenne, WY-Scottsbluff, NE",
+    "760": "Twin Falls, ID",
+    "762": "Missoula, MT",
+    "764": "Rapid City, SD",
+    "765": "El Paso, TX",
+    "766": "Helena, MT",
+    "767": "Casper-Riverton, WY",
+    "770": "Salt Lake City, UT",
+    "771": "Yuma, AZ-El Centro, CA",
+    "773": "Grand Junction-Montrose, CO",
+    "789": "Tucson (Sierra Vista), AZ",
+    "790": "Albuquerque-Santa Fe, NM",
+    "798": "Glendive, MT",
+    "800": "Bakersfield, CA",
+    "801": "Eugene, OR",
+    "802": "Eureka, CA",
+    "803": "Los Angeles, CA",
+    "804": "Palm Springs, CA",
+    "807": "San Francisco-Oakland-San Jose, CA",
+    "810": "Yakima-Pasco-Richland-Kennewick, WA",
+    "811": "Reno, NV",
+    "813": "Medford-Klamath Falls, OR",
+    "819": "Seattle-Tacoma, WA",
+    "820": "Portland, OR",
+    "821": "Bend, OR",
+    "825": "San Diego, CA",
+    "828": "Monterey-Salinas, CA",
+    "839": "Las Vegas, NV",
+    "855": "Santa Barbara-Santa Maria-San Luis Obispo, CA",
+    "862": "Sacramento-Stockton-Modesto, CA",
+    "866": "Fresno-Visalia, CA",
+    "868": "Chico-Redding, CA",
+    "881": "Spokane, WA",
+}
+const metroName = (code) => (code && DMA_NAMES[String(code)]) || ""
+
 // Human-readable reCAPTCHA signal from the stored signals object: the numeric
 // v3 score vs. threshold when captured, else the stored pass/fail.
 const captchaSignalLabel = (signals) => {
@@ -126,16 +365,24 @@ function notifyBoard(record) {
     const disposable = signals.disposable ? "Yes" : "No"
     const captcha = captchaSignalLabel(signals)
     const hasGeo = !!(geo.city || geo.region || geo.continent || (geo.lat && geo.lon))
+    const regionText = geo.region && geo.region_code
+        ? geo.region + " (" + geo.region_code + ")"
+        : (geo.region || geo.region_code || "")
     const approxLocation = hasGeo
         ? [
-            [geo.city, geo.region].filter(Boolean).join(", "),
+            [geo.city, regionText].filter(Boolean).join(", "),
             [continentName(geo.continent), country].filter(Boolean).join(" · "),
           ].filter(Boolean).join(" · ")
+        : ""
+    const postal = geo.postal || ""
+    const metroCode = geo.metro_code
+        ? (geo.metro_name ? geo.metro_code + " — " + geo.metro_name : geo.metro_code)
         : ""
     const coords = geo.lat && geo.lon ? geo.lat + ", " + geo.lon : ""
     const mapUrl = geo.lat && geo.lon
         ? "https://www.google.com/maps?q=" + encodeURIComponent(geo.lat) + "," + encodeURIComponent(geo.lon)
         : ""
+    const timezone = timezoneLabel(geo.timezone, geo.same_tz_as_indy)
 
     const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
     const adminUrl = base ? base + "/admin/slack-invites" : ""
@@ -170,6 +417,9 @@ function notifyBoard(record) {
                 html += "<li><strong>Coordinates:</strong> " + esc(coords) +
                     (mapUrl ? ' (<a href="' + esc(mapUrl) + '">map</a>)' : "") + "</li>"
             }
+            html += row("Time zone", timezone)
+            html += row("Postal code", postal)
+            html += row("Metro code", metroCode)
             html += row("IP", ip)
             html += linkRow("LinkedIn", linkedin)
             html += linkRow("GitHub", github)
@@ -214,6 +464,9 @@ function notifyBoard(record) {
                 line("Based in", cityRegion),
                 line("Approx. location (IP)", approxLocation),
                 coords ? "*Coordinates:* " + slackEsc(coords) + (mapUrl ? " (<" + mapUrl + "|map>)" : "") : "",
+                line("Time zone", timezone),
+                line("Postal code", postal),
+                line("Metro code", metroCode),
                 line("IP", ip),
                 line("Connection to Indiana", connection),
                 linkLine("LinkedIn", linkedin),
@@ -248,6 +501,8 @@ module.exports = {
     DISPOSABLE_DOMAINS,
     emailDomain,
     isDisposable,
+    sameTimezoneAsIndy,
+    metroName,
     sendSlackInvite,
     notifyBoard,
 }

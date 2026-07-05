@@ -91,6 +91,10 @@
                 </a>
               </dd>
             </div>
+            <div v-if="tzText(inv)">
+              <dt>Time zone</dt>
+              <dd>{{ tzText(inv) }}</dd>
+            </div>
             <div>
               <dt>Code of conduct</dt>
               <dd>{{ inv.coc_agreed ? '✓ agreed' : '⚠ not agreed' }}</dd>
@@ -203,6 +207,15 @@ const geoText = (inv) => {
 const geoCoords = (inv) => {
   const g = inv.signals?.geo || {}
   return g.lat && g.lon ? `${g.lat}, ${g.lon}` : ''
+}
+
+// IANA timezone from Cloudflare + how it relates to Indianapolis (Eastern).
+const tzText = (inv) => {
+  const g = inv.signals?.geo || {}
+  if (!g.timezone) return ''
+  if (g.same_tz_as_indy === true) return `${g.timezone} — same as Indianapolis`
+  if (g.same_tz_as_indy === false) return `${g.timezone} — different from Indianapolis`
+  return g.timezone
 }
 
 const mapUrl = (inv) => {

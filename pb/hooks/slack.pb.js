@@ -108,9 +108,12 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         region: header("cf-region"),
         continent: header("cf-ipcontinent"),
         postal: header("cf-postal-code"),
+        timezone: header("cf-timezone"),
         lat: header("cf-iplatitude"),
         lon: header("cf-iplongitude"),
     }
+    // Whether the visitor shares Indianapolis's clock (US/Canada Eastern).
+    geo.same_tz_as_indy = util.sameTimezoneAsIndy(geo.timezone)
 
     // Rate limit per IP.
     const perHour = parseInt($os.getenv("SLACK_RATE_PER_HOUR") || "5", 10)

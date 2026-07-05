@@ -32,6 +32,28 @@ const continentName = (code) => CONTINENTS[String(code || "").toUpperCase()] || 
 // Profile links are stored as free text, so a user may omit the scheme.
 const normalizeUrl = (u) => (/^https?:\/\//i.test(u) ? u : "https://" + u)
 
+// IANA zones that share Indianapolis's clock. Indianapolis has observed Eastern
+// Time since 2006, so US/Canada Eastern zones line up with it year-round. An
+// allowlist (not offset math — the JSVM has no Intl); the raw zone is shown
+// alongside so a reviewer can sanity-check. Note NW-Indiana zones like
+// America/Indiana/Knox are Central, so they're deliberately excluded.
+const INDY_EASTERN_TZS = [
+    "America/Indiana/Indianapolis", "America/Indianapolis", "America/New_York",
+    "America/Detroit", "America/Kentucky/Louisville", "America/Kentucky/Monticello",
+    "America/Toronto", "America/Montreal",
+]
+
+// true/false when a timezone is known, null when it wasn't captured.
+const sameTimezoneAsIndy = (tz) => (tz ? INDY_EASTERN_TZS.indexOf(tz) !== -1 : null)
+
+// Human-readable timezone signal: the IANA zone plus how it relates to Indy.
+const timezoneLabel = (tz, sameAsIndy) => {
+    if (!tz) return ""
+    if (sameAsIndy === true) return tz + " — same as Indianapolis"
+    if (sameAsIndy === false) return tz + " — different from Indianapolis"
+    return tz
+}
+
 // Human-readable reCAPTCHA signal from the stored signals object: the numeric
 // v3 score vs. threshold when captured, else the stored pass/fail.
 const captchaSignalLabel = (signals) => {
@@ -136,6 +158,7 @@ function notifyBoard(record) {
     const mapUrl = geo.lat && geo.lon
         ? "https://www.google.com/maps?q=" + encodeURIComponent(geo.lat) + "," + encodeURIComponent(geo.lon)
         : ""
+    const timezone = timezoneLabel(geo.timezone, geo.same_tz_as_indy)
 
     const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
     const adminUrl = base ? base + "/admin/slack-invites" : ""
@@ -170,6 +193,7 @@ function notifyBoard(record) {
                 html += "<li><strong>Coordinates:</strong> " + esc(coords) +
                     (mapUrl ? ' (<a href="' + esc(mapUrl) + '">map</a>)' : "") + "</li>"
             }
+            html += row("Time zone", timezone)
             html += row("IP", ip)
             html += linkRow("LinkedIn", linkedin)
             html += linkRow("GitHub", github)
@@ -214,6 +238,7 @@ function notifyBoard(record) {
                 line("Based in", cityRegion),
                 line("Approx. location (IP)", approxLocation),
                 coords ? "*Coordinates:* " + slackEsc(coords) + (mapUrl ? " (<" + mapUrl + "|map>)" : "") : "",
+                line("Time zone", timezone),
                 line("IP", ip),
                 line("Connection to Indiana", connection),
                 linkLine("LinkedIn", linkedin),
@@ -248,6 +273,7 @@ module.exports = {
     DISPOSABLE_DOMAINS,
     emailDomain,
     isDisposable,
+    sameTimezoneAsIndy,
     sendSlackInvite,
     notifyBoard,
 }

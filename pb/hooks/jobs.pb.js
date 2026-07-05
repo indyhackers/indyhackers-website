@@ -7,17 +7,41 @@ onRecordEnrich((e) => {
     e.next()
 }, "jobs")
 
-// Generate the unguessable manage token server-side before the record is
-// persisted, so the (account-less) submitter can later edit / take down their
-// own post without anyone being able to forge the link.
-onRecordCreate((e) => {
-    if (!e.record.getString("edit_token")) {
-        e.record.set("edit_token", $security.randomString(40))
+// The jobs create rule is public (account-less submission). Make sure an
+// anonymous request can't self-publish by POSTing approved=true — force the
+// moderation state unless the requester is an admin/superuser. Approval happens
+// later on the /admin/jobs screen, which flips `approved`. This is a request
+// hook, so it sees the caller's auth and never fires for internal $app.save.
+onRecordCreateRequest((e) => {
+    const jobs = require(`${__hooks}/jobs_util.js`)
+    if (!jobs.requestIsPrivileged(e)) {
+        e.record.set("approved", false)
+        e.record.set("approved_at", "")
+        e.record.set("filled", false)
     }
     e.next()
 }, "jobs")
 
+// Generate the unguessable manage token server-side before the record is
+// persisted, so the (account-less) submitter can later edit / take down their
+// own post without anyone being able to forge the link. Also sanitize the
+// rich-text fields on the way in (defense in depth beneath the render-time
+// DOMPurify — see jobs_util.js).
+onRecordCreate((e) => {
+    const jobs = require(`${__hooks}/jobs_util.js`)
+    if (!e.record.getString("edit_token")) {
+        e.record.set("edit_token", $security.randomString(40))
+    }
+    jobs.sanitizeJobHtml(e.record)
+    e.next()
+}, "jobs")
+
 onRecordUpdate((e) => {
+    const jobs = require(`${__hooks}/jobs_util.js`)
+    // Re-sanitize on every write — this also covers the /api/jobs/manage PATCH
+    // route, which edits the body and persists via $app.save (firing this hook).
+    jobs.sanitizeJobHtml(e.record)
+
     const wasApproved = e.record.original().getBool("approved")
     const isApproved = e.record.getBool("approved")
 

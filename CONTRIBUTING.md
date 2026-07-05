@@ -7,9 +7,10 @@ Thanks for helping improve the site. This is a living document—update it when 
 1. Clone the repo.
     - No push access? Fork it on GitHub, then clone your fork.
 2. Follow [README.md](README.md) for install, env setup, and local dev.
-3. Branch from `dev` (ideally linked to a GitHub issue)
-4. Work locally until satisfied (don't forget tests!)
-5. Open a PR against `dev`
+3. **Backend work** (hooks, migrations, roles, admin): see [README — Backend development (PocketBase)](README.md#backend-development-pocketbase). Default `npm run dev` uses MSW mocks — no PocketBase container needed for frontend-only changes.
+4. Branch from `dev` (ideally linked to a GitHub issue)
+5. Work locally until satisfied (don't forget tests!)
+6. Open a PR against `dev`
 
 The [#community-projects Website Project Board](https://github.com/orgs/indyhackers/projects/2) is where that group tracks and prioritizes website work—you do not need to use it to contribute. Open an issue or PR anytime; Slack membership is not required.
 
@@ -25,6 +26,8 @@ The [#community-projects Website Project Board](https://github.com/orgs/indyhack
 We use two complementary tools: **Vitest** for fast unit and component tests, **Playwright** for a small end-to-end smoke suite. They answer different questions—Vitest catches logic and component bugs in milliseconds; Playwright confirms the app boots, routes resolve, and public pages render in a real browser.
 
 Commands: [README.md — Vitest](README.md#run-tests-with-vitest) and [Playwright](README.md#run-end-to-end-tests-with-playwright). CI on pull requests: [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) runs Vitest and Playwright (Chromium smoke tests).
+
+Vitest and Playwright currently use MSW — no Docker or PocketBase container is required to run tests locally or in CI. Containerized PocketBase integration tests are tracked separately (see follow-up issue linked below once created).
 
 ### Vitest — default for most tests
 

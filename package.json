@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:backend": "VITE_USE_MSW=false vite",
     "build": "vite-ssg build && node scripts/generate-sitemap.mjs",
     "build:spa": "vite build",
     "preview": "vite preview",

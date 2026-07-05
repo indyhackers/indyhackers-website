@@ -9,7 +9,8 @@ IndyHackers Redux — a Vue 3 + PocketBase community site for Indianapolis tech.
 ## Commands
 
 ```bash
-npm run dev          # Vite dev server (localhost:5173)
+npm run dev          # Vite dev server (localhost:5173); MSW mocks PocketBase by default
+npm run dev:backend  # Vite dev with VITE_USE_MSW=false — proxies to PocketBase on :8090
 npm run build        # Production build
 npm run lint         # ESLint with auto-fix
 npm run format       # Prettier formatting
@@ -27,17 +28,24 @@ CI runs `vitest` and `playwright` jobs on pull requests. See [CONTRIBUTING.md](C
 
 Docker/Task commands for local PocketBase development:
 ```bash
+# Linux / amd64 (default TARGETARCH in docker-compose.yaml):
+npm run build && VERSION=dev docker-compose up --build
+
+# Apple Silicon only — Taskfile hardcodes TARGETARCH=arm64:
 task run-dev         # Run PocketBase + Vue with hot reload via docker-compose
 task build-dev       # Build dev Docker image
 ```
+
+See [README.md — Backend development (PocketBase)](README.md#backend-development-pocketbase) for bare-binary setup, admin login, and Option C (`dev:backend` / `VITE_USE_MSW=false`).
 
 ## Architecture
 
 ### Dual-Mode Development (MSW Mocking)
 
-The app runs in two modes:
-- **Development**: MSW (Mock Service Worker) intercepts all PocketBase API calls. No backend needed.
-- **Production**: Real PocketBase backend.
+The app runs in three local modes:
+- **Default dev (`npm run dev`)**: MSW intercepts PocketBase API calls. No backend needed.
+- **Backend dev (`npm run dev:backend` or `VITE_USE_MSW=false`)**: Vite proxies `/api` and `/_` to PocketBase on `:8090`. Requires PocketBase running (docker-compose or bare binary).
+- **Production**: Real PocketBase backend serves the built SPA.
 
 Mock data lives in `src/mocks/mocks.json`. To update it: edit data in PocketBase admin UI → run `export-mocks` command in the container → copy `pb/hooks/mocks.json` to `src/mocks/mocks.json`.
 
@@ -67,5 +75,6 @@ Mock data lives in `src/mocks/mocks.json`. To update it: edit data in PocketBase
 
 ### Environment Variables
 
+- `VITE_USE_MSW` — set to `false` to disable MSW and proxy to real PocketBase on `:8090` (see `dev:backend` script)
 - `VITE_GOOGLE_CALENDAR_API_KEY` — required for Google Calendar event fetching
 - Copy `.env.example` to `.env` for local development

@@ -9,7 +9,12 @@
 
 # Documentation Changes
 
-- [ ] Grab what Andrew sent in slack and update the first time setup for running with an actual pocketbase so backend work can happen
+- [x] Grab what Andrew sent in slack and update the first time setup for running with an actual pocketbase so backend work can happen
+    - [x] README — **Backend development (PocketBase)**: Option A (docker-compose, recommended), Option B (bare binary, alternative), Option C (`dev:backend` / `VITE_USE_MSW=false` + Vite proxy); admin login from `001_add_admin.js`; refactored old "Some neat things" bullets (dev hooks, migrations, export-mocks); fixed wrong migration filename
+    - [x] Code — `VITE_USE_MSW` gate in `main.js`, Vite proxy `/api` + `/_` → `:8090`, `npm run dev:backend`, `.env.example`
+    - [x] CONTRIBUTING — backend work pointer; interim note that tests still use MSW (no Docker in CI yet)
+    - [x] CLAUDE.md — Linux vs arm64 docker-compose, three dev modes, link to README backend section
+    - [ ] **Follow-up issue** (separate from #73): containerized PocketBase test fixture for CI — ephemeral Docker + `apply-mocks`, replace MSW in Playwright smoke. Create on [#community-projects Website Project Board](https://github.com/orgs/indyhackers/projects/2) and link from CONTRIBUTING Known gaps
 
 # Cursor Changes
 

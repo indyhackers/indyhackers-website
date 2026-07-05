@@ -174,7 +174,7 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     return e.json(200, {
         ok: true,
         pending: true,
-        msg: "Thanks! Your request is in. A board member will approve it shortly and you'll get an email invite.",
+        msg: "Thanks! Your request is in. Someone on staff will approve it shortly and you'll receive an email invite from Slack.",
     })
 })
 

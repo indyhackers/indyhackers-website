@@ -237,7 +237,7 @@ export const handlers = [
     return HttpResponse.json({
       ok: true,
       pending: true,
-      msg: 'Thanks! Your request is in. A board member will approve it shortly. (dev mock)'
+      msg: 'Thanks! Your request is in. Someone on staff will approve it shortly. (dev mock)'
     })
   }),
   // Admin queue, served by the generic collection handlers below in production;

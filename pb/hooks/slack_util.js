@@ -148,12 +148,17 @@ function notifyBoard(record) {
     const disposable = signals.disposable ? "Yes" : "No"
     const captcha = captchaSignalLabel(signals)
     const hasGeo = !!(geo.city || geo.region || geo.continent || (geo.lat && geo.lon))
+    const regionText = geo.region && geo.region_code
+        ? geo.region + " (" + geo.region_code + ")"
+        : (geo.region || geo.region_code || "")
     const approxLocation = hasGeo
         ? [
-            [geo.city, geo.region].filter(Boolean).join(", "),
+            [geo.city, regionText].filter(Boolean).join(", "),
             [continentName(geo.continent), country].filter(Boolean).join(" · "),
           ].filter(Boolean).join(" · ")
         : ""
+    const postal = geo.postal || ""
+    const metroCode = geo.metro_code || ""
     const coords = geo.lat && geo.lon ? geo.lat + ", " + geo.lon : ""
     const mapUrl = geo.lat && geo.lon
         ? "https://www.google.com/maps?q=" + encodeURIComponent(geo.lat) + "," + encodeURIComponent(geo.lon)
@@ -194,6 +199,8 @@ function notifyBoard(record) {
                     (mapUrl ? ' (<a href="' + esc(mapUrl) + '">map</a>)' : "") + "</li>"
             }
             html += row("Time zone", timezone)
+            html += row("Postal code", postal)
+            html += row("Metro code", metroCode)
             html += row("IP", ip)
             html += linkRow("LinkedIn", linkedin)
             html += linkRow("GitHub", github)
@@ -239,6 +246,8 @@ function notifyBoard(record) {
                 line("Approx. location (IP)", approxLocation),
                 coords ? "*Coordinates:* " + slackEsc(coords) + (mapUrl ? " (<" + mapUrl + "|map>)" : "") : "",
                 line("Time zone", timezone),
+                line("Postal code", postal),
+                line("Metro code", metroCode),
                 line("IP", ip),
                 line("Connection to Indiana", connection),
                 linkLine("LinkedIn", linkedin),

@@ -76,6 +76,14 @@
               <dt>Approx. location (IP)</dt>
               <dd>{{ geoText(inv) }}</dd>
             </div>
+            <div v-if="inv.signals?.geo?.postal">
+              <dt>Postal code</dt>
+              <dd>{{ inv.signals.geo.postal }}</dd>
+            </div>
+            <div v-if="inv.signals?.geo?.metro_code">
+              <dt>Metro code</dt>
+              <dd>{{ inv.signals.geo.metro_code }}</dd>
+            </div>
             <div v-if="geoCoords(inv)">
               <dt>Coordinates</dt>
               <dd>
@@ -199,7 +207,8 @@ const hasGeo = (inv) => {
 const geoText = (inv) => {
   if (!hasGeo(inv)) return ''
   const g = inv.signals?.geo || {}
-  const locality = [g.city, g.region].filter(Boolean).join(', ')
+  const region = g.region && g.region_code ? `${g.region} (${g.region_code})` : g.region || g.region_code || ''
+  const locality = [g.city, region].filter(Boolean).join(', ')
   const wider = [continentName(g.continent), inv.country].filter(Boolean).join(' · ')
   return [locality, wider].filter(Boolean).join(' · ')
 }

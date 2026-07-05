@@ -106,8 +106,10 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     const geo = {
         city: header("cf-ipcity"),
         region: header("cf-region"),
+        region_code: header("cf-region-code"),
         continent: header("cf-ipcontinent"),
         postal: header("cf-postal-code"),
+        metro_code: header("cf-metro-code"),
         timezone: header("cf-timezone"),
         lat: header("cf-iplatitude"),
         lon: header("cf-iplongitude"),

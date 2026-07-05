@@ -143,7 +143,7 @@ routerAdd("POST", "/api/slack/invite", (e) => {
                 return e.json(200, {
                     ok: true,
                     pending: true,
-                    msg: "Your request is already in the queue — hang tight for approval.",
+                    msg: "Your request is already in the queue — hang tight for approval. You can email admin@indyhackers.org if you need assistance.",
                 })
             }
             // rejected → fall through and let them try again

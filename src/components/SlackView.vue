@@ -125,7 +125,7 @@
           <input v-model="cocAgreed" type="checkbox" required :disabled="submitting" />
           <span>
             I agree to the
-            <RouterLink to="/code-of-conduct">code of conduct</RouterLink>.
+            <RouterLink to="/code-of-conduct" target="_blank" rel="noopener noreferrer">code of conduct</RouterLink>.
           </span>
         </label>
 

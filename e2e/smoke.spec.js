@@ -37,7 +37,9 @@ test.describe('Smoke', () => {
   test('slack page loads', async ({ page }) => {
     await page.goto('/slack')
     await expect(page.getByRole('heading', { level: 1, name: 'Join us on Slack' })).toBeVisible()
-    await expect(page.getByRole('textbox', { name: 'Email address' })).toBeVisible()
+    // Matches the email field's accessible name whether it comes from the newer
+    // visible "Email" label or the older "Email address" aria-label.
+    await expect(page.getByRole('textbox', { name: /^Email/ })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Send me an invite' })).toBeVisible()
   })
 })

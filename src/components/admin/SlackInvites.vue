@@ -276,6 +276,13 @@ onMounted(load)
   margin: 1.25rem 0 0;
 }
 
+/* Grid cells default to min-width:auto, so a long unbreakable value (e.g. an
+   IPv6 address) forces the cell wider and overlaps its neighbours. Let cells
+   shrink and let their values wrap. */
+.slack-admin__meta > div {
+  min-width: 0;
+}
+
 .slack-admin__meta dt,
 .slack-admin__connection dt {
   font-family: var(--font-mono);
@@ -290,6 +297,7 @@ onMounted(load)
   margin: 0;
   font-size: 0.9375rem;
   color: var(--text-primary);
+  overflow-wrap: anywhere;
 }
 
 .slack-admin__maplink {

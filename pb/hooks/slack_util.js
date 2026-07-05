@@ -79,6 +79,12 @@ function notifyBoard(record) {
     const email = record.getString("email")
     const country = record.getString("country") || "unknown"
 
+    // Absolute link to the review screen (same SITE_URL/appURL fallback the job
+    // notification emails use). Empty if neither is configured — callers then
+    // fall back to plain "the admin screen" text rather than a broken link.
+    const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
+    const adminUrl = base ? base + "/admin/slack-invites" : ""
+
     try {
         const settings = $app.settings()
         const recipient =
@@ -104,7 +110,9 @@ function notifyBoard(record) {
                     "<li>Country: " + esc(country) + "</li>" +
                     "<li>IP: " + esc(record.getString("ip")) + "</li>" +
                     "</ul>" +
-                    "<p>Approve or reject it on the Slack invites admin screen.</p>",
+                    (adminUrl
+                        ? '<p>Approve or reject it on the <a href="' + esc(adminUrl) + '">Slack invites admin screen</a>.</p>'
+                        : "<p>Approve or reject it on the Slack invites admin screen.</p>"),
             })
             $app.newMailClient().send(message)
             console.log("[slack] pending-request email sent to " + recipient)
@@ -118,11 +126,14 @@ function notifyBoard(record) {
         if (webhook) {
             const slackEsc = (v) =>
                 String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+            const cta = adminUrl
+                ? "Approve or reject it: <" + adminUrl + "|Slack invites admin>"
+                : "Approve or reject it on the Slack invites admin screen."
             const text =
                 ":envelope_with_arrow: *New Slack invite request pending review*\n" +
                 "Email: " + slackEsc(email) + "\n" +
                 "Country: " + slackEsc(country) + "\n" +
-                "Approve or reject it on the admin screen."
+                cta
             const res = $http.send({
                 url: webhook,
                 method: "POST",

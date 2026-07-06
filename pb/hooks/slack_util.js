@@ -348,26 +348,6 @@ function inviteErrorMessage(outcome) {
     return "Slack rejected the invite (" + outcome + "); the invite was not sent."
 }
 
-// After-create helper for the AUTO-approve path. An auto-approved request is
-// already persisted by the time this runs, so (unlike manual approval) it can't
-// be rolled back — instead it annotates the row with the outcome. On success
-// `invited_at` is stamped and `error` cleared; on failure the human-readable
-// reason is stored in `error` so it shows up in the admin queue.
-function sendSlackInvite(record) {
-    if (record.getString("status") !== "approved" || record.getString("invited_at")) {
-        return
-    }
-
-    const { ok, outcome } = slackInviteOutcome(record.getString("email"))
-    if (ok) {
-        record.set("invited_at", new Date().toISOString())
-        record.set("error", "")
-    } else {
-        record.set("error", inviteErrorMessage(outcome))
-    }
-    $app.save(record)
-}
-
 // Notifies the board about a pending request (email + optional Slack webhook),
 // reusing the same best-effort pattern as new-job notifications.
 function notifyBoard(record, autoApproved) {
@@ -557,6 +537,5 @@ module.exports = {
     metroName,
     slackInviteOutcome,
     inviteErrorMessage,
-    sendSlackInvite,
     notifyBoard,
 }

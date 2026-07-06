@@ -60,6 +60,10 @@
             </div>
           </div>
 
+          <p v-if="inv.error" class="slack-admin__invite-error">
+            ⚠ Auto-invite didn't send: {{ inv.error }}
+          </p>
+
           <dl class="slack-admin__meta">
             <div>
               <dt>Location</dt>
@@ -386,6 +390,16 @@ onMounted(() => {
   align-items: flex-start;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.slack-admin__invite-error {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  background: var(--danger-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 0.85rem;
 }
 
 .slack-admin__name {

@@ -233,6 +233,25 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     const autoApprove =
         autoApproveEnabled && inIndiana && tzMatch && (!secret || captchaOk)
 
+    // For an auto-approvable request, attempt the Slack invite up front so the
+    // outcome decides the row's initial state. If Slack can't deliver it (not
+    // configured, HTTP error, or the email is already invited / in the
+    // workspace) we don't fake a success — the request falls back into the
+    // review queue as "pending" with the reason recorded, so a board member can
+    // take a look. A non-auto request just queues as normal, no invite attempt.
+    let status = autoApprove ? "approved" : "pending"
+    let invitedAt = ""
+    let inviteError = ""
+    if (autoApprove) {
+        const { ok, outcome } = util.slackInviteOutcome(email)
+        if (ok) {
+            invitedAt = new Date().toISOString()
+        } else {
+            status = "pending"
+            inviteError = util.inviteErrorMessage(outcome)
+        }
+    }
+
     const collection = $app.findCollectionByNameOrId("slack_invites")
     const record = new Record(collection)
     record.set("email", email)
@@ -243,15 +262,20 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     record.set("linkedin", linkedin)
     record.set("github", github)
     record.set("coc_agreed", cocAgreed)
-    record.set("status", autoApprove ? "approved" : "pending")
-    record.set("auto", autoApprove)
+    record.set("status", status)
+    // `auto` marks a row that was auto-approved AND delivered without a human. An
+    // eligible request whose invite failed and fell back to the queue is not
+    // auto-approved, so it records auto=false.
+    record.set("auto", status === "approved")
+    record.set("invited_at", invitedAt)
+    record.set("error", inviteError)
     record.set("ip", ip)
     record.set("country", country)
     record.set("user_agent", userAgent)
     record.set("signals", signals)
     $app.save(record)
 
-    if (autoApprove) {
+    if (status === "approved") {
         return e.json(200, { ok: true, msg: "Invite sent — check your email!" })
     }
     return e.json(200, {
@@ -270,24 +294,40 @@ routerAdd("POST", "/api/slack/invite", (e) => {
 onRecordAfterCreateSuccess((e) => {
     const util = require(`${__hooks}/slack_util.js`)
     const status = e.record.getString("status")
+    // The invite (if any) was already attempted synchronously in the POST handler
+    // before this record was saved, so here we only notify the board.
     if (status === "approved") {
-        // Auto-approved: send the invite, and notify the board too (same details,
-        // framed as auto-approved rather than pending review).
-        util.sendSlackInvite(e.record)
+        // Auto-approved and delivered — notify the board, framed as auto-approved.
         util.notifyBoard(e.record, true)
     } else if (status === "pending") {
+        // Either a normal review request or an auto-eligible one whose invite
+        // failed and fell back to the queue — both get pending-review framing.
         util.notifyBoard(e.record, false)
     }
     e.next()
 }, "slack_invites")
 
-onRecordAfterUpdateSuccess((e) => {
+// Manual approval. This runs BEFORE the update is committed: when a board member
+// flips a row to "approved" we attempt the Slack invite first, and only let the
+// status change persist (calling e.next()) if the invite actually went out. If
+// Slack fails — not configured, HTTP error, or the email is already invited / in
+// the workspace — we throw, which aborts the transaction: the row stays
+// "pending" and the admin UI shows the specific reason. This is deliberately the
+// only place a hand-approval turns into an invite (the after-create hook above
+// handles auto-approval), so an approval can never be recorded without a
+// successful send.
+onRecordUpdate((e) => {
     const util = require(`${__hooks}/slack_util.js`)
     const was = e.record.original().getString("status")
     const now = e.record.getString("status")
-    // Send the invite the moment a board member flips a row to approved.
-    if (was !== "approved" && now === "approved") {
-        util.sendSlackInvite(e.record)
+    if (was !== "approved" && now === "approved" && !e.record.getString("invited_at")) {
+        const { ok, outcome } = util.slackInviteOutcome(e.record.getString("email"))
+        if (!ok) {
+            // Abort before e.next(): nothing is written, so status stays "pending".
+            throw new BadRequestError(util.inviteErrorMessage(outcome))
+        }
+        e.record.set("invited_at", new Date().toISOString())
+        e.record.set("error", "")
     }
     e.next()
 }, "slack_invites")

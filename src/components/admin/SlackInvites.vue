@@ -60,6 +60,10 @@
             </div>
           </div>
 
+          <p v-if="inv.error" class="slack-admin__invite-error">
+            ⚠ Auto-invite didn't send: {{ inv.error }}
+          </p>
+
           <dl class="slack-admin__meta">
             <div>
               <dt>Location</dt>
@@ -298,8 +302,14 @@ const decide = async (inv, status) => {
       status === 'approved'
         ? `Approved ${inv.email} — Slack invite sent.`
         : `Rejected ${inv.email}.`
-  } catch {
-    message.value = `Could not ${status === 'approved' ? 'approve' : 'reject'} ${inv.email}.`
+  } catch (err) {
+    // On approval the backend attempts the Slack invite before committing and
+    // rejects with the specific reason (already in team, Slack error, etc.) if
+    // it fails — surface that so the reviewer knows the invite didn't go out and
+    // the request is still pending.
+    const reason = err?.response?.message || err?.message || ''
+    const verb = status === 'approved' ? 'approve' : 'reject'
+    message.value = `Could not ${verb} ${inv.email}.${reason ? ` ${reason}` : ''}`
   } finally {
     busyId.value = null
   }
@@ -380,6 +390,16 @@ onMounted(() => {
   align-items: flex-start;
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+.slack-admin__invite-error {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  background: var(--danger-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 0.85rem;
 }
 
 .slack-admin__name {

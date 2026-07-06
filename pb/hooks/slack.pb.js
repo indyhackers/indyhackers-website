@@ -40,6 +40,9 @@ routerAdd("GET", "/api/slack/config", (e) => {
     return e.json(200, {
         org: $os.getenv("SLACK_SUBDOMAIN") || "",
         siteKey: $os.getenv("RECAPTCHA_SITE_KEY") || "",
+        // Whether low-risk requests are auto-invited (default on; only "off"
+        // disables). Surfaced so the admin queue can show the current mode.
+        autoApprove: String($os.getenv("SLACK_AUTOAPPROVE") || "").toLowerCase() !== "off",
     })
 })
 
@@ -50,6 +53,16 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     const email = String(body.email || "").trim().toLowerCase()
     const captchaResponse = String(body["g-recaptcha-response"] || "")
     const honeypot = String(body.website || "").trim()
+    const firstName = String(body.first_name || "").trim()
+    const lastName = String(body.last_name || "").trim()
+    const indianaConnection = String(body.indiana_connection || "").trim()
+    const cityRegion = String(body.city_region || "").trim()
+    const linkedin = String(body.linkedin || "").trim()
+    const github = String(body.github || "").trim()
+    const cocAgreed = body.coc_agreed === true || body.coc_agreed === "true"
+    // The browser's own IANA time zone (OS locale, not the IP) — survives a
+    // VPN/proxy that masks the IP, so it's a stronger locale signal.
+    const browserTimezone = String(body.browser_timezone || "").trim()
 
     // Honeypot: real users never fill the hidden "website" field. Pretend it
     // worked so bots don't learn they were caught, but create nothing.
@@ -63,11 +76,51 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     if (util.isDisposable(email)) {
         throw new BadRequestError("Please use a non-disposable email address.")
     }
+    if (!firstName || !lastName) {
+        throw new BadRequestError("Please enter your first and last name.")
+    }
+    if (!indianaConnection) {
+        throw new BadRequestError("Please tell us your connection to Indiana.")
+    }
+    if (!cityRegion) {
+        throw new BadRequestError("Please enter the city or region you're based in.")
+    }
+    if (!cocAgreed) {
+        throw new BadRequestError("Please agree to the code of conduct to continue.")
+    }
 
     const ip = e.realIP()
     const headers = info.headers || {}
-    const country = String(headers["cf-ipcountry"] || "").toUpperCase()
-    const userAgent = String(headers["user_agent"] || headers["user-agent"] || "")
+    // PocketBase normalizes request header keys to lowercase with hyphens turned
+    // into underscores (e.g. "CF-IPCity" -> "cf_ipcity"). Read both forms so the
+    // Cloudflare headers match regardless — the previous hyphenated lookups never
+    // hit, which is why country and geolocation came back empty.
+    const header = (name) => {
+        const key = name.toLowerCase()
+        return String(headers[key.replace(/-/g, "_")] || headers[key] || "")
+    }
+    const country = header("cf-ipcountry").toUpperCase()
+    const userAgent = header("user-agent")
+
+    // Approximate IP geolocation from Cloudflare. These headers are only present
+    // when the "Add visitor location headers" managed transform is enabled in
+    // the Cloudflare dashboard (cf-ipcountry is always sent; the rest are not).
+    // All empty locally / off Cloudflare — the admin card just hides what's blank.
+    const geo = {
+        city: header("cf-ipcity"),
+        region: header("cf-region"),
+        region_code: header("cf-region-code"),
+        continent: header("cf-ipcontinent"),
+        postal: header("cf-postal-code"),
+        metro_code: header("cf-metro-code"),
+        timezone: header("cf-timezone"),
+        lat: header("cf-iplatitude"),
+        lon: header("cf-iplongitude"),
+    }
+    // Whether the visitor shares Indianapolis's clock (US/Canada Eastern).
+    geo.same_tz_as_indy = util.sameTimezoneAsIndy(geo.timezone)
+    // Resolve the Nielsen DMA (metro) code to a market name where known.
+    geo.metro_name = util.metroName(geo.metro_code)
 
     // Rate limit per IP.
     const perHour = parseInt($os.getenv("SLACK_RATE_PER_HOUR") || "5", 10)
@@ -97,13 +150,13 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         if (existing) {
             const st = existing.getString("status")
             if (st === "approved") {
-                return e.json(200, { ok: true, msg: "You've already been invited — check your email." })
+                return e.json(200, { ok: true, msg: "You've already been invited — check your email for an invitation, or email admin@indyhackers.org if you need assistance." })
             }
             if (st === "pending") {
                 return e.json(200, {
                     ok: true,
                     pending: true,
-                    msg: "Your request is already in the queue — hang tight for approval.",
+                    msg: "Your request is already in the queue — hang tight for approval. You can email admin@indyhackers.org if you need assistance.",
                 })
             }
             // rejected → fall through and let them try again
@@ -119,6 +172,8 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     // fast path and falls to the human review queue below.
     const secret = $os.getenv("RECAPTCHA_SECRET")
     let captchaOk = false
+    let captchaScore = null
+    let captchaMinScore = null
     if (secret) {
         if (!captchaResponse) {
             throw new BadRequestError("Captcha check failed. Please try again.")
@@ -141,25 +196,53 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         // v3 always returns a score; v2 tokens (no score) still pass here so a
         // key swap doesn't hard-break. Low score → not "ok" → review queue.
         const rawMin = parseFloat($os.getenv("RECAPTCHA_MIN_SCORE"))
-        const minScore = isNaN(rawMin) ? 0.5 : rawMin
-        captchaOk = typeof result.score !== "number" || result.score >= minScore
+        captchaMinScore = isNaN(rawMin) ? 0.5 : rawMin
+        captchaScore = typeof result.score === "number" ? result.score : null
+        captchaOk = captchaScore === null || captchaScore >= captchaMinScore
     }
 
     // Risk signals → auto-approve decision. Auto-approve only low-risk requests;
     // everything else queues for a human. Auto-approval can be disabled via env.
     const autoApproveEnabled = String($os.getenv("SLACK_AUTOAPPROVE") || "").toLowerCase() !== "off"
+    // Location + timezone-consistency signals feeding the auto-approve decision.
+    const inIndiana =
+        country === "US" &&
+        (geo.region_code === "IN" || String(geo.region).toLowerCase() === "indiana")
+    const browserSameIndy = util.sameTimezoneAsIndy(browserTimezone)
+    const tzKnown = !!(browserTimezone && geo.timezone)
+    // Two Eastern zones count as matching (e.g. browser America/New_York vs IP
+    // America/Indiana/Indianapolis) — the JSVM can't compare UTC offsets, so we
+    // lean on the Eastern classification rather than exact-string equality.
+    const bothEastern = browserSameIndy === true && geo.same_tz_as_indy === true
+    const tzMatch = tzKnown && (browserTimezone === geo.timezone || bothEastern)
+
     const signals = {
         country: country || "unknown",
-        is_us: country === "US",
+        in_indiana: inIndiana,
         disposable: false,
         captcha_ok: secret ? captchaOk : "not_configured",
+        captcha_score: secret ? captchaScore : null,
+        captcha_min_score: secret ? captchaMinScore : null,
+        browser_timezone: browserTimezone,
+        browser_same_tz_as_indy: browserSameIndy,
+        // Browser zone disagreeing with the IP zone is a classic VPN/proxy tell.
+        tz_mismatch: tzKnown && !tzMatch,
+        geo,
     }
+    // Auto-approve only low-risk Indiana requests whose browser & IP zones agree.
     const autoApprove =
-        autoApproveEnabled && country === "US" && (!secret || captchaOk)
+        autoApproveEnabled && inIndiana && tzMatch && (!secret || captchaOk)
 
     const collection = $app.findCollectionByNameOrId("slack_invites")
     const record = new Record(collection)
     record.set("email", email)
+    record.set("first_name", firstName)
+    record.set("last_name", lastName)
+    record.set("indiana_connection", indianaConnection)
+    record.set("city_region", cityRegion)
+    record.set("linkedin", linkedin)
+    record.set("github", github)
+    record.set("coc_agreed", cocAgreed)
     record.set("status", autoApprove ? "approved" : "pending")
     record.set("auto", autoApprove)
     record.set("ip", ip)
@@ -174,7 +257,7 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     return e.json(200, {
         ok: true,
         pending: true,
-        msg: "Thanks! Your request is in. A board member will approve it shortly and you'll get an email invite.",
+        msg: "Thanks! Your request is in. Someone on staff will approve it shortly and you'll receive an email invite from Slack.",
     })
 })
 
@@ -188,9 +271,12 @@ onRecordAfterCreateSuccess((e) => {
     const util = require(`${__hooks}/slack_util.js`)
     const status = e.record.getString("status")
     if (status === "approved") {
+        // Auto-approved: send the invite, and notify the board too (same details,
+        // framed as auto-approved rather than pending review).
         util.sendSlackInvite(e.record)
+        util.notifyBoard(e.record, true)
     } else if (status === "pending") {
-        util.notifyBoard(e.record)
+        util.notifyBoard(e.record, false)
     }
     e.next()
 }, "slack_invites")

@@ -17,7 +17,9 @@
 //   SLACK_API_TOKEN     Slack token with admin scope (required to send invites)
 //   SLACK_SUBDOMAIN     the *.slack.com subdomain, e.g. "indyhackers"
 //   RECAPTCHA_SITE_KEY  Google reCAPTCHA v3 site key (public)
-//   RECAPTCHA_SECRET    Google reCAPTCHA v3 secret (server-side verification)
+//   RECAPTCHA_SECRET    Google reCAPTCHA v3 secret (server-side verification).
+//                       Required for auto-approval: with no secret configured
+//                       every request goes to the human review queue.
 //   RECAPTCHA_MIN_SCORE v3 score below which a request is treated as suspicious
 //                       and sent to the review queue instead of auto-approved
 //                       (default 0.5; range 0.0–1.0)
@@ -165,11 +167,13 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         // no existing record; continue
     }
 
-    // reCAPTCHA v3 (only enforced when a secret is configured). Unlike v2,
+    // reCAPTCHA v3 (only verified when a secret is configured). Unlike v2,
     // v3 returns a risk `score` instead of a pass/fail checkbox: an invalid or
     // expired token (or the wrong action) is a hard reject, but a valid token
     // with a low score doesn't fail outright — it just loses the auto-approve
-    // fast path and falls to the human review queue below.
+    // fast path and falls to the human review queue below. When no secret is
+    // configured the check is skipped and NOTHING auto-approves: every request
+    // queues for review (captchaOk stays false; see the autoApprove gate below).
     const secret = $os.getenv("RECAPTCHA_SECRET")
     let captchaOk = false
     let captchaScore = null
@@ -178,27 +182,40 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         if (!captchaResponse) {
             throw new BadRequestError("Captcha check failed. Please try again.")
         }
-        const verify = $http.send({
-            url: "https://www.google.com/recaptcha/api/siteverify",
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body:
-                "secret=" + encodeURIComponent(secret) +
-                "&response=" + encodeURIComponent(captchaResponse) +
-                "&remoteip=" + encodeURIComponent(ip),
-            timeout: 15,
-        })
-        const result = verify.json || {}
-        // Invalid/expired token, or a token minted for a different action → reject.
-        if (!result.success || (result.action && result.action !== "slack_invite")) {
-            throw new BadRequestError("Captcha verification failed. Please try again.")
+        // A transport failure (network/timeout, Google unreachable) must not
+        // hard-fail the request and must not auto-approve — leave result null so
+        // captchaOk stays false and the request drops to the review queue.
+        let result = null
+        try {
+            const verify = $http.send({
+                url: "https://www.google.com/recaptcha/api/siteverify",
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body:
+                    "secret=" + encodeURIComponent(secret) +
+                    "&response=" + encodeURIComponent(captchaResponse) +
+                    "&remoteip=" + encodeURIComponent(ip),
+                timeout: 15,
+            })
+            result = verify.json || {}
+        } catch (err) {
+            console.error("[slack] reCAPTCHA verify request failed: " + err)
         }
-        // v3 always returns a score; v2 tokens (no score) still pass here so a
-        // key swap doesn't hard-break. Low score → not "ok" → review queue.
-        const rawMin = parseFloat($os.getenv("RECAPTCHA_MIN_SCORE"))
-        captchaMinScore = isNaN(rawMin) ? 0.5 : rawMin
-        captchaScore = typeof result.score === "number" ? result.score : null
-        captchaOk = captchaScore === null || captchaScore >= captchaMinScore
+        if (result) {
+            // A definitive answer that the token is invalid/expired or was minted
+            // for a different action → hard reject (a forged/stale token is a bad
+            // request). A missing answer (transport error above) instead falls
+            // through with captchaOk = false → review queue, never auto-approved.
+            if (!result.success || (result.action && result.action !== "slack_invite")) {
+                throw new BadRequestError("Captcha verification failed. Please try again.")
+            }
+            // v3 always returns a score; v2 tokens (no score) still pass here so a
+            // key swap doesn't hard-break. Low score → not "ok" → review queue.
+            const rawMin = parseFloat($os.getenv("RECAPTCHA_MIN_SCORE"))
+            captchaMinScore = isNaN(rawMin) ? 0.5 : rawMin
+            captchaScore = typeof result.score === "number" ? result.score : null
+            captchaOk = captchaScore === null || captchaScore >= captchaMinScore
+        }
     }
 
     // Risk signals → auto-approve decision. Auto-approve only low-risk requests;
@@ -229,9 +246,12 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         tz_mismatch: tzKnown && !tzMatch,
         geo,
     }
-    // Auto-approve only low-risk Indiana requests whose browser & IP zones agree.
+    // Auto-approve only low-risk Indiana requests whose browser & IP zones agree
+    // AND that passed a configured reCAPTCHA. Without a working captcha — secret
+    // unset, verification unreachable, or a below-threshold score — we never
+    // auto-invite; the request drops to the human review queue instead.
     const autoApprove =
-        autoApproveEnabled && inIndiana && tzMatch && (!secret || captchaOk)
+        autoApproveEnabled && inIndiana && tzMatch && !!secret && captchaOk
 
     // For an auto-approvable request, attempt the Slack invite up front so the
     // outcome decides the row's initial state. If Slack can't deliver it (not

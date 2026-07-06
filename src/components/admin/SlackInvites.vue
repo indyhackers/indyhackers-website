@@ -298,8 +298,14 @@ const decide = async (inv, status) => {
       status === 'approved'
         ? `Approved ${inv.email} — Slack invite sent.`
         : `Rejected ${inv.email}.`
-  } catch {
-    message.value = `Could not ${status === 'approved' ? 'approve' : 'reject'} ${inv.email}.`
+  } catch (err) {
+    // On approval the backend attempts the Slack invite before committing and
+    // rejects with the specific reason (already in team, Slack error, etc.) if
+    // it fails — surface that so the reviewer knows the invite didn't go out and
+    // the request is still pending.
+    const reason = err?.response?.message || err?.message || ''
+    const verb = status === 'approved' ? 'approve' : 'reject'
+    message.value = `Could not ${verb} ${inv.email}.${reason ? ` ${reason}` : ''}`
   } finally {
     busyId.value = null
   }

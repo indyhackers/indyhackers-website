@@ -282,23 +282,29 @@ const captchaSignalLabel = (signals) => {
     return signals.captcha_ok ? "pass" : "fail"
 }
 
-// Sends the Slack invite for an approved record and stamps invited_at (or
-// records the error). Guarded by invited_at so it never double-sends.
-function sendSlackInvite(record) {
-    if (record.getString("status") !== "approved" || record.getString("invited_at")) {
-        return
-    }
-
+// Performs the Slack admin invite HTTP call for `email` and classifies the
+// result. Pure with respect to the DB — it neither mutates nor saves any record,
+// so the caller decides whether to commit. The manual-approval path rolls the
+// whole update back on failure (see slack.pb.js), which is why this must not
+// have side effects on the record.
+//
+// Returns { ok, outcome }:
+//   { ok: true,  outcome: "sent" }
+//   { ok: false, outcome: "not_configured" | "http_<status>" | "already_in_team"
+//                       | "already_invited" | "<slack error>" | "unknown_error" }
+//
+// NOTE: `already_invited` / `already_in_team` are treated as FAILURES. An
+// approval that lands on someone already in the workspace (or already invited)
+// doesn't deliver a usable new invite, so it should surface to the reviewer
+// rather than silently look like success.
+function slackInviteOutcome(email) {
     const token = $os.getenv("SLACK_API_TOKEN")
     const org = $os.getenv("SLACK_SUBDOMAIN")
     if (!token || !org) {
         console.error("[slack] SLACK_API_TOKEN / SLACK_SUBDOMAIN not configured")
-        record.set("error", "Slack not configured (missing token/subdomain)")
-        $app.save(record)
-        return
+        return { ok: false, outcome: "not_configured" }
     }
 
-    const email = record.getString("email")
     const res = $http.send({
         url: "https://" + org + ".slack.com/api/users.admin.invite",
         method: "POST",
@@ -310,25 +316,54 @@ function sendSlackInvite(record) {
         timeout: 15,
     })
 
-    let outcome = "unknown"
     if (res.statusCode !== 200) {
-        outcome = "http_" + res.statusCode
         console.error("[slack] invite HTTP " + res.statusCode + ": " + res.raw)
-    } else {
-        const data = res.json || {}
-        if (data.ok || data.error === "already_invited" || data.error === "already_in_team") {
-            outcome = data.ok ? "sent" : data.error
-        } else {
-            outcome = data.error || "unknown_error"
-            console.error("[slack] invite error for " + email + ": " + outcome)
-        }
+        return { ok: false, outcome: "http_" + res.statusCode }
     }
 
-    if (outcome === "sent" || outcome === "already_invited" || outcome === "already_in_team") {
+    const data = res.json || {}
+    if (data.ok) {
+        return { ok: true, outcome: "sent" }
+    }
+
+    const outcome = data.error || "unknown_error"
+    console.error("[slack] invite error for " + email + ": " + outcome)
+    return { ok: false, outcome }
+}
+
+// Human-readable explanation for a non-ok `slackInviteOutcome` code, used both
+// for the error surfaced to the admin UI and for the stored `error` field.
+function inviteErrorMessage(outcome) {
+    switch (outcome) {
+        case "not_configured":
+            return "Slack isn't configured on the server (missing API token/subdomain), so no invite could be sent."
+        case "already_in_team":
+            return "That email is already a member of the Slack workspace — no invite was sent."
+        case "already_invited":
+            return "That email has already been invited to Slack — no new invite was sent."
+    }
+    if (outcome.indexOf("http_") === 0) {
+        return "Slack returned an HTTP error (" + outcome.slice(5) + "); the invite was not sent."
+    }
+    return "Slack rejected the invite (" + outcome + "); the invite was not sent."
+}
+
+// After-create helper for the AUTO-approve path. An auto-approved request is
+// already persisted by the time this runs, so (unlike manual approval) it can't
+// be rolled back — instead it annotates the row with the outcome. On success
+// `invited_at` is stamped and `error` cleared; on failure the human-readable
+// reason is stored in `error` so it shows up in the admin queue.
+function sendSlackInvite(record) {
+    if (record.getString("status") !== "approved" || record.getString("invited_at")) {
+        return
+    }
+
+    const { ok, outcome } = slackInviteOutcome(record.getString("email"))
+    if (ok) {
         record.set("invited_at", new Date().toISOString())
         record.set("error", "")
     } else {
-        record.set("error", outcome)
+        record.set("error", inviteErrorMessage(outcome))
     }
     $app.save(record)
 }
@@ -520,6 +555,8 @@ module.exports = {
     isDisposable,
     sameTimezoneAsIndy,
     metroName,
+    slackInviteOutcome,
+    inviteErrorMessage,
     sendSlackInvite,
     notifyBoard,
 }

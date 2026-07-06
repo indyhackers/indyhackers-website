@@ -281,13 +281,27 @@ onRecordAfterCreateSuccess((e) => {
     e.next()
 }, "slack_invites")
 
-onRecordAfterUpdateSuccess((e) => {
+// Manual approval. This runs BEFORE the update is committed: when a board member
+// flips a row to "approved" we attempt the Slack invite first, and only let the
+// status change persist (calling e.next()) if the invite actually went out. If
+// Slack fails — not configured, HTTP error, or the email is already invited / in
+// the workspace — we throw, which aborts the transaction: the row stays
+// "pending" and the admin UI shows the specific reason. This is deliberately the
+// only place a hand-approval turns into an invite (the after-create hook above
+// handles auto-approval), so an approval can never be recorded without a
+// successful send.
+onRecordUpdate((e) => {
     const util = require(`${__hooks}/slack_util.js`)
     const was = e.record.original().getString("status")
     const now = e.record.getString("status")
-    // Send the invite the moment a board member flips a row to approved.
-    if (was !== "approved" && now === "approved") {
-        util.sendSlackInvite(e.record)
+    if (was !== "approved" && now === "approved" && !e.record.getString("invited_at")) {
+        const { ok, outcome } = util.slackInviteOutcome(e.record.getString("email"))
+        if (!ok) {
+            // Abort before e.next(): nothing is written, so status stays "pending".
+            throw new BadRequestError(util.inviteErrorMessage(outcome))
+        }
+        e.record.set("invited_at", new Date().toISOString())
+        e.record.set("error", "")
     }
     e.next()
 }, "slack_invites")

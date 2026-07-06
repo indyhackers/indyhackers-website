@@ -90,12 +90,6 @@ export const routes = [
       meta: { noindex: true }
     },
     {
-      path: '/admin/console',
-      name: 'AdminConsole',
-      component: () => import('../components/AdminLogin.vue'),
-      meta: { noindex: true }
-    },
-    {
       path: '/admin/jobs',
       name: 'JobApprovals',
       component: () => import('../components/admin/JobApprovals.vue'),

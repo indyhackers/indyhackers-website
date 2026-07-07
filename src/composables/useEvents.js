@@ -30,6 +30,9 @@ function normalizeEvent(record) {
     description: record.description || '',
     location: record.location || '',
     url: record.url || '',
+    // `link` alias: list/markdown views (ported from the old Google-Calendar
+    // path) reference event.link; keep it working off the synced url.
+    link: record.url || '',
     start: record.starts_at,
     end: record.ends_at || null,
     isAllDay: !!record.all_day,

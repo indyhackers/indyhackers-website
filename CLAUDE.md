@@ -40,7 +40,7 @@ Mock data lives in `src/mocks/mocks.json`. To update it: edit data in PocketBase
 
 - `src/components/` — Vue components organized by feature (`jobs/`, `sponsors/`, `about/`)
 - `src/views/` — Route-level page components
-- `src/composables/` — Vue composables (`useCalendar`, `useNewsletter`)
+- `src/composables/` — Vue composables (`useEvents`, `useNewsletter`)
 - `src/mocks/` — MSW handlers and shared mock data
 - `src/stores/` — Pinia stores
 - `pb/hooks/` — PocketBase server-side JS hooks (`.pb.js` files; `.pb.js.dev` suffix = dev-only, stripped in production)
@@ -62,5 +62,7 @@ Mock data lives in `src/mocks/mocks.json`. To update it: edit data in PocketBase
 
 ### Environment Variables
 
-- `VITE_GOOGLE_CALENDAR_API_KEY` — required for Google Calendar event fetching
-- Copy `.env.example` to `.env` for local development
+- Events come from the PocketBase `events` collection (synced from Google
+  Calendar by `pb/hooks/calendar_sync.js`), not a browser-side Google API key.
+- Copy `.env.example` to `.env` for local development; the vars there are read
+  by the PocketBase container. Frontend dev needs no secrets (MSW mocks).

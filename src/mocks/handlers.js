@@ -33,7 +33,10 @@ let manageJob = {
   description: '<p>Build delightful UIs with Vue.</p>',
   how_to_apply: '<p>Email jobs@sample.co</p>',
   approved: true,
-  filled: false
+  filled: false,
+  // ~53 days ago, so the manage page shows an expiry ~7 days out.
+  approved_at: new Date(Date.now() - 53 * 24 * 60 * 60 * 1000).toISOString(),
+  expiry_reminder_sent: false
 }
 
 export const handlers = [
@@ -239,7 +242,16 @@ export const handlers = [
   }),
   http.patch('/api/jobs/manage/:token', async ({ request }) => {
     const body = JSON.parse(await request.text())
-    manageJob = { ...manageJob, ...body }
+    if (body.extend) {
+      // Mirror the backend: extending resets the 60-day clock.
+      manageJob = {
+        ...manageJob,
+        approved_at: new Date().toISOString(),
+        expiry_reminder_sent: false
+      }
+    } else {
+      manageJob = { ...manageJob, ...body }
+    }
     return HttpResponse.json(manageJob)
   })
 ]

@@ -6,15 +6,16 @@
       <p class="admin-home__sub">Tools for IndyHackers board members.</p>
 
       <div class="admin-home__tools">
-        <RouterLink
+        <component
+          :is="tool.href ? 'a' : 'RouterLink'"
           v-for="tool in tools"
-          :key="tool.to"
-          :to="tool.to"
+          :key="tool.href || tool.to"
+          v-bind="tool.href ? { href: tool.href } : { to: tool.to }"
           class="admin-tool"
         >
           <h2 class="admin-tool__title">{{ tool.title }}</h2>
           <p class="admin-tool__desc">{{ tool.desc }}</p>
-        </RouterLink>
+        </component>
       </div>
     </div>
   </section>
@@ -35,7 +36,10 @@ const tools = [
     desc: 'Review and publish jobs submitted to the board.'
   },
   {
-    to: '/admin/console',
+    // Direct link to PocketBase's own admin console. Sign in there with a real
+    // superuser account (created via `pocketbase superuser create` or the
+    // INITIAL_ADMIN_* seed) — the app no longer mints superuser tokens.
+    href: '/_/',
     title: 'PocketBase admin console',
     desc: 'Open the database admin console to manage all collections.'
   }

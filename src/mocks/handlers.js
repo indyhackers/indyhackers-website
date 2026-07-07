@@ -6,181 +6,15 @@ import { eventMocks } from './eventMocks'
 // Resolve a collection from the events mock data first, then mocks.json.
 const collectionData = (name) => eventMocks[name] || mocks[name]
 
-const mockCalendarEvents = {
-  items: [
-    {
-      id: 'evt001',
-      summary: 'IndyHackers Monthly Meetup',
-      description: 'Our regular monthly meetup for Indianapolis tech folks. Come hang out, share what you\'re working on, and meet other developers.',
-      location: 'Eleven Fifty Academy, 9100 Keystone Crossing, Indianapolis, IN 46240',
-      start: { dateTime: '2026-04-08T18:00:00-05:00' },
-      end: { dateTime: '2026-04-08T20:30:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-01T12:00:00Z',
-      updated: '2026-03-01T12:00:00Z'
-    },
-    {
-      id: 'evt002',
-      summary: 'Indy AWS User Group',
-      description: 'Monthly meeting of the Indianapolis AWS User Group. This month: deep dive into ECS Fargate and container orchestration.',
-      location: 'Salesforce Tower, 111 Monument Cir, Indianapolis, IN 46204',
-      start: { dateTime: '2026-04-14T17:30:00-05:00' },
-      end: { dateTime: '2026-04-14T19:30:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-05T12:00:00Z',
-      updated: '2026-03-05T12:00:00Z'
-    },
-    {
-      id: 'evt003',
-      summary: 'Vue.js Indy — Composition API Deep Dive',
-      description: 'Hands-on workshop exploring Vue 3 Composition API patterns, composables, and best practices.',
-      location: 'High Alpha, 830 Massachusetts Ave, Indianapolis, IN 46204',
-      start: { dateTime: '2026-04-17T18:30:00-05:00' },
-      end: { dateTime: '2026-04-17T20:30:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-08T12:00:00Z',
-      updated: '2026-03-08T12:00:00Z'
-    },
-    {
-      id: 'evt004',
-      summary: 'IndyPy: Python in Production',
-      description: 'Talks on deploying Python services: FastAPI microservices, async patterns, and observability with OpenTelemetry.',
-      location: 'Formstack, 8604 Allisonville Rd, Indianapolis, IN 46250',
-      start: { dateTime: '2026-04-22T18:00:00-05:00' },
-      end: { dateTime: '2026-04-22T20:00:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-10T12:00:00Z',
-      updated: '2026-03-10T12:00:00Z'
-    },
-    {
-      id: 'evt005',
-      summary: 'DevOps Indy: GitOps & ArgoCD',
-      description: 'Learn GitOps principles and walk through setting up ArgoCD for Kubernetes continuous delivery.',
-      location: 'Cummins Inc., 500 Jackson St, Columbus, IN 47201',
-      start: { dateTime: '2026-04-29T17:00:00-05:00' },
-      end: { dateTime: '2026-04-29T19:30:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-12T12:00:00Z',
-      updated: '2026-03-12T12:00:00Z'
-    },
-    {
-      id: 'evt006',
-      summary: 'Women in Tech Indy — Networking Night',
-      description: 'A casual networking event for women in Indianapolis tech. All experience levels welcome.',
-      location: 'The Spoke Club, 6 West Washington St, Indianapolis, IN 46204',
-      start: { dateTime: '2026-05-06T18:00:00-05:00' },
-      end: { dateTime: '2026-05-06T20:30:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-15T12:00:00Z',
-      updated: '2026-03-15T12:00:00Z'
-    },
-    {
-      id: 'evt007',
-      summary: 'Indy Game Dev Jam Weekend',
-      description: '48-hour game jam for indie game developers. Theme announced at kickoff. Prizes for top three games.',
-      location: 'Launch Fishers, 12175 Visionary Way, Fishers, IN 46038',
-      start: { dateTime: '2026-05-09T09:00:00-05:00' },
-      end: { dateTime: '2026-05-11T17:00:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-18T12:00:00Z',
-      updated: '2026-03-18T12:00:00Z'
-    },
-    {
-      id: 'evt008',
-      summary: 'IndyHackers Monthly Meetup',
-      description: 'May edition of our monthly meetup. Lightning talks, project demos, and open discussion.',
-      location: 'Eleven Fifty Academy, 9100 Keystone Crossing, Indianapolis, IN 46240',
-      start: { dateTime: '2026-05-13T18:00:00-05:00' },
-      end: { dateTime: '2026-05-13T20:30:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-20T12:00:00Z',
-      updated: '2026-03-20T12:00:00Z'
-    },
-    {
-      id: 'evt009',
-      summary: 'Indy React Meetup: Server Components',
-      description: 'Exploring React Server Components in depth — when to use them, trade-offs, and real-world migration stories.',
-      location: 'Resultant, 201 N Illinois St, Indianapolis, IN 46204',
-      start: { dateTime: '2026-05-19T18:30:00-05:00' },
-      end: { dateTime: '2026-05-19T20:30:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-22T12:00:00Z',
-      updated: '2026-03-22T12:00:00Z'
-    },
-    {
-      id: 'evt010',
-      summary: 'Indy .NET User Group',
-      description: 'Monthly .NET user group. Topics: .NET 9 performance improvements and minimal API patterns.',
-      location: 'Apex Benefits, 9200 Keystone Crossing, Indianapolis, IN 46240',
-      start: { dateTime: '2026-05-21T17:30:00-05:00' },
-      end: { dateTime: '2026-05-21T19:30:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-25T12:00:00Z',
-      updated: '2026-03-25T12:00:00Z'
-    },
-    {
-      id: 'evt011',
-      summary: 'Indy Security & Privacy Forum',
-      description: 'OWASP Indy chapter meeting. This month: threat modeling for web apps and API security best practices.',
-      location: 'Purdue Polytechnic, 799 W Michigan St, Indianapolis, IN 46202',
-      start: { dateTime: '2026-05-28T18:00:00-05:00' },
-      end: { dateTime: '2026-05-28T20:00:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-03-28T12:00:00Z',
-      updated: '2026-03-28T12:00:00Z'
-    },
-    {
-      id: 'evt012',
-      summary: 'Tech Diversity Indy — Hiring Panel',
-      description: 'Panel discussion with engineering leaders on building inclusive hiring pipelines and growing diverse teams.',
-      location: 'Hanapin Marketing, 55 Monument Cir, Indianapolis, IN 46204',
-      start: { dateTime: '2026-06-03T17:00:00-05:00' },
-      end: { dateTime: '2026-06-03T19:00:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-04-01T12:00:00Z',
-      updated: '2026-04-01T12:00:00Z'
-    },
-    {
-      id: 'evt013',
-      summary: 'IndyHackers Monthly Meetup',
-      description: 'June meetup — outdoor edition weather permitting. Project showcases and open hacking time.',
-      location: 'Bottleworks District, 855 Virginia Ave, Indianapolis, IN 46203',
-      start: { dateTime: '2026-06-10T18:00:00-05:00' },
-      end: { dateTime: '2026-06-10T21:00:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-04-01T12:00:00Z',
-      updated: '2026-04-01T12:00:00Z'
-    },
-    {
-      id: 'evt014',
-      summary: 'AI & ML Indy: Local LLM Deployment',
-      description: 'Workshop on running large language models locally with Ollama, llama.cpp, and LM Studio. Bring your laptop.',
-      location: 'Innovatemap, 1 W Court St, Indianapolis, IN 46204',
-      start: { dateTime: '2026-06-16T18:30:00-05:00' },
-      end: { dateTime: '2026-06-16T20:30:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-04-01T12:00:00Z',
-      updated: '2026-04-01T12:00:00Z'
-    },
-    {
-      id: 'evt015',
-      summary: 'IndyHackers Summer Social',
-      description: 'Annual summer social for the Indy tech community. Food, drinks, demos, and good company. Free to attend.',
-      location: 'White River State Park, 801 W Washington St, Indianapolis, IN 46204',
-      start: { dateTime: '2026-06-25T17:00:00-05:00' },
-      end: { dateTime: '2026-06-25T21:00:00-05:00' },
-      htmlLink: 'https://calendar.google.com',
-      created: '2026-04-01T12:00:00Z',
-      updated: '2026-04-01T12:00:00Z'
-    }
-  ]
-}
-
 // In-memory Slack invite queue for dev (seeded with a couple of pending rows).
 const mockDisposable = ['mailinator.com', 'guerrillamail.com', '10minutemail.com', 'yopmail.com']
 const mockSlackInvites = [
   { id: 'inv1', email: 'newdev@gmail.com', status: 'pending', country: 'US', ip: '73.12.44.8', created: '2026-06-15T01:10:00Z', first_name: 'Jordan', last_name: 'Lee', indiana_connection: 'Grew up in Bloomington, now building a startup in Indy.', city_region: 'Indianapolis, IN', linkedin: 'https://linkedin.com/in/jordanlee', github: 'https://github.com/jlee', coc_agreed: true, signals: { country: 'US', in_indiana: true, disposable: false, captcha_ok: true, captcha_score: 0.9, captcha_min_score: 0.5, browser_timezone: 'America/New_York', browser_same_tz_as_indy: true, tz_mismatch: false, geo: { city: 'Indianapolis', region: 'Indiana', region_code: 'IN', continent: 'NA', postal: '46204', metro_code: '527', metro_name: 'Indianapolis, IN', timezone: 'America/Indiana/Indianapolis', same_tz_as_indy: true, lat: '39.7684', lon: '-86.1581' } } },
-  { id: 'inv2', email: 'visitor@example.org', status: 'pending', country: 'CA', ip: '24.55.1.9', created: '2026-06-15T01:35:00Z', first_name: 'Sam', last_name: 'Rivera', indiana_connection: 'Relocating to Fort Wayne next month for a new role.', city_region: 'Fort Wayne, IN', linkedin: '', github: 'github.com/srivera', coc_agreed: true, signals: { country: 'CA', in_indiana: false, disposable: false, captcha_ok: false, captcha_score: 0.3, captcha_min_score: 0.5, browser_timezone: 'America/New_York', browser_same_tz_as_indy: true, tz_mismatch: true, geo: { city: 'Vancouver', region: 'British Columbia', region_code: 'BC', continent: 'NA', postal: 'V6B', timezone: 'America/Vancouver', same_tz_as_indy: false, lat: '49.2827', lon: '-123.1207' } } }
+  { id: 'inv2', email: 'visitor@example.org', status: 'pending', country: 'CA', ip: '24.55.1.9', created: '2026-06-15T01:35:00Z', first_name: 'Sam', last_name: 'Rivera', indiana_connection: 'Relocating to Fort Wayne next month for a new role.', city_region: 'Fort Wayne, IN', linkedin: '', github: 'github.com/srivera', coc_agreed: true, signals: { country: 'CA', in_indiana: false, disposable: false, captcha_ok: false, captcha_score: 0.3, captcha_min_score: 0.5, browser_timezone: 'America/New_York', browser_same_tz_as_indy: true, tz_mismatch: true, geo: { city: 'Vancouver', region: 'British Columbia', region_code: 'BC', continent: 'NA', postal: 'V6B', timezone: 'America/Vancouver', same_tz_as_indy: false, lat: '49.2827', lon: '-123.1207' } } },
+  // Auto-eligible request whose Slack invite failed and fell back to the queue —
+  // exercises the card's auto-invite error banner. `error` is what the backend
+  // stores when slackInviteOutcome() comes back not-ok.
+  { id: 'inv3', email: 'already.member@gmail.com', status: 'pending', auto: false, error: 'That email is already a member of the Slack workspace — no invite was sent.', country: 'US', ip: '99.8.7.6', created: '2026-06-15T02:05:00Z', first_name: 'Casey', last_name: 'Nguyen', indiana_connection: 'Longtime Indy resident, work downtown.', city_region: 'Indianapolis, IN', linkedin: '', github: '', coc_agreed: true, signals: { country: 'US', in_indiana: true, disposable: false, captcha_ok: true, captcha_score: 0.8, captcha_min_score: 0.5, browser_timezone: 'America/Indiana/Indianapolis', browser_same_tz_as_indy: true, tz_mismatch: false, geo: { city: 'Indianapolis', region: 'Indiana', region_code: 'IN', continent: 'NA', postal: '46202', timezone: 'America/Indiana/Indianapolis', same_tz_as_indy: true, lat: '39.7684', lon: '-86.1581' } } }
 ]
 
 // Pending (unapproved) jobs for the job-approval admin screen in dev.
@@ -203,9 +37,6 @@ let manageJob = {
 }
 
 export const handlers = [
-  http.get('https://www.googleapis.com/calendar/v3/calendars/:calendarId/events', () => {
-    return HttpResponse.json(mockCalendarEvents)
-  }),
   // Slack join page + approval queue. No site key in dev, so the form skips
   // reCAPTCHA. With no Cloudflare country header in dev, requests aren't
   // auto-approved — they land in the pending queue, so you can exercise the

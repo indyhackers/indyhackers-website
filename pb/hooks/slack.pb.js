@@ -17,7 +17,9 @@
 //   SLACK_API_TOKEN     Slack token with admin scope (required to send invites)
 //   SLACK_SUBDOMAIN     the *.slack.com subdomain, e.g. "indyhackers"
 //   RECAPTCHA_SITE_KEY  Google reCAPTCHA v3 site key (public)
-//   RECAPTCHA_SECRET    Google reCAPTCHA v3 secret (server-side verification)
+//   RECAPTCHA_SECRET    Google reCAPTCHA v3 secret (server-side verification).
+//                       Required for auto-approval: with no secret configured
+//                       every request goes to the human review queue.
 //   RECAPTCHA_MIN_SCORE v3 score below which a request is treated as suspicious
 //                       and sent to the review queue instead of auto-approved
 //                       (default 0.5; range 0.0–1.0)
@@ -165,11 +167,13 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         // no existing record; continue
     }
 
-    // reCAPTCHA v3 (only enforced when a secret is configured). Unlike v2,
+    // reCAPTCHA v3 (only verified when a secret is configured). Unlike v2,
     // v3 returns a risk `score` instead of a pass/fail checkbox: an invalid or
     // expired token (or the wrong action) is a hard reject, but a valid token
     // with a low score doesn't fail outright — it just loses the auto-approve
-    // fast path and falls to the human review queue below.
+    // fast path and falls to the human review queue below. When no secret is
+    // configured the check is skipped and NOTHING auto-approves: every request
+    // queues for review (captchaOk stays false; see the autoApprove gate below).
     const secret = $os.getenv("RECAPTCHA_SECRET")
     let captchaOk = false
     let captchaScore = null
@@ -178,27 +182,40 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         if (!captchaResponse) {
             throw new BadRequestError("Captcha check failed. Please try again.")
         }
-        const verify = $http.send({
-            url: "https://www.google.com/recaptcha/api/siteverify",
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body:
-                "secret=" + encodeURIComponent(secret) +
-                "&response=" + encodeURIComponent(captchaResponse) +
-                "&remoteip=" + encodeURIComponent(ip),
-            timeout: 15,
-        })
-        const result = verify.json || {}
-        // Invalid/expired token, or a token minted for a different action → reject.
-        if (!result.success || (result.action && result.action !== "slack_invite")) {
-            throw new BadRequestError("Captcha verification failed. Please try again.")
+        // A transport failure (network/timeout, Google unreachable) must not
+        // hard-fail the request and must not auto-approve — leave result null so
+        // captchaOk stays false and the request drops to the review queue.
+        let result = null
+        try {
+            const verify = $http.send({
+                url: "https://www.google.com/recaptcha/api/siteverify",
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body:
+                    "secret=" + encodeURIComponent(secret) +
+                    "&response=" + encodeURIComponent(captchaResponse) +
+                    "&remoteip=" + encodeURIComponent(ip),
+                timeout: 15,
+            })
+            result = verify.json || {}
+        } catch (err) {
+            console.error("[slack] reCAPTCHA verify request failed: " + err)
         }
-        // v3 always returns a score; v2 tokens (no score) still pass here so a
-        // key swap doesn't hard-break. Low score → not "ok" → review queue.
-        const rawMin = parseFloat($os.getenv("RECAPTCHA_MIN_SCORE"))
-        captchaMinScore = isNaN(rawMin) ? 0.5 : rawMin
-        captchaScore = typeof result.score === "number" ? result.score : null
-        captchaOk = captchaScore === null || captchaScore >= captchaMinScore
+        if (result) {
+            // A definitive answer that the token is invalid/expired or was minted
+            // for a different action → hard reject (a forged/stale token is a bad
+            // request). A missing answer (transport error above) instead falls
+            // through with captchaOk = false → review queue, never auto-approved.
+            if (!result.success || (result.action && result.action !== "slack_invite")) {
+                throw new BadRequestError("Captcha verification failed. Please try again.")
+            }
+            // v3 always returns a score; v2 tokens (no score) still pass here so a
+            // key swap doesn't hard-break. Low score → not "ok" → review queue.
+            const rawMin = parseFloat($os.getenv("RECAPTCHA_MIN_SCORE"))
+            captchaMinScore = isNaN(rawMin) ? 0.5 : rawMin
+            captchaScore = typeof result.score === "number" ? result.score : null
+            captchaOk = captchaScore === null || captchaScore >= captchaMinScore
+        }
     }
 
     // Risk signals → auto-approve decision. Auto-approve only low-risk requests;
@@ -229,9 +246,31 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         tz_mismatch: tzKnown && !tzMatch,
         geo,
     }
-    // Auto-approve only low-risk Indiana requests whose browser & IP zones agree.
+    // Auto-approve only low-risk Indiana requests whose browser & IP zones agree
+    // AND that passed a configured reCAPTCHA. Without a working captcha — secret
+    // unset, verification unreachable, or a below-threshold score — we never
+    // auto-invite; the request drops to the human review queue instead.
     const autoApprove =
-        autoApproveEnabled && inIndiana && tzMatch && (!secret || captchaOk)
+        autoApproveEnabled && inIndiana && tzMatch && !!secret && captchaOk
+
+    // For an auto-approvable request, attempt the Slack invite up front so the
+    // outcome decides the row's initial state. If Slack can't deliver it (not
+    // configured, HTTP error, or the email is already invited / in the
+    // workspace) we don't fake a success — the request falls back into the
+    // review queue as "pending" with the reason recorded, so a board member can
+    // take a look. A non-auto request just queues as normal, no invite attempt.
+    let status = autoApprove ? "approved" : "pending"
+    let invitedAt = ""
+    let inviteError = ""
+    if (autoApprove) {
+        const { ok, outcome } = util.slackInviteOutcome(email)
+        if (ok) {
+            invitedAt = new Date().toISOString()
+        } else {
+            status = "pending"
+            inviteError = util.inviteErrorMessage(outcome)
+        }
+    }
 
     const collection = $app.findCollectionByNameOrId("slack_invites")
     const record = new Record(collection)
@@ -243,15 +282,20 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     record.set("linkedin", linkedin)
     record.set("github", github)
     record.set("coc_agreed", cocAgreed)
-    record.set("status", autoApprove ? "approved" : "pending")
-    record.set("auto", autoApprove)
+    record.set("status", status)
+    // `auto` marks a row that was auto-approved AND delivered without a human. An
+    // eligible request whose invite failed and fell back to the queue is not
+    // auto-approved, so it records auto=false.
+    record.set("auto", status === "approved")
+    record.set("invited_at", invitedAt)
+    record.set("error", inviteError)
     record.set("ip", ip)
     record.set("country", country)
     record.set("user_agent", userAgent)
     record.set("signals", signals)
     $app.save(record)
 
-    if (autoApprove) {
+    if (status === "approved") {
         return e.json(200, { ok: true, msg: "Invite sent — check your email!" })
     }
     return e.json(200, {
@@ -270,24 +314,40 @@ routerAdd("POST", "/api/slack/invite", (e) => {
 onRecordAfterCreateSuccess((e) => {
     const util = require(`${__hooks}/slack_util.js`)
     const status = e.record.getString("status")
+    // The invite (if any) was already attempted synchronously in the POST handler
+    // before this record was saved, so here we only notify the board.
     if (status === "approved") {
-        // Auto-approved: send the invite, and notify the board too (same details,
-        // framed as auto-approved rather than pending review).
-        util.sendSlackInvite(e.record)
+        // Auto-approved and delivered — notify the board, framed as auto-approved.
         util.notifyBoard(e.record, true)
     } else if (status === "pending") {
+        // Either a normal review request or an auto-eligible one whose invite
+        // failed and fell back to the queue — both get pending-review framing.
         util.notifyBoard(e.record, false)
     }
     e.next()
 }, "slack_invites")
 
-onRecordAfterUpdateSuccess((e) => {
+// Manual approval. This runs BEFORE the update is committed: when a board member
+// flips a row to "approved" we attempt the Slack invite first, and only let the
+// status change persist (calling e.next()) if the invite actually went out. If
+// Slack fails — not configured, HTTP error, or the email is already invited / in
+// the workspace — we throw, which aborts the transaction: the row stays
+// "pending" and the admin UI shows the specific reason. This is deliberately the
+// only place a hand-approval turns into an invite (the after-create hook above
+// handles auto-approval), so an approval can never be recorded without a
+// successful send.
+onRecordUpdate((e) => {
     const util = require(`${__hooks}/slack_util.js`)
     const was = e.record.original().getString("status")
     const now = e.record.getString("status")
-    // Send the invite the moment a board member flips a row to approved.
-    if (was !== "approved" && now === "approved") {
-        util.sendSlackInvite(e.record)
+    if (was !== "approved" && now === "approved" && !e.record.getString("invited_at")) {
+        const { ok, outcome } = util.slackInviteOutcome(e.record.getString("email"))
+        if (!ok) {
+            // Abort before e.next(): nothing is written, so status stays "pending".
+            throw new BadRequestError(util.inviteErrorMessage(outcome))
+        }
+        e.record.set("invited_at", new Date().toISOString())
+        e.record.set("error", "")
     }
     e.next()
 }, "slack_invites")

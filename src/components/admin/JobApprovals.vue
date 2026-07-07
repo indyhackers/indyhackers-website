@@ -4,7 +4,7 @@
       <AdminBar />
       <h1>Job approvals</h1>
       <p class="job-admin__sub">
-        Jobs submitted to the board that are waiting to be published. Approve to make a
+        Jobs submitted in the last 60 days that are waiting to be published. Approve to make a
         listing live, or reject to remove it.
       </p>
 
@@ -92,16 +92,23 @@ const salary = (job) => {
   return fmt(job.salary_min) + ' – ' + fmt(job.salary_max)
 }
 
+// Only surface recent submissions. Stale, never-approved rows pile up in the
+// database and aren't worth reviewing, so hide anything older than this.
+const REVIEW_WINDOW_DAYS = 60
+
 const load = async () => {
   loading.value = true
   authError.value = false
   try {
+    const cutoff = new Date(Date.now() - REVIEW_WINDOW_DAYS * 24 * 60 * 60 * 1000)
     const res = await pocketbase.collection('jobs').getList(1, 100, {
-      filter: 'approved = false',
+      // filter() safely interpolates the Date into PocketBase's datetime format.
+      filter: pocketbase.filter('approved = false && created >= {:cutoff}', { cutoff }),
       sort: '-created'
     })
-    // Safety net: keep only unapproved (in case the backend ignores the filter).
-    jobs.value = res.items.filter((j) => !j.approved)
+    // Safety net: keep only unapproved rows from within the review window (in
+    // case the backend ignores the filter).
+    jobs.value = res.items.filter((j) => !j.approved && new Date(j.created) >= cutoff)
   } catch (err) {
     if (err?.status === 401 || err?.status === 403) {
       authError.value = true

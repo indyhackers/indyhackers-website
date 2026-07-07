@@ -1,6 +1,21 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises, RouterLinkStub } from '@vue/test-utils'
 import { eventMocks } from '@/mocks/eventMocks'
+
+// Pin "now" so these date-filtering tests are deterministic regardless of the
+// real clock. The mock events span June 10 – July 28, 2026; we set now to the
+// evening of June 16, i.e. AFTER the 18:30 "AI & ML Indy" event has started, so
+// the suite also guards the "events stay visible for the whole day even once
+// their start time has passed" behavior. Only Date is faked, leaving real
+// timers/microtasks intact for MSW + flushPromises.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-06-16T19:00:00-04:00'))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 // EventDetailView reads the id via useRoute(); stub it to a known recurring event.
 vi.mock('vue-router', async (importOriginal) => {
@@ -73,6 +88,8 @@ describe('event grid/list helpers', () => {
     const search = filterEvents(sample, { query: 'golang' })
     expect(search.map((e) => e.id)).toEqual(['b'])
 
+    // Both ruby events are on June 16 and their start times (10:00, 18:00) are
+    // before now (19:00), yet they still group under today until the day ends.
     const groups = upcomingByDay(filterEvents(sample, { topicSlug: 'ruby' }))
     expect(groups).toHaveLength(1)
     expect(groups[0].events.map((e) => e.id)).toEqual(['c', 'a'])
@@ -97,6 +114,8 @@ describe('CalendarView (SDK -> MSW -> render)', () => {
     await flushPromises()
 
     const text = wrapper.text()
+    // "AI & ML Indy" started at 18:30 on June 16; now is 19:00 the same day, so
+    // it must still appear — events stay listed until their day is over.
     expect(text).toContain('AI & ML Indy: Local LLM Deployment')
     expect(text).toContain('Indy .NET User Group')
     // topic badges resolved via expand

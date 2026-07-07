@@ -577,16 +577,13 @@ function notifyInviteDecision(record, decision, authRecord) {
     const email = record.getString("email")
     const name = [record.getString("first_name"), record.getString("last_name")]
         .filter(Boolean).join(" ") || "(no name given)"
-    const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
-    const adminUrl = base ? base + "/admin/slack-invites" : ""
 
     const lines = [
         approved ? ":white_check_mark: *Slack invite approved*" : ":x: *Slack invite rejected*",
         "*Name:* " + slackEscape(name),
         "*Email:* " + slackEscape(email),
         "*" + (approved ? "Approved" : "Rejected") + " by:* " + slackEscape(adminLabel(authRecord)),
-        adminUrl ? "<" + adminUrl + "|Open the Slack invites admin>" : "",
-    ].filter(Boolean)
+    ]
 
     postSlackWebhook(lines.join("\n"))
 }

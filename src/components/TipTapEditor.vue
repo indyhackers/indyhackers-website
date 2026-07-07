@@ -147,6 +147,9 @@ export default {
 .tiptap-editor-wrapper {
   border-radius: 5px;
   border: 1px solid color-mix(in srgb, var(--border) 30%, var(--surface-1));
+  /* Solid surface so the editable area stays legible even when the page
+     background behind it is tinted (e.g. the manage page's --surface-2). */
+  background: var(--surface-1);
   transition: border-color 0.3s ease;
   overflow: hidden;
 }
@@ -203,5 +206,16 @@ export default {
 
 :deep(.tiptap-editor) {
   padding: 1rem;
+}
+
+/* Base typography for the editable content, shared by every consumer.
+   `outline: none` drops the browser's contenteditable focus ring — the
+   wrapper's :focus-within box-shadow is the focus affordance instead. */
+:deep(.tiptap) {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--bs-body-color);
+  outline: none;
 }
 </style>

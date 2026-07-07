@@ -252,16 +252,8 @@ export default defineComponent({
   text-align: right;
 }
 
-/* The editor's outer border/background now lives on TipTapEditor's own wrapper;
-   here we only set typography and remove the default ProseMirror focus outline. */
-:deep(.tiptap) {
-  font-size: 1rem;
-  font-weight: 400;
-  line-height: 1.5;
-  color: var(--bs-body-color);
-  outline: none;
-}
-
+/* The editor's border, background and base typography now live in
+   TipTapEditor's own styles; here we only size the two fields. */
 :deep(.tip-tap-description .tiptap.ProseMirror) {
   min-height: 150px;
 }

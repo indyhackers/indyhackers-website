@@ -21,9 +21,15 @@ FROM node:24 as vue-builder
 
 WORKDIR /app/ui
 
+# Install deps first, from the lockfile, so this layer is cached across builds
+# that only touch source. npm ci is lockfile-exact and fails if package.json and
+# package-lock.json drift, unlike npm i.
+COPY package.json package-lock.json ./
+RUN npm ci
+
 COPY . .
 
-RUN npm i && npm run build
+RUN npm run build
 
 # --------
 

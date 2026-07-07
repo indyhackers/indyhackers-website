@@ -35,6 +35,16 @@ export const routes = [
       meta: { title: 'Job Listing' }
     },
     {
+      path: '/jobs/new',
+      name: 'CreateJob',
+      component: () => import('../components/jobs/CreateJobView.vue'),
+      meta: {
+        title: 'Submit a Job',
+        description:
+          'Post a developer or tech job opening to the IndyHackers community job board — free to submit.'
+      }
+    },
+    {
       path: '/jobs-markdown',
       name: 'JobsMarkdown',
       component: () => import('../components/jobs/JobsMarkdown.vue'),

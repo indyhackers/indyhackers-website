@@ -58,12 +58,14 @@ const sixWeeksFromNow = computed(() => {
 
 // Filter events to only those within the next 6 weeks
 const filteredEvents = computed(() => {
-  const now = new Date()
+  // Start of today (not the current instant) so events earlier today still show.
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
   const endDate = sixWeeksFromNow.value
 
   return events.value.filter(event => {
     const eventDate = new Date(event.start)
-    return eventDate >= now && eventDate <= endDate
+    return eventDate >= startOfToday && eventDate <= endDate
   })
 })
 

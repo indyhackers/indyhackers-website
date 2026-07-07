@@ -21,11 +21,13 @@ export function useCalendar({ initialCount = 5 } = {}) {
     error.value = null
 
     try {
-      // Get events from now onwards, ordered by start time
-      const now = new Date().toISOString()
+      // Get events from the start of today onwards (not the current instant),
+      // so events happening earlier today still show until the day is over.
+      const startOfToday = new Date()
+      startOfToday.setHours(0, 0, 0, 0)
       const params = new URLSearchParams({
         key: API_KEY,
-        timeMin: now,
+        timeMin: startOfToday.toISOString(),
         maxResults: 50,
         singleEvents: true,
         orderBy: 'startTime'

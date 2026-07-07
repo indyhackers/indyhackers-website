@@ -60,6 +60,24 @@
                 </b-col>
               </b-row>
 
+              <b-row class="mt-3" v-if="job.approved && !job.filled && expiresLabel">
+                <b-col cols="12">
+                  <div class="expiry-note">
+                    <p class="expiry-note__text">
+                      This posting is live until <strong>{{ expiresLabel }}</strong>, after which
+                      it's automatically taken down from the board. Still hiring? Extend it to keep
+                      it live for another 60 days.
+                    </p>
+                    <b-button
+                      variant="outline-secondary"
+                      type="button"
+                      :disabled="saving"
+                      @click="extend"
+                    >Extend for 60 days</b-button>
+                  </div>
+                </b-col>
+              </b-row>
+
               <b-row class="mt-3">
                 <b-col cols="12" class="d-flex justify-content-between">
                   <b-button
@@ -111,6 +129,17 @@ export default defineComponent({
         how_to_apply: ''
       },
       notice: { message: '', visible: false, variant: 'success' }
+    }
+  },
+  computed: {
+    // The board hides a job 60 days after its approval date, so that's when it
+    // expires. Null until we have an approved job with an approved_at.
+    expiresLabel() {
+      if (!this.job || !this.job.approved || !this.job.approved_at) return null
+      const d = new Date(String(this.job.approved_at).replace(' ', 'T'))
+      if (Number.isNaN(d.getTime())) return null
+      d.setDate(d.getDate() + 60)
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
     }
   },
   methods: {
@@ -199,6 +228,9 @@ export default defineComponent({
     async relist() {
       await this.patch({ filled: false }, 'Your job has been re-listed.')
     },
+    async extend() {
+      await this.patch({ extend: true }, 'Your posting has been extended for another 60 days.')
+    },
     showNotice(message, variant) {
       this.notice = { message, visible: true, variant }
       try {
@@ -228,6 +260,17 @@ export default defineComponent({
   border: 1px solid var(--border) !important;
   background: var(--surface-1) !important;
   padding: 2rem;
+}
+.expiry-note {
+  border: 1px solid color-mix(in srgb, var(--border) 30%, var(--surface-1));
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-2);
+  padding: 1rem 1.25rem;
+}
+.expiry-note__text {
+  margin: 0 0 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
 .title {
   font-size: clamp(2rem, 4vw, 3rem);

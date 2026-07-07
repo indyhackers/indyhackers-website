@@ -46,8 +46,10 @@ onRecordUpdate((e) => {
     const isApproved = e.record.getBool("approved")
 
     if (!wasApproved && isApproved) {
-        // approved just flipped to true — stamp the time
+        // approved just flipped to true — stamp the time and start a fresh
+        // 60-day posting period (so the expiry-reminder cron can fire again).
         e.record.set("approved_at", new Date().toISOString())
+        e.record.set("expiry_reminder_sent", false)
     } else if (wasApproved && !isApproved) {
         // approved flipped back to false — clear the timestamp
         e.record.set("approved_at", "")
@@ -255,6 +257,10 @@ onRecordAfterUpdateSuccess((e) => {
                     "<p>Need to make a change, or has the role been filled? Use your private " +
                     "management link to edit the post or take it down:</p>" +
                     '<p><a href="' + manageUrl + '">' + manageUrl + "</a></p>" +
+                    "<p>Your posting will stay on the board for <strong>60 days</strong>. " +
+                    "Still hiring when that's up? Open the link above and click " +
+                    "<strong>Extend for 60 days</strong> to keep it live — you can do this as " +
+                    "many times as you need.</p>" +
                     "<p>Keep this email — anyone with that link can manage the post.</p>"
             })
 

@@ -11,6 +11,13 @@ import { VitePluginRadar } from 'vite-plugin-radar'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  server: {
+    host: true,
+    port: 5173,
+    strictPort: true,
+    // Allow access via the temporary Cloudflare quick tunnel
+    allowedHosts: ['.trycloudflare.com']
+  },
   plugins: [
     vue({
       template: {
@@ -38,6 +45,18 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
+    }
+  },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        // Bootstrap 5.3's SCSS still trips Dart Sass's `mixed-decls` (and
+        // related) deprecations. Those come from node_modules, not our styles,
+        // so silence dependency-originated warnings while keeping them for our
+        // own SCSS. (Dart Sass 1.77 predates `silenceDeprecations`, so use
+        // `quietDeps`.)
+        quietDeps: true
+      }
     }
   }
 })

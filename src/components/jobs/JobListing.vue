@@ -2,6 +2,9 @@
   <div class="job-view">
     <div class="ih-container">
       <div class="job-content">
+        <div v-if="isPreview" class="preview-banner">
+          Preview — this posting hasn't been published yet.
+        </div>
         <b-card class="job-card">
           <h2 class="job-title">{{ job.title }}</h2>
           <p class="company-name">{{ job.company }}</p>
@@ -24,11 +27,31 @@
 <script>
 import { defineComponent } from 'vue'
 import DOMPurify from 'dompurify'
+import { SITE_NAME, jsonLd } from '@/seo'
 
 export default defineComponent({
   name: 'JobView',
   props: {},
   components: [],
+  // Per-job document head, overriding App.vue's generic "Job Listing" title
+  // once the job has loaded so each listing has a distinct, indexable title
+  // and description.
+  head() {
+    if (!this.job?.title) return {}
+    const label = this.job.company ? `${this.job.title} at ${this.job.company}` : this.job.title
+    const title = `${label} · ${SITE_NAME}`
+    const description = this.plainDescription
+    return {
+      title,
+      meta: [
+        { name: 'description', content: description },
+        { property: 'og:title', content: title },
+        { property: 'og:description', content: description }
+      ],
+      // JobPosting structured data → eligible for the Google Jobs rich result.
+      script: [jsonLd(this.jobPostingSchema, 'ld-jobposting')]
+    }
+  },
   data() {
     return {
       job: {
@@ -52,6 +75,9 @@ export default defineComponent({
     }
   },
   computed: {
+    isPreview() {
+      return !!this.$route.query.preview
+    },
     formattedDate() {
       const job = this.job
       if (job.approved_at != null && job.approved_at !== '') {
@@ -78,6 +104,65 @@ export default defineComponent({
     sanitizedDescription() {
       return DOMPurify.sanitize(this.job.description)
     },
+    // Plain-text, length-capped version of the description for use as the meta
+    // description / OG description (search + social snippets).
+    plainDescription() {
+      const text = DOMPurify.sanitize(this.job.description, { ALLOWED_TAGS: [] })
+        .replace(/\s+/g, ' ')
+        .trim()
+      if (!text) return `${this.job.title} at ${this.job.company} — apply via IndyHackers.`
+      return text.length > 160 ? `${text.slice(0, 157).trimEnd()}…` : text
+    },
+    // ISO date (YYYY-MM-DD) the posting went live — required by Google for
+    // JobPosting. Falls back to the created date if not yet approved.
+    datePostedIso() {
+      const raw = this.job.approved_at || this.job.created
+      if (!raw) return undefined
+      const date = new Date(raw)
+      return isNaN(date.getTime()) ? undefined : date.toISOString().slice(0, 10)
+    },
+    // schema.org MonetaryAmount for the salary range, or null when unknown.
+    // Stored values are in thousands of USD/year.
+    baseSalarySchema() {
+      const { salary_min: min, salary_max: max } = this.job
+      if (!min && !max) return null
+      const value = { '@type': 'QuantitativeValue', unitText: 'YEAR' }
+      if (min) value.minValue = min * 1000
+      if (max) value.maxValue = max * 1000
+      if (min && !max) value.value = min * 1000
+      if (max && !min) value.value = max * 1000
+      return { '@type': 'MonetaryAmount', currency: 'USD', value }
+    },
+    // JobPosting structured data for this listing. schema.org allows HTML in
+    // `description`, and Google recommends the full (sanitized) description.
+    jobPostingSchema() {
+      const job = this.job
+      if (!job?.title) return null
+      const schema = {
+        '@context': 'https://schema.org',
+        '@type': 'JobPosting',
+        title: job.title,
+        description: this.sanitizedDescription || job.title,
+        hiringOrganization: {
+          '@type': 'Organization',
+          name: job.company || SITE_NAME
+        },
+        // The board serves the Indianapolis area; used as the default location
+        // since listings don't carry a per-job location field.
+        jobLocation: {
+          '@type': 'Place',
+          address: {
+            '@type': 'PostalAddress',
+            addressLocality: 'Indianapolis',
+            addressRegion: 'IN',
+            addressCountry: 'US'
+          }
+        }
+      }
+      if (this.datePostedIso) schema.datePosted = this.datePostedIso
+      if (this.baseSalarySchema) schema.baseSalary = this.baseSalarySchema
+      return schema
+    },
     sanitizedHowToApply() {
       return DOMPurify.sanitize(this.job.how_to_apply)
     }
@@ -102,6 +187,18 @@ export default defineComponent({
 .job-content {
   max-width: 800px;
   margin: 4rem auto 0;
+}
+
+.preview-banner {
+  background: var(--accent-deep);
+  color: var(--surface-1);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: bold;
+  text-align: center;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
 }
 
 .job-card {

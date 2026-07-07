@@ -14,6 +14,7 @@
         <RouterLink to="/newsletter">Newsletter</RouterLink>
         <RouterLink to="/jobs">Jobs</RouterLink>
         <RouterLink to="/sponsors">Sponsors</RouterLink>
+        <RouterLink to="/slack">Slack</RouterLink>
         <RouterLink to="/about">About</RouterLink>
       </div>
 
@@ -30,6 +31,7 @@
       <RouterLink to="/newsletter" @click="open = false">Newsletter</RouterLink>
       <RouterLink to="/jobs" @click="open = false">Jobs</RouterLink>
       <RouterLink to="/sponsors" @click="open = false">Sponsors</RouterLink>
+      <RouterLink to="/slack" @click="open = false">Slack</RouterLink>
       <RouterLink to="/about" @click="open = false">About</RouterLink>
     </div>
   </nav>

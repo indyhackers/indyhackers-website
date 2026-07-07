@@ -1,2 +1,12 @@
 User-agent: *
 Allow: /
+
+# Auth, admin, and internal export/utility pages — no SEO value.
+Disallow: /admin
+Disallow: /login
+Disallow: /signup
+Disallow: /jobs/manage
+Disallow: /jobs-markdown
+Disallow: /events-markdown
+
+Sitemap: https://www.indyhackers.org/sitemap.xml

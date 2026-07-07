@@ -266,6 +266,35 @@ onRecordAfterUpdateSuccess((e) => {
         console.error("[jobs] approval email failed: " + err)
     }
 
+    // Public announcement: when a job goes live (approved false→true), post to the
+    // public #jobs Slack channel so members see the opening. Independent and
+    // best-effort — uses its own SLACK_JOBS_WEBHOOK_URL (the public channel), not
+    // the private moderator webhook. Needs an absolute base URL to build the link;
+    // if none is configured we skip rather than post a useless relative link.
+    try {
+        const wasApproved = r.original().getBool("approved")
+        const isApproved = r.getBool("approved")
+        if (!wasApproved && isApproved) {
+            const util = require(`${__hooks}/slack_util.js`)
+            const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
+            if (base) {
+                const esc = util.slackEscape
+                const jobUrl = base + "/job?id=" + r.id
+                const text = [
+                    ":briefcase: *New job on the board*",
+                    "*" + esc(r.getString("title")) + "* at *" + esc(r.getString("company")) + "*",
+                    "<" + jobUrl + "|View the posting>",
+                ].join("\n")
+                util.postJobsChannelWebhook(text)
+                console.log("[jobs] public #jobs announcement posted for " + r.id)
+            } else {
+                console.warn("[jobs] no SITE_URL/appURL; skipping public #jobs announcement (need an absolute link)")
+            }
+        }
+    } catch (err) {
+        console.error("[jobs] public #jobs announcement failed: " + err)
+    }
+
     e.next()
 }, "jobs")
 

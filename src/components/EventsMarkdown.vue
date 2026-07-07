@@ -17,7 +17,7 @@
         <b-alert v-else-if="error" variant="danger" show class="my-4">
           <h5>Unable to load events</h5>
           <p>{{ error }}</p>
-          <b-button variant="danger" @click="fetchEvents">Retry</b-button>
+          <b-button variant="danger" @click="fetchAll">Retry</b-button>
         </b-alert>
 
         <!-- Markdown Output -->
@@ -44,9 +44,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { BContainer, BRow, BCol, BButton, BAlert, BSpinner } from 'bootstrap-vue-next'
-import { useCalendar } from '../composables/useCalendar'
+import { useEvents } from '../composables/useEvents'
 
-const { events, loading, error, fetchEvents } = useCalendar()
+const { events, loading, error, fetchAll } = useEvents()
 const copied = ref(false)
 
 // Calculate the date 6 weeks from now
@@ -123,7 +123,7 @@ const copyToClipboard = async () => {
 }
 
 onMounted(() => {
-  fetchEvents()
+  fetchAll()
 })
 </script>
 

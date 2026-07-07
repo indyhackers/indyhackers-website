@@ -532,12 +532,12 @@ function notifyBoard(record, autoApproved) {
 const slackEscape = (v) =>
     String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
-// Best-effort POST of a plain-text message to the configured Slack webhook.
-// No-ops when SLACK_WEBHOOK_URL is unset; never throws (logs on failure) so a
-// notification can't block the DB operation that triggered it.
-function postSlackWebhook(text) {
-    const webhook = $os.getenv("SLACK_WEBHOOK_URL")
+// Best-effort POST of a plain-text message to a Slack incoming webhook. No-ops
+// when the URL is unset; never throws (logs on failure) so a notification can't
+// block the DB operation that triggered it. `label` only tags log lines.
+function sendSlackWebhook(webhook, text, label) {
     if (!webhook) return
+    const tag = label || "webhook"
     try {
         const res = $http.send({
             url: webhook,
@@ -547,11 +547,22 @@ function postSlackWebhook(text) {
             timeout: 15,
         })
         if (res.statusCode < 200 || res.statusCode >= 300) {
-            console.error("[slack] webhook returned " + res.statusCode + ": " + res.raw)
+            console.error("[slack] " + tag + " returned " + res.statusCode + ": " + res.raw)
         }
     } catch (err) {
-        console.error("[slack] webhook post failed: " + err)
+        console.error("[slack] " + tag + " post failed: " + err)
     }
+}
+
+// Private moderator channel — new-job pings, pending-request queue, decisions.
+function postSlackWebhook(text) {
+    sendSlackWebhook($os.getenv("SLACK_WEBHOOK_URL"), text, "webhook")
+}
+
+// Public #jobs channel, seen by all IndyHackers members. Separate webhook so
+// public announcements never leak into the private moderator channel.
+function postJobsChannelWebhook(text) {
+    sendSlackWebhook($os.getenv("SLACK_JOBS_WEBHOOK_URL"), text, "jobs-channel webhook")
 }
 
 // Human-readable identifier for the acting admin from a request event's auth
@@ -600,6 +611,7 @@ module.exports = {
     notifyBoard,
     slackEscape,
     postSlackWebhook,
+    postJobsChannelWebhook,
     adminLabel,
     notifyInviteDecision,
 }

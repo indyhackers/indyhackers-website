@@ -125,13 +125,22 @@ onRecordAfterCreateSuccess((e) => {
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;")
 
+            // Link straight to the job-approval admin page. If neither SITE_URL nor
+            // appURL is configured we can't build an absolute URL, so fall back to
+            // plain text rather than emit a broken relative Slack link.
+            const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
+            const adminUrl = base + "/admin/jobs"
+            const reviewLine = base
+                ? "Review it: <" + adminUrl + "|Job approval admin>"
+                : "Review it: Job approval admin"
+
             const text =
                 ":briefcase: *New job submitted to the board*\n" +
                 "*" + slackEsc(r.getString("title")) + "* at *" + slackEsc(r.getString("company")) + "*\n" +
                 "Salary: " + salary + "\n" +
                 "Submitted by: " + slackEsc(name) + " (" + slackEsc(email) + ")\n" +
                 "Status: " + status + "\n" +
-                "Review it in the admin to approve."
+                reviewLine
 
             const res = $http.send({
                 url: webhook,
@@ -166,16 +175,38 @@ onRecordAfterCreateSuccess((e) => {
                     .replace(/"/g, "&quot;")
                     .replace(/'/g, "&#39;")
 
+            // `description` / `how_to_apply` are rich HTML that jobs_util.sanitizeJobHtml
+            // already cleaned during onRecordCreate, so we embed them as-is to preserve
+            // the poster's formatting — escaping would show raw tags. Every other field
+            // is plain text and gets esc()'d. `name`, `salary` and `esc` are in scope
+            // from the top of this handler.
+            const richField = (field) => {
+                const s = r.getString(field)
+                return s && s.replace(/<[^>]*>/g, "").trim() ? s : "<p>—</p>"
+            }
+
             const message = new MailerMessage({
                 from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
                 to: [{ address: submitter }],
                 subject: "We received your job post: " + r.getString("title"),
                 html:
                     "<h2>Thanks for posting to the IndyHackers job board!</h2>" +
-                    "<p>We received your submission for <strong>" + esc(r.getString("title")) +
-                    "</strong> at <strong>" + esc(r.getString("company")) + "</strong>.</p>" +
-                    "<p>A moderator will review it shortly. You'll get another email with a " +
-                    "management link once it's approved and live on the board.</p>"
+                    "<p>We received your submission. A moderator will review it shortly — you'll " +
+                    "get another email with a management link once it's approved and live on the " +
+                    "board.</p>" +
+                    "<h3>Here's what you submitted</h3>" +
+                    "<ul>" +
+                    "<li><strong>Job title:</strong> " + esc(r.getString("title")) + "</li>" +
+                    "<li><strong>Company:</strong> " + esc(r.getString("company")) + "</li>" +
+                    "<li><strong>Salary:</strong> " + salary + "</li>" +
+                    "<li><strong>Contact name:</strong> " + esc(name) + "</li>" +
+                    "<li><strong>Contact email:</strong> " + esc(submitter) + "</li>" +
+                    "</ul>" +
+                    "<h3>Description</h3>" +
+                    "<div>" + richField("description") + "</div>" +
+                    "<h3>How to apply</h3>" +
+                    "<div>" + richField("how_to_apply") + "</div>" +
+                    "<p>If anything looks off, reply to this email and we'll help you fix it.</p>"
             })
 
             $app.newMailClient().send(message)
@@ -233,6 +264,35 @@ onRecordAfterUpdateSuccess((e) => {
     } catch (err) {
         // Never let a notification failure block the approval.
         console.error("[jobs] approval email failed: " + err)
+    }
+
+    // Public announcement: when a job goes live (approved false→true), post to the
+    // public #jobs Slack channel so members see the opening. Independent and
+    // best-effort — uses its own SLACK_JOBS_WEBHOOK_URL (the public channel), not
+    // the private moderator webhook. Needs an absolute base URL to build the link;
+    // if none is configured we skip rather than post a useless relative link.
+    try {
+        const wasApproved = r.original().getBool("approved")
+        const isApproved = r.getBool("approved")
+        if (!wasApproved && isApproved) {
+            const util = require(`${__hooks}/slack_util.js`)
+            const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
+            if (base) {
+                const esc = util.slackEscape
+                const jobUrl = base + "/job?id=" + r.id
+                const text = [
+                    ":briefcase: *New job on the board*",
+                    "*" + esc(r.getString("title")) + "* at *" + esc(r.getString("company")) + "*",
+                    "<" + jobUrl + "|View the posting>",
+                ].join("\n")
+                util.postJobsChannelWebhook(text)
+                console.log("[jobs] public #jobs announcement posted for " + r.id)
+            } else {
+                console.warn("[jobs] no SITE_URL/appURL; skipping public #jobs announcement (need an absolute link)")
+            }
+        }
+    } catch (err) {
+        console.error("[jobs] public #jobs announcement failed: " + err)
     }
 
     e.next()

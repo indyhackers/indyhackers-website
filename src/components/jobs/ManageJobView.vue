@@ -1,84 +1,88 @@
 <template>
   <div class="manage-job">
     <div class="ih-container">
-      <h1 class="title">Manage Your Job Post</h1>
+      <div class="manage-job-content">
+        <h1 class="title">Manage Your Job Post</h1>
 
-      <b-alert :model-value="!!error" variant="danger">{{ error }}</b-alert>
-      <b-alert v-model="notice.visible" :variant="notice.variant" dismissable>{{
-        notice.message
-      }}</b-alert>
+        <b-alert :model-value="!!error" variant="danger">{{ error }}</b-alert>
+        <b-alert v-model="notice.visible" :variant="notice.variant" dismissable>{{
+          notice.message
+        }}</b-alert>
 
-      <p v-if="loading" class="subtitle">Loading…</p>
+        <p v-if="loading" class="subtitle">Loading…</p>
 
-      <div v-else-if="job">
-        <b-alert :model-value="job.filled" variant="warning">
-          This post is marked as <strong>filled</strong> and is hidden from the public job board.
-        </b-alert>
+        <div v-else-if="job">
+          <b-card class="form-card">
+            <b-alert :model-value="job.filled" variant="warning">
+              This post is marked as <strong>filled</strong> and is hidden from the public job board.
+            </b-alert>
 
-        <b-form @submit.prevent="save">
-          <b-row>
-            <b-col md="6">
-              <b-form-group label="Job Title" label-for="input-title">
-                <b-form-input id="input-title" v-model="formData.title" required></b-form-input>
-              </b-form-group>
-            </b-col>
-            <b-col md="6">
-              <b-form-group label="Company" label-for="input-company">
-                <b-form-input id="input-company" v-model="formData.company" required></b-form-input>
-              </b-form-group>
-            </b-col>
-          </b-row>
+            <b-form @submit.prevent="save">
+              <b-row>
+                <b-col md="6">
+                  <b-form-group label="Job Title" label-for="input-title">
+                    <b-form-input id="input-title" v-model="formData.title" required></b-form-input>
+                  </b-form-group>
+                </b-col>
+                <b-col md="6">
+                  <b-form-group label="Company" label-for="input-company">
+                    <b-form-input id="input-company" v-model="formData.company" required></b-form-input>
+                  </b-form-group>
+                </b-col>
+              </b-row>
 
-          <b-row class="mt-3">
-            <b-form-group label="Salary Range (Optional)" class="w-100">
-              <div class="d-flex align-items-center">
-                <b-input-group append="K" class="w-auto" style="max-width: 120px;">
-                  <b-form-input type="number" id="input-salary-min" v-model="formData.salary_min" :min="0" :max="1000"></b-form-input>
-                </b-input-group>
-                <span class="mx-2">-</span>
-                <b-input-group append="K" class="w-auto" style="max-width: 120px;">
-                  <b-form-input type="number" id="input-salary-max" v-model="formData.salary_max" :min="0" :max="1000"></b-form-input>
-                </b-input-group>
-              </div>
-            </b-form-group>
-          </b-row>
+              <b-row class="mt-3">
+                <b-form-group label="Salary Range (Optional)" class="w-100">
+                  <div class="d-flex align-items-center">
+                    <b-input-group append="K" class="w-auto" style="max-width: 120px;">
+                      <b-form-input type="number" id="input-salary-min" v-model="formData.salary_min" :min="0" :max="1000"></b-form-input>
+                    </b-input-group>
+                    <span class="mx-2">-</span>
+                    <b-input-group append="K" class="w-auto" style="max-width: 120px;">
+                      <b-form-input type="number" id="input-salary-max" v-model="formData.salary_max" :min="0" :max="1000"></b-form-input>
+                    </b-input-group>
+                  </div>
+                </b-form-group>
+              </b-row>
 
-          <b-row class="mt-3">
-            <b-col cols="12">
-              <b-form-group label="Description">
-                <tip-tap-editor class="tip-tap-description" v-model="formData.description" />
-              </b-form-group>
-            </b-col>
-          </b-row>
-          <b-row class="mt-3">
-            <b-col cols="12">
-              <b-form-group label="How to Apply">
-                <tip-tap-editor class="tip-tap-how-to-apply" v-model="formData.how_to_apply" />
-              </b-form-group>
-            </b-col>
-          </b-row>
+              <b-row class="mt-3">
+                <b-col cols="12">
+                  <b-form-group label="Description">
+                    <tip-tap-editor class="tip-tap-description" v-model="formData.description" />
+                  </b-form-group>
+                </b-col>
+              </b-row>
+              <b-row class="mt-3">
+                <b-col cols="12">
+                  <b-form-group label="How to Apply">
+                    <tip-tap-editor class="tip-tap-how-to-apply" v-model="formData.how_to_apply" />
+                  </b-form-group>
+                </b-col>
+              </b-row>
 
-          <b-row class="mt-3">
-            <b-col cols="12" class="d-flex justify-content-between">
-              <b-button
-                v-if="!job.filled"
-                variant="outline-danger"
-                type="button"
-                :disabled="saving"
-                @click="markFilled"
-              >Mark as filled / take down</b-button>
-              <b-button
-                v-else
-                variant="outline-secondary"
-                type="button"
-                :disabled="saving"
-                @click="relist"
-              >Re-list this job</b-button>
+              <b-row class="mt-3">
+                <b-col cols="12" class="d-flex justify-content-between">
+                  <b-button
+                    v-if="!job.filled"
+                    variant="outline-danger"
+                    type="button"
+                    :disabled="saving"
+                    @click="markFilled"
+                  >Mark as filled / take down</b-button>
+                  <b-button
+                    v-else
+                    variant="outline-secondary"
+                    type="button"
+                    :disabled="saving"
+                    @click="relist"
+                  >Re-list this job</b-button>
 
-              <b-button variant="primary" type="submit" :disabled="saving">Save changes</b-button>
-            </b-col>
-          </b-row>
-        </b-form>
+                  <b-button variant="primary" type="submit" :disabled="saving">Save changes</b-button>
+                </b-col>
+              </b-row>
+            </b-form>
+          </b-card>
+        </div>
       </div>
     </div>
   </div>
@@ -214,6 +218,16 @@ export default defineComponent({
 .manage-job {
   background-color: var(--surface-2);
   padding: 3rem 0;
+}
+.manage-job-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.form-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border) !important;
+  background: var(--surface-1) !important;
+  padding: 2rem;
 }
 .title {
   font-size: clamp(2rem, 4vw, 3rem);

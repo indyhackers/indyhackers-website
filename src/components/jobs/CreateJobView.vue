@@ -252,27 +252,8 @@ export default defineComponent({
   text-align: right;
 }
 
-:deep(.tiptap) {
-  display: block;
-  width: 100%;
-  padding: 0.375rem 0.75rem;
-  font-size: 1rem;
-  font-weight: 400;
-  line-height: 1.5;
-  color: var(--bs-body-color);
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  background-color: var(--bs-body-bg);
-  background-clip: padding-box;
-  border: var(--bs-border-width) solid var(--bs-border-color);
-  border-radius: var(--bs-border-radius);
-  transition:
-    border-color 0.15s ease-in-out,
-    box-shadow 0.15s ease-in-out;
-  margin-bottom: 1rem;
-}
-
+/* The editor's border, background and base typography now live in
+   TipTapEditor's own styles; here we only size the two fields. */
 :deep(.tip-tap-description .tiptap.ProseMirror) {
   min-height: 150px;
 }

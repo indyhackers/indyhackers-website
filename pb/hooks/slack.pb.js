@@ -351,3 +351,24 @@ onRecordUpdate((e) => {
     }
     e.next()
 }, "slack_invites")
+
+// Board decision → Slack webhook ping recording WHO approved/rejected. This runs
+// on the API update request (not the model hook above) because only the request
+// event carries the acting admin as e.auth. We fire only after e.next() commits
+// the update: a manual approval whose Slack invite fails makes the model hook
+// throw, e.next() rejects, and no misleading "approved" ping goes out. The ping
+// itself is best-effort and wrapped so it can never turn a committed update into
+// an error response.
+onRecordUpdateRequest((e) => {
+    const util = require(`${__hooks}/slack_util.js`)
+    const was = e.record.original().getString("status")
+    e.next()
+    const now = e.record.getString("status")
+    if (was !== now && (now === "approved" || now === "rejected")) {
+        try {
+            util.notifyInviteDecision(e.record, now, e.auth)
+        } catch (err) {
+            console.error("[slack] decision webhook failed: " + err)
+        }
+    }
+}, "slack_invites")

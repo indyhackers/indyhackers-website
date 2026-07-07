@@ -528,6 +528,69 @@ function notifyBoard(record, autoApproved) {
     }
 }
 
+// Slack mrkdwn reserves &, <, > — escape them in any interpolated text.
+const slackEscape = (v) =>
+    String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+
+// Best-effort POST of a plain-text message to the configured Slack webhook.
+// No-ops when SLACK_WEBHOOK_URL is unset; never throws (logs on failure) so a
+// notification can't block the DB operation that triggered it.
+function postSlackWebhook(text) {
+    const webhook = $os.getenv("SLACK_WEBHOOK_URL")
+    if (!webhook) return
+    try {
+        const res = $http.send({
+            url: webhook,
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: text }),
+            timeout: 15,
+        })
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+            console.error("[slack] webhook returned " + res.statusCode + ": " + res.raw)
+        }
+    } catch (err) {
+        console.error("[slack] webhook post failed: " + err)
+    }
+}
+
+// Human-readable identifier for the acting admin from a request event's auth
+// record — "email (id)" so the notification says who did it and links to the
+// exact account. Falls back gracefully if auth is missing or emailless.
+function adminLabel(authRecord) {
+    if (!authRecord) return "unknown admin"
+    const id = authRecord.id
+    let email = ""
+    try {
+        email = authRecord.getString("email")
+    } catch (_) {
+        email = ""
+    }
+    return email ? email + " (" + id + ")" : id
+}
+
+// Posts a Slack ping when a board member approves or rejects an invite request,
+// naming the acting admin. `decision` is "approved" or "rejected"; `authRecord`
+// is the request's e.auth. Best-effort (delegates to postSlackWebhook).
+function notifyInviteDecision(record, decision, authRecord) {
+    const approved = decision === "approved"
+    const email = record.getString("email")
+    const name = [record.getString("first_name"), record.getString("last_name")]
+        .filter(Boolean).join(" ") || "(no name given)"
+    const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
+    const adminUrl = base ? base + "/admin/slack-invites" : ""
+
+    const lines = [
+        approved ? ":white_check_mark: *Slack invite approved*" : ":x: *Slack invite rejected*",
+        "*Name:* " + slackEscape(name),
+        "*Email:* " + slackEscape(email),
+        "*" + (approved ? "Approved" : "Rejected") + " by:* " + slackEscape(adminLabel(authRecord)),
+        adminUrl ? "<" + adminUrl + "|Open the Slack invites admin>" : "",
+    ].filter(Boolean)
+
+    postSlackWebhook(lines.join("\n"))
+}
+
 module.exports = {
     EMAIL_RE,
     DISPOSABLE_DOMAINS,
@@ -538,4 +601,8 @@ module.exports = {
     slackInviteOutcome,
     inviteErrorMessage,
     notifyBoard,
+    slackEscape,
+    postSlackWebhook,
+    adminLabel,
+    notifyInviteDecision,
 }

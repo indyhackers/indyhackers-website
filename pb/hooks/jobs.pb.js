@@ -237,3 +237,57 @@ onRecordAfterUpdateSuccess((e) => {
 
     e.next()
 }, "jobs")
+
+// Moderator decision → Slack webhook ping recording WHO did it. These run on the
+// API request (not the model hooks above) because only the request event carries
+// the acting admin as e.auth. In the admin UI, "approve" flips approved
+// false→true (an update) and "reject" deletes the pending row (a delete), so we
+// cover both. Each pings only after e.next() commits, and the webhook post is
+// best-effort (util.postSlackWebhook never throws). Helpers live in slack_util.js
+// (the Slack-webhook home) and are require()'d here per the isolated-runtime rule.
+
+// Approve = approved flips false→true; un-publishing (true→false) is reported too.
+onRecordUpdateRequest((e) => {
+    const util = require(`${__hooks}/slack_util.js`)
+    const r = e.record
+    const wasApproved = r.original().getBool("approved")
+    e.next()
+    const isApproved = r.getBool("approved")
+    if (wasApproved === isApproved) return
+    try {
+        const esc = util.slackEscape
+        const text = [
+            isApproved
+                ? ":white_check_mark: *Job approved & published*"
+                : ":leftwards_arrow_with_hook: *Job un-published*",
+            "*" + esc(r.getString("title")) + "* at *" + esc(r.getString("company")) + "*",
+            "*" + (isApproved ? "Approved" : "Unapproved") + " by:* " + esc(util.adminLabel(e.auth)),
+        ].join("\n")
+        util.postSlackWebhook(text)
+    } catch (err) {
+        console.error("[jobs] decision webhook failed: " + err)
+    }
+}, "jobs")
+
+// Reject = the pending row is deleted from the admin queue. Read the fields we
+// need BEFORE e.next() removes the record. A delete of an already-approved job
+// is a live-listing takedown rather than a rejection, so word it accordingly.
+onRecordDeleteRequest((e) => {
+    const util = require(`${__hooks}/slack_util.js`)
+    const r = e.record
+    const title = r.getString("title")
+    const company = r.getString("company")
+    const wasApproved = r.getBool("approved")
+    e.next()
+    try {
+        const esc = util.slackEscape
+        const text = [
+            ":x: *Job " + (wasApproved ? "removed" : "rejected") + "*",
+            "*" + esc(title) + "* at *" + esc(company) + "*",
+            "*" + (wasApproved ? "Removed" : "Rejected") + " by:* " + esc(util.adminLabel(e.auth)),
+        ].join("\n")
+        util.postSlackWebhook(text)
+    } catch (err) {
+        console.error("[jobs] delete webhook failed: " + err)
+    }
+}, "jobs")

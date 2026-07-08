@@ -348,6 +348,89 @@ function inviteErrorMessage(outcome) {
     return "Slack rejected the invite (" + outcome + "); the invite was not sent."
 }
 
+// True when `ip` is a routable public address worth sending to the ISP lookup —
+// skips blanks, loopback, and the private / link-local / CGNAT ranges so we
+// don't waste a call on local or dev traffic (which has no meaningful ISP).
+function isPublicIp(ip) {
+    const s = String(ip || "").trim().toLowerCase()
+    if (!s || s === "localhost") return false
+    if (s.indexOf(":") >= 0) {
+        // IPv6: ::1 loopback, fc00::/7 unique-local, fe80::/10 link-local.
+        if (s === "::1") return false
+        if (s.startsWith("fc") || s.startsWith("fd")) return false
+        if (s.startsWith("fe8") || s.startsWith("fe9") || s.startsWith("fea") || s.startsWith("feb")) return false
+        return true
+    }
+    const p = s.split(".").map((n) => parseInt(n, 10))
+    if (p.length !== 4 || p.some((n) => isNaN(n))) return false
+    if (p[0] === 0 || p[0] === 10 || p[0] === 127) return false
+    if (p[0] === 172 && p[1] >= 16 && p[1] <= 31) return false
+    if (p[0] === 192 && p[1] === 168) return false
+    if (p[0] === 169 && p[1] === 254) return false
+    if (p[0] === 100 && p[1] >= 64 && p[1] <= 127) return false // CGNAT (100.64/10)
+    return true
+}
+
+// Looks up the network operator (ISP / hosting provider) behind an IP using a
+// configurable IP-intelligence API. Best-effort and defensive: returns null on
+// any failure (unset/unreachable service, non-2xx, bad JSON, private IP) so a
+// lookup problem never blocks or meaningfully slows an invite beyond the short
+// timeout. The caller stashes the result under signals.geo so it flows to the
+// review card + notifications like the other IP-derived fields.
+//
+// SLACK_ISP_LOOKUP_URL is a URL template with an {ip} placeholder; it defaults
+// to ipwho.is (HTTPS, no API key). The parser understands the common provider
+// response shapes, so an operator can point it at ip-api.com, ipinfo.io,
+// ipapi.co, etc. (adding any key as a query param) without a code change.
+function lookupIsp(ip) {
+    if (!isPublicIp(ip)) return null
+    const template = $os.getenv("SLACK_ISP_LOOKUP_URL") || "https://ipwho.is/{ip}"
+    const url = template.indexOf("{ip}") >= 0
+        ? template.replace("{ip}", encodeURIComponent(ip))
+        : template + encodeURIComponent(ip)
+
+    let data = null
+    try {
+        const res = $http.send({ url, method: "GET", timeout: 8 })
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+            console.error("[slack] ISP lookup returned " + res.statusCode + ": " + res.raw)
+            return null
+        }
+        data = res.json || {}
+    } catch (err) {
+        console.error("[slack] ISP lookup failed: " + err)
+        return null
+    }
+
+    // Normalize the handful of common provider response shapes into isp/org/asn.
+    const conn = data.connection || {} // ipwho.is nests under `connection`
+    const isp = data.isp || conn.isp || conn.org || data.org || "" // ip-api / ipwho / ipapi.co
+    const org = data.org || conn.org || data.asname || conn.domain || ""
+    // ASN comes as "AS7922" or "AS7922 Comcast" (ip-api `as`, ipinfo `org`), a
+    // bare number (ipwho `connection.asn`), or "AS7922" (ipapi.co `asn`).
+    let asn = ""
+    const asnRaw = conn.asn != null ? conn.asn : data.asn != null ? data.asn : data.as
+    if (asnRaw != null && String(asnRaw).trim()) {
+        const m = String(asnRaw).match(/AS?\s?(\d+)/i)
+        asn = m ? "AS" + m[1] : String(asnRaw).trim()
+    }
+
+    if (!isp && !org && !asn) return null
+    return { isp: String(isp).trim(), org: String(org).trim(), asn }
+}
+
+// Human-readable ISP string for the notifications + review card, e.g.
+// "Comcast Cable Communications (AS7922)". Combines isp/org/asn from a stored
+// signals.geo without repeating a value that appears in more than one field.
+function ispLabel(geo) {
+    const g = geo || {}
+    const name = g.isp || g.org || ""
+    const org = g.org && g.org !== g.isp ? g.org : ""
+    const parts = [name, org].filter(Boolean).join(" · ")
+    if (!parts && !g.asn) return ""
+    return g.asn ? (parts ? parts + " (" + g.asn + ")" : g.asn) : parts
+}
+
 // Notifies the board about a pending request (email + optional Slack webhook),
 // reusing the same best-effort pattern as new-job notifications.
 function notifyBoard(record, autoApproved) {
@@ -397,6 +480,7 @@ function notifyBoard(record, autoApproved) {
     const mapUrl = geo.lat && geo.lon
         ? "https://www.google.com/maps?q=" + encodeURIComponent(geo.lat) + "," + encodeURIComponent(geo.lon)
         : ""
+    const isp = ispLabel(geo)
     const timezone = timezoneLabel(geo.timezone, geo.same_tz_as_indy)
     const browserTz = timezoneLabel(signals.browser_timezone, signals.browser_same_tz_as_indy)
     const tzMismatch = signals.browser_timezone
@@ -451,6 +535,7 @@ function notifyBoard(record, autoApproved) {
             html += row("Postal code", postal)
             html += row("Metro code", metroCode)
             html += row("IP", ip)
+            html += row("ISP (IP)", isp)
             html += linkRow("LinkedIn", linkedin)
             html += linkRow("GitHub", github)
             html += row("Code of conduct", cocAgreed ? "agreed" : "not agreed")
@@ -500,6 +585,7 @@ function notifyBoard(record, autoApproved) {
                 line("Postal code", postal),
                 line("Metro code", metroCode),
                 line("IP", ip),
+                line("ISP (IP)", isp),
                 line("Connection to Indiana", connection),
                 linkLine("LinkedIn", linkedin),
                 linkLine("GitHub", github),
@@ -606,6 +692,8 @@ module.exports = {
     isDisposable,
     sameTimezoneAsIndy,
     metroName,
+    lookupIsp,
+    ispLabel,
     slackInviteOutcome,
     inviteErrorMessage,
     notifyBoard,

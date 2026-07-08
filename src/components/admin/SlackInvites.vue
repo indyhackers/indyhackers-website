@@ -77,6 +77,10 @@
               <dt>IP</dt>
               <dd>{{ inv.ip || '—' }}</dd>
             </div>
+            <div v-if="ispText(inv)">
+              <dt>ISP</dt>
+              <dd>{{ ispText(inv) }}</dd>
+            </div>
             <div v-if="geoText(inv)">
               <dt>Approx. location (IP)</dt>
               <dd>{{ geoText(inv) }}</dd>
@@ -232,6 +236,18 @@ const geoText = (inv) => {
 const geoCoords = (inv) => {
   const g = inv.signals?.geo || {}
   return g.lat && g.lon ? `${g.lat}, ${g.lon}` : ''
+}
+
+// Network operator behind the IP (ISP / hosting provider), resolved server-side
+// into signals.geo. e.g. "Comcast Cable Communications (AS7922)". Empty unless
+// the ISP lookup succeeded — the row hides when there's nothing to show.
+const ispText = (inv) => {
+  const g = inv.signals?.geo || {}
+  const name = g.isp || g.org || ''
+  const org = g.org && g.org !== g.isp ? g.org : ''
+  const parts = [name, org].filter(Boolean).join(' · ')
+  if (!parts && !g.asn) return ''
+  return g.asn ? (parts ? `${parts} (${g.asn})` : g.asn) : parts
 }
 
 // IANA timezone from Cloudflare + how it relates to Indianapolis (Eastern).

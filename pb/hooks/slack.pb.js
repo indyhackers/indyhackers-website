@@ -123,6 +123,16 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     geo.same_tz_as_indy = util.sameTimezoneAsIndy(geo.timezone)
     // Resolve the Nielsen DMA (metro) code to a market name where known.
     geo.metro_name = util.metroName(geo.metro_code)
+    // Network operator (ISP / hosting provider) behind the IP — a datacenter or
+    // VPN ISP is a useful review signal. Best-effort external lookup that leaves
+    // geo.isp unset on any failure; stored under geo so it flows to the review
+    // card and notifications alongside the other IP-derived fields.
+    const isp = util.lookupIsp(ip)
+    if (isp) {
+        geo.isp = isp.isp
+        geo.org = isp.org
+        geo.asn = isp.asn
+    }
 
     // Rate limit per IP.
     const perHour = parseInt($os.getenv("SLACK_RATE_PER_HOUR") || "5", 10)

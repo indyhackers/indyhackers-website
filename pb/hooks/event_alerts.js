@@ -145,7 +145,16 @@ function handleSubscribe(e) {
   }
 
   $app.save(record)
-  sendConfirmEmail(record, topicNamesFor(topicIds))
+
+  // The record is already saved at this point — a mail outage shouldn't turn
+  // into a false "something went wrong" for a subscribe that actually
+  // succeeded. Matches the try/catch-around-send pattern in slack.pb.js /
+  // jobs.pb.js.
+  try {
+    sendConfirmEmail(record, topicNamesFor(topicIds))
+  } catch (err) {
+    console.error('[event_alerts] confirm email failed for ' + email + ': ' + err)
+  }
 
   return e.json(200, { ok: true, pending: true, msg: 'Thanks! Check your email to confirm.' })
 }

@@ -35,6 +35,37 @@ function baseUrl() {
   return ($os.getenv('SITE_URL') || settings.meta.appURL || '').replace(/\/+$/, '')
 }
 
+// Renders a standalone HTML page matching the site's design tokens (copied
+// from src/assets/base.scss / src/styles/main.scss) for the confirm/
+// unsubscribe links people land on straight from their inbox — this route
+// isn't part of the Vue app, so it can't import the real stylesheet.
+function statusPage(message) {
+  const eventsUrl = baseUrl() + '/calendar'
+  return (
+    '<!doctype html><html lang="en"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+    '<title>IndyHackers</title>' +
+    '<link rel="preconnect" href="https://fonts.googleapis.com">' +
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">' +
+    '<style>' +
+    '*{box-sizing:border-box;margin:0}' +
+    'body{display:flex;align-items:center;justify-content:center;min-height:100vh;' +
+    'background:#ffffff;color:#121212;font-family:"Space Grotesk",sans-serif;padding:1.5rem}' +
+    '.card{max-width:28rem;text-align:center}' +
+    'h1{font-family:"Space Mono",monospace;font-size:1.375rem;line-height:1.5;margin-bottom:2rem}' +
+    '.btn{display:inline-flex;align-items:center;gap:0.5rem;background:#121212;color:#E2C044;' +
+    'font-family:"Space Mono",monospace;font-weight:bold;font-size:0.875rem;letter-spacing:0.05em;' +
+    'padding:0.875rem 2rem;border-radius:0.5rem;text-decoration:none}' +
+    '.btn:hover{background:#7a5c2e}' +
+    '.btn:focus-visible{outline:2px solid #4a7c7e;outline-offset:2px}' +
+    '</style></head><body><div class="card">' +
+    '<h1>' + esc(message) + '</h1>' +
+    '<a class="btn" href="' + eventsUrl + '">Back to events page</a>' +
+    '</div></body></html>'
+  )
+}
+
 // --- Confirmation email (subscribe flow) -------------------------------------
 
 function topicNamesFor(ids) {
@@ -165,12 +196,12 @@ function handleConfirm(e) {
   try {
     record = $app.findFirstRecordByFilter('event_alerts', 'token = {:token}', { token })
   } catch (_) {
-    return e.html(400, '<p>That confirmation link is invalid or has expired.</p>')
+    return e.html(400, statusPage('That confirmation link is invalid or has expired.'))
   }
 
   record.set('status', 'confirmed')
   $app.save(record)
-  return e.html(200, "<p>You're confirmed — we'll email you when a new event matches your topics.</p>")
+  return e.html(200, statusPage("You're confirmed — we'll email you when a new event matches your topics."))
 }
 
 function handleUnsubscribe(e) {

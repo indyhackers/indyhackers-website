@@ -67,6 +67,57 @@ npm run test:e2e -- --debug
 npm run lint
 ```
 
+### Running against real PocketBase locally
+
+`npm run dev` (Vite on 5173) uses MSW and **never talks to a real backend** — it
+intercepts every API call with mocks. To exercise the actual backend (Slack
+invites, roles, the admin screens against real data), run PocketBase on 8090
+using one of the two options below.
+
+#### Option A — docker-compose (the project's intended way)
+
+```sh
+npm run build                      # populates ./dist, mounted as PB's public dir
+VERSION=dev docker-compose up --build
+```
+
+Then open http://localhost:8090/_/ (mind the trailing slash — `/_` won't work).
+
+`task run-dev` does essentially this, but the Taskfile hardcodes
+`TARGETARCH=arm64` (Apple Silicon). On Linux, use the `docker-compose` command
+above — it defaults to `amd64` via `${TARGETARCH:-amd64}`. The compose file maps
+`8090:8090` and mounts `pb/hooks`, `pb/migrations`, and `pb/data`, so your hooks
+and migrations load and data persists in `./pb/data`.
+
+#### Option B — bare PocketBase binary (fastest, no Docker)
+
+Download PocketBase 0.39.4 (match the Dockerfile's `PB_VERSION`), then from the
+repo root:
+
+```sh
+pocketbase serve \
+  --dir=pb/data \
+  --hooksDir=pb/hooks \
+  --migrationsDir=pb/migrations \
+  --publicDir=dist
+```
+
+Admin at http://127.0.0.1:8090/_/.
+
+#### Logging in
+
+On first run the migrations auto-apply and seed a superuser (migration
+`001_add_admin.js`):
+
+- Email: `admin@indyhackers.org`
+- Password: `go west, young hackie, hack the planet !`
+
+Change that password immediately once you're in. From there you can do the
+roles/admin assignment via Collections → `roles` / `users`.
+
+> If you specifically want the hot-reloading frontend (5173) pointed at real
+> PocketBase, that takes a bit more setup (disabling MSW).
+
 ### Some neat things
 
 - docker-compose sets developmentmode, build arg in Dockerfile defaults to production

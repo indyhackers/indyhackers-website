@@ -46,8 +46,10 @@ onRecordUpdate((e) => {
     const isApproved = e.record.getBool("approved")
 
     if (!wasApproved && isApproved) {
-        // approved just flipped to true — stamp the time
+        // approved just flipped to true — stamp the time and start a fresh
+        // 60-day posting period (so the expiry-reminder cron can fire again).
         e.record.set("approved_at", new Date().toISOString())
+        e.record.set("expiry_reminder_sent", false)
     } else if (wasApproved && !isApproved) {
         // approved flipped back to false — clear the timestamp
         e.record.set("approved_at", "")
@@ -125,13 +127,22 @@ onRecordAfterCreateSuccess((e) => {
                     .replace(/</g, "&lt;")
                     .replace(/>/g, "&gt;")
 
+            // Link straight to the job-approval admin page. If neither SITE_URL nor
+            // appURL is configured we can't build an absolute URL, so fall back to
+            // plain text rather than emit a broken relative Slack link.
+            const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
+            const adminUrl = base + "/admin/jobs"
+            const reviewLine = base
+                ? "Review it: <" + adminUrl + "|Job approval admin>"
+                : "Review it: Job approval admin"
+
             const text =
                 ":briefcase: *New job submitted to the board*\n" +
                 "*" + slackEsc(r.getString("title")) + "* at *" + slackEsc(r.getString("company")) + "*\n" +
                 "Salary: " + salary + "\n" +
                 "Submitted by: " + slackEsc(name) + " (" + slackEsc(email) + ")\n" +
                 "Status: " + status + "\n" +
-                "Review it in the admin to approve."
+                reviewLine
 
             const res = $http.send({
                 url: webhook,
@@ -166,16 +177,38 @@ onRecordAfterCreateSuccess((e) => {
                     .replace(/"/g, "&quot;")
                     .replace(/'/g, "&#39;")
 
+            // `description` / `how_to_apply` are rich HTML that jobs_util.sanitizeJobHtml
+            // already cleaned during onRecordCreate, so we embed them as-is to preserve
+            // the poster's formatting — escaping would show raw tags. Every other field
+            // is plain text and gets esc()'d. `name`, `salary` and `esc` are in scope
+            // from the top of this handler.
+            const richField = (field) => {
+                const s = r.getString(field)
+                return s && s.replace(/<[^>]*>/g, "").trim() ? s : "<p>—</p>"
+            }
+
             const message = new MailerMessage({
                 from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
                 to: [{ address: submitter }],
                 subject: "We received your job post: " + r.getString("title"),
                 html:
                     "<h2>Thanks for posting to the IndyHackers job board!</h2>" +
-                    "<p>We received your submission for <strong>" + esc(r.getString("title")) +
-                    "</strong> at <strong>" + esc(r.getString("company")) + "</strong>.</p>" +
-                    "<p>A moderator will review it shortly. You'll get another email with a " +
-                    "management link once it's approved and live on the board.</p>"
+                    "<p>We received your submission. A moderator will review it shortly — you'll " +
+                    "get another email with a management link once it's approved and live on the " +
+                    "board.</p>" +
+                    "<h3>Here's what you submitted</h3>" +
+                    "<ul>" +
+                    "<li><strong>Job title:</strong> " + esc(r.getString("title")) + "</li>" +
+                    "<li><strong>Company:</strong> " + esc(r.getString("company")) + "</li>" +
+                    "<li><strong>Salary:</strong> " + salary + "</li>" +
+                    "<li><strong>Contact name:</strong> " + esc(name) + "</li>" +
+                    "<li><strong>Contact email:</strong> " + esc(submitter) + "</li>" +
+                    "</ul>" +
+                    "<h3>Description</h3>" +
+                    "<div>" + richField("description") + "</div>" +
+                    "<h3>How to apply</h3>" +
+                    "<div>" + richField("how_to_apply") + "</div>" +
+                    "<p>If anything looks off, reply to this email and we'll help you fix it.</p>"
             })
 
             $app.newMailClient().send(message)
@@ -224,6 +257,10 @@ onRecordAfterUpdateSuccess((e) => {
                     "<p>Need to make a change, or has the role been filled? Use your private " +
                     "management link to edit the post or take it down:</p>" +
                     '<p><a href="' + manageUrl + '">' + manageUrl + "</a></p>" +
+                    "<p>Your posting will stay on the board for <strong>60 days</strong>. " +
+                    "Still hiring when that's up? Open the link above and click " +
+                    "<strong>Extend for 60 days</strong> to keep it live — you can do this as " +
+                    "many times as you need.</p>" +
                     "<p>Keep this email — anyone with that link can manage the post.</p>"
             })
 
@@ -235,5 +272,88 @@ onRecordAfterUpdateSuccess((e) => {
         console.error("[jobs] approval email failed: " + err)
     }
 
+    // Public announcement: when a job goes live (approved false→true), post to the
+    // public #jobs Slack channel so members see the opening. Independent and
+    // best-effort — uses its own SLACK_JOBS_WEBHOOK_URL (the public channel), not
+    // the private moderator webhook. Needs an absolute base URL to build the link;
+    // if none is configured we skip rather than post a useless relative link.
+    try {
+        const wasApproved = r.original().getBool("approved")
+        const isApproved = r.getBool("approved")
+        if (!wasApproved && isApproved) {
+            const util = require(`${__hooks}/slack_util.js`)
+            const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
+            if (base) {
+                const esc = util.slackEscape
+                const jobUrl = base + "/job?id=" + r.id
+                const text = [
+                    ":briefcase: *New job on the board*",
+                    "*" + esc(r.getString("title")) + "* at *" + esc(r.getString("company")) + "*",
+                    "<" + jobUrl + "|View the posting>",
+                ].join("\n")
+                util.postJobsChannelWebhook(text)
+                console.log("[jobs] public #jobs announcement posted for " + r.id)
+            } else {
+                console.warn("[jobs] no SITE_URL/appURL; skipping public #jobs announcement (need an absolute link)")
+            }
+        }
+    } catch (err) {
+        console.error("[jobs] public #jobs announcement failed: " + err)
+    }
+
     e.next()
+}, "jobs")
+
+// Moderator decision → Slack webhook ping recording WHO did it. These run on the
+// API request (not the model hooks above) because only the request event carries
+// the acting admin as e.auth. In the admin UI, "approve" flips approved
+// false→true (an update) and "reject" deletes the pending row (a delete), so we
+// cover both. Each pings only after e.next() commits, and the webhook post is
+// best-effort (util.postSlackWebhook never throws). Helpers live in slack_util.js
+// (the Slack-webhook home) and are require()'d here per the isolated-runtime rule.
+
+// Approve = approved flips false→true; un-publishing (true→false) is reported too.
+onRecordUpdateRequest((e) => {
+    const util = require(`${__hooks}/slack_util.js`)
+    const r = e.record
+    const wasApproved = r.original().getBool("approved")
+    e.next()
+    const isApproved = r.getBool("approved")
+    if (wasApproved === isApproved) return
+    try {
+        const esc = util.slackEscape
+        const text = [
+            isApproved
+                ? ":white_check_mark: *Job approved & published*"
+                : ":leftwards_arrow_with_hook: *Job un-published*",
+            "*" + esc(r.getString("title")) + "* at *" + esc(r.getString("company")) + "*",
+            "*" + (isApproved ? "Approved" : "Unapproved") + " by:* " + esc(util.adminLabel(e.auth)),
+        ].join("\n")
+        util.postSlackWebhook(text)
+    } catch (err) {
+        console.error("[jobs] decision webhook failed: " + err)
+    }
+}, "jobs")
+
+// Reject = the pending row is deleted from the admin queue. Read the fields we
+// need BEFORE e.next() removes the record. A delete of an already-approved job
+// is a live-listing takedown rather than a rejection, so word it accordingly.
+onRecordDeleteRequest((e) => {
+    const util = require(`${__hooks}/slack_util.js`)
+    const r = e.record
+    const title = r.getString("title")
+    const company = r.getString("company")
+    const wasApproved = r.getBool("approved")
+    e.next()
+    try {
+        const esc = util.slackEscape
+        const text = [
+            ":x: *Job " + (wasApproved ? "removed" : "rejected") + "*",
+            "*" + esc(title) + "* at *" + esc(company) + "*",
+            "*" + (wasApproved ? "Removed" : "Rejected") + " by:* " + esc(util.adminLabel(e.auth)),
+        ].join("\n")
+        util.postSlackWebhook(text)
+    } catch (err) {
+        console.error("[jobs] delete webhook failed: " + err)
+    }
 }, "jobs")

@@ -19,6 +19,7 @@ const PRERENDER_ROUTES = new Set([
   '/',
   '/about',
   '/jobs',
+  '/jobs/new',
   '/sponsors',
   '/newsletter',
   '/calendar',

@@ -75,7 +75,8 @@ Mock data lives in `src/mocks/mocks.json`. To update it: edit data in PocketBase
 
 ### Environment Variables
 
+- `VITE_USE_MSW` — set to `false` (or use `npm run dev:backend`) to proxy to real PocketBase on `:8090`
 - Events come from the PocketBase `events` collection (synced from Google
   Calendar by `pb/hooks/calendar_sync.js`), not a browser-side Google API key.
 - Copy `.env.example` to `.env` for local development; the vars there are read
-  by the PocketBase container. Frontend dev needs no secrets (MSW mocks).
+  by the PocketBase container. Frontend MSW needs no secrets.

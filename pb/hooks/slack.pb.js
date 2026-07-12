@@ -123,6 +123,16 @@ routerAdd("POST", "/api/slack/invite", (e) => {
     geo.same_tz_as_indy = util.sameTimezoneAsIndy(geo.timezone)
     // Resolve the Nielsen DMA (metro) code to a market name where known.
     geo.metro_name = util.metroName(geo.metro_code)
+    // Network operator (ISP / hosting provider) behind the IP — a datacenter or
+    // VPN ISP is a useful review signal. Best-effort external lookup that leaves
+    // geo.isp unset on any failure; stored under geo so it flows to the review
+    // card and notifications alongside the other IP-derived fields.
+    const isp = util.lookupIsp(ip)
+    if (isp) {
+        geo.isp = isp.isp
+        geo.org = isp.org
+        geo.asn = isp.asn
+    }
 
     // Rate limit per IP.
     const perHour = parseInt($os.getenv("SLACK_RATE_PER_HOUR") || "5", 10)
@@ -350,4 +360,25 @@ onRecordUpdate((e) => {
         e.record.set("error", "")
     }
     e.next()
+}, "slack_invites")
+
+// Board decision → Slack webhook ping recording WHO approved/rejected. This runs
+// on the API update request (not the model hook above) because only the request
+// event carries the acting admin as e.auth. We fire only after e.next() commits
+// the update: a manual approval whose Slack invite fails makes the model hook
+// throw, e.next() rejects, and no misleading "approved" ping goes out. The ping
+// itself is best-effort and wrapped so it can never turn a committed update into
+// an error response.
+onRecordUpdateRequest((e) => {
+    const util = require(`${__hooks}/slack_util.js`)
+    const was = e.record.original().getString("status")
+    e.next()
+    const now = e.record.getString("status")
+    if (was !== now && (now === "approved" || now === "rejected")) {
+        try {
+            util.notifyInviteDecision(e.record, now, e.auth)
+        } catch (err) {
+            console.error("[slack] decision webhook failed: " + err)
+        }
+    }
 }, "slack_invites")

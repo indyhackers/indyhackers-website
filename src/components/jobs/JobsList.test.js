@@ -73,7 +73,7 @@ function mountJobsList(pb, router) {
           props: ['title']
         },
         'b-badge': { template: '<span class="b-badge"><slot /></span>' },
-        'create-job-modal': { template: '<div />' }
+        'router-link': { template: '<a><slot /></a>', props: ['to'] }
       }
     }
   })

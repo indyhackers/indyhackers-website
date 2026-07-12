@@ -18,32 +18,11 @@ npm install
 
 ### Environment Variables
 
-```sh
-cp .env.example .env
-```
-
-See `.env.example` for what each variable does and which are optional.
-
-#### Getting a Google Calendar API Key
-
-> :warning: *Optional for dev unless directly testing Google Calendar features.*
-
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the Google Calendar API:
-  - Go to "APIs & Services" > "Library"
-  - Search for "Google Calendar API"
-  - Click "Enable"
-4. Create credentials:
-  - Go to "APIs & Services" > "Credentials"
-  - Click "Create Credentials" > "API Key"
-  - Copy the generated API key
-5. (Optional) Restrict the API key:
-  - Click on the API key you just created
-  - Under "API restrictions", select "Restrict key"
-  - Select "Google Calendar API" from the dropdown
-  - Under "Website restrictions", add your domain(s)
-6. Paste the API key into your `.env` file
+Copy `.env.example` to `.env`. The frontend needs no secrets for local
+development — API calls are intercepted by MSW mocks (see `src/mocks/`). Events
+are served by the PocketBase backend (synced from Google Calendar server-side),
+so there is no browser-side Google API key. The variables in `.env.example` are
+read by the PocketBase container in production; see the comments there.
 
 ### Compile and Hot-Reload for Development
 

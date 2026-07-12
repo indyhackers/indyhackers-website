@@ -27,7 +27,8 @@ const PRERENDER_ROUTES = new Set([
   '/code-of-conduct',
   '/privacy',
   '/terms',
-  '/support'
+  '/support',
+  '/resources'
 ])
 
 // vite-ssg reads this named export from the entry to decide which paths to

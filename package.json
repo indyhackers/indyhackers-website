@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:backend": "VITE_USE_MSW=false vite",
     "build": "vite-ssg build && node scripts/generate-sitemap.mjs",
     "build:spa": "vite build",
     "preview": "vite preview",
-    "test:unit": "vitest",
+    "test:vitest": "vitest",
+    "test:vitest:ci": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
     "format": "prettier --write src/",
     "watch": "watch 'npm run build' src/"

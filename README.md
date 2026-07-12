@@ -30,69 +30,31 @@ read by the PocketBase container in production; see the comments there.
 npm run dev
 ```
 
-### Compile and Minify for Production
+By default, `npm run dev` uses [MSW](https://mswjs.io/) to mock PocketBase API calls — no backend container required. See [Backend development (PocketBase)](#backend-development-pocketbase) when you need a real PocketBase instance (hooks, migrations, roles, Slack, admin screens).
+
+### Backend development (PocketBase)
+
+Use real PocketBase when working on server-side hooks, schema migrations, collection rules, Slack invites, roles, or the admin UI. The Vite dev server with MSW never talks to PocketBase — it intercepts all `/api` calls with mocks.
+
+#### Option A — docker-compose (recommended)
+
+Use this when you want parity with the project's Docker setup (dev hooks, volumes, same image as deploy). You may need to replace `docker-compose` with `docker compose`.
 
 ```sh
-npm run build
-```
-
-### Run Unit Tests with [Vitest](https://vitest.dev/)
-
-```sh
-npm run test:unit
-```
-
-### Run End-to-End Tests with [Playwright](https://playwright.dev)
-
-```sh
-# Install browsers for the first run
-npx playwright install
-
-# When testing on CI, must build the project first
-npm run build
-
-# Runs the end-to-end tests
-npm run test:e2e
-# Runs the tests only on Chromium
-npm run test:e2e -- --project=chromium
-# Runs the tests of a specific file
-npm run test:e2e -- tests/example.spec.ts
-# Runs the tests in debug mode
-npm run test:e2e -- --debug
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
-
-### Running against real PocketBase locally
-
-`npm run dev` (Vite on 5173) uses MSW and **never talks to a real backend** — it
-intercepts every API call with mocks. To exercise the actual backend (Slack
-invites, roles, the admin screens against real data), run PocketBase on 8090
-using one of the two options below.
-
-#### Option A — docker-compose (the project's intended way)
-
-```sh
-npm run build                      # populates ./dist, mounted as PB's public dir
+npm run build                              # populates ./dist → PocketBase public dir
 VERSION=dev docker-compose up --build
 ```
 
-Then open http://localhost:8090/_/ (mind the trailing slash — `/_` won't work).
+- Admin UI: `http://localhost:8090/_/` (**trailing slash required** — `/_` without it will not work)
+- Port `8090`; mounts `pb/hooks`, `pb/migrations`, and `pb/data` (data persists in `./pb/data`)
+- **Linux / amd64:** use the command above (`TARGETARCH` defaults to `amd64` in `docker-compose.yaml`)
+- **Apple Silicon:** `task run-dev` / `task build-dev` work but hardcode `TARGETARCH=arm64` in `Taskfile.yml` — on Linux, use the `docker-compose` command above instead
 
-`task run-dev` does essentially this, but the Taskfile hardcodes
-`TARGETARCH=arm64` (Apple Silicon). On Linux, use the `docker-compose` command
-above — it defaults to `amd64` via `${TARGETARCH:-amd64}`. The compose file maps
-`8090:8090` and mounts `pb/hooks`, `pb/migrations`, and `pb/data`, so your hooks
-and migrations load and data persists in `./pb/data`.
+#### Option B — bare PocketBase binary (alternative, no Docker, untested)
 
-#### Option B — bare PocketBase binary (fastest, no Docker)
+Use this for the fastest native backend loop when you don't want Docker — hook edits, migrations, admin UI, `apply-mocks`. Prefer Option A when you need dev-only hooks (`.pb.js.dev` → `.pb.js`), which run through the dev Docker image.
 
-Download PocketBase 0.39.4 (match the Dockerfile's `PB_VERSION`), then from the
-repo root:
+Download [PocketBase 0.39.4](https://github.com/pocketbase/pocketbase/releases/tag/v0.39.4) (matches `PB_VERSION` in the Dockerfile), then from the repo root (after `npm run build`):
 
 ```sh
 pocketbase serve \
@@ -102,33 +64,83 @@ pocketbase serve \
   --publicDir=dist
 ```
 
-Admin at http://127.0.0.1:8090/_/.
+Admin UI: `http://127.0.0.1:8090/_/`
 
-#### Logging in
+#### Option C — Vite hot reload against real PocketBase
 
-On first run the migrations auto-apply and seed a superuser (migration
-`001_add_admin.js`):
+For full-stack work with hot-reloading frontend pointed at real data:
+
+1. Start PocketBase (Option A or B above)
+2. Set `VITE_USE_MSW=false` in `.env` (or run `npm run dev:backend`)
+3. Open `http://localhost:5173` — API calls proxy to PocketBase on `:8090`
+4. PocketBase admin UI remains at `http://localhost:8090/_/` (not on the Vite port)
+
+#### First-run admin login
+
+On first boot, migrations auto-apply and seed a superuser ([`pb/migrations/001_add_admin.js`](pb/migrations/001_add_admin.js)):
 
 - Email: `admin@indyhackers.org`
 - Password: `go west, young hackie, hack the planet !`
 
-Change that password immediately once you're in. From there you can do the
-roles/admin assignment via Collections → `roles` / `users`.
+Change that password immediately after first login. Assign roles via Collections → roles / users in the admin UI.
 
-> If you specifically want the hot-reloading frontend (5173) pointed at real
-> PocketBase, that takes a bit more setup (disabling MSW).
+#### Dev hooks, migrations, and mock data
 
-### Some neat things
+- **Dev hooks:** docker-compose sets `PB_ENV=development`; an entry hook renames `*.pb.js.dev` → `*.pb.js` in dev. Hooks with the `.dev` suffix are not installed in production (they can exfiltrate data).
+- **Schema migrations:** editing the schema in the admin UI auto-generates migrations in `pb/migrations`.
+- **Mock export workflow:** after adding test records in the admin UI, export and sync mock data:
+  ```sh
+  docker exec -it pocketbase /usr/local/bin/pocketbase --hooksDir /pb_hooks --dir /pb_data export-mocks
+  cp pb/hooks/mocks.json src/mocks/mocks.json   # commit both to keep MSW in sync
+  ```
+  Import with the `apply-mocks` subcommand inside the container. For now, ignore `.dev` extension removals in git when committing hook changes.
 
-- docker-compose sets developmentmode, build arg in Dockerfile defaults to production
-- which a pocketbase entry hook detects and moves all pocketbase hooks hook.pb.js.dev => hook.pb.js in dev env
-  - hooks with the dev prefix aren't installed in production (as they exfiltrate data potentially)
-- while using docker-compose, you can add new test records using the pocketbase admin UI (user `admin@indyhackers.org` and password in `pb/migrations/1726527259_add_admin.js`)
-- the pocketbase auto-migrate feature will create migrations in `pb/migrations` when you update the schema in the admin UI
-- adding records is done by `export-mocks` and `import-mocks` subcommands
-  - you can: `docker exec -it pocketbase /usr/local/bin/pocketbase --hooksDir /pb_hooks --dir /pb_data export-mocks` to dump the existing data records
-  - I might be able to do this automatically, but for now if you want to commit the new mock state `cp pb/hooks/mocks.json src/mocks/mocks.json` and add to git
-  - can manually run the importer with the `import-mocks` subcommand
-- for now ignore `.dev` extension removals in git when time to commit
+### Compile and Minify for Production
 
-this should allow us to rapidly prototype our schemas and test data in a reliable fashion
+```sh
+npm run build
+```
+
+### Run Tests with [Vitest](https://vitest.dev/)
+
+```sh
+npm run test:vitest      # watch mode
+npm run test:vitest:ci   # single run (matches CI on PRs)
+
+# one file
+npx vitest run src/components/jobs/JobListing.test.js
+```
+
+Test conventions (co-located `*.test.js`, patterns): [CONTRIBUTING.md](CONTRIBUTING.md#testing).
+
+### Run End-to-End Tests with [Playwright](https://playwright.dev)
+
+```sh
+# Install browsers for the first run
+npx playwright install
+
+# Local: headless run (starts vite dev automatically; no build needed)
+npm run test:e2e
+
+# Local: interactive UI for writing/debugging tests
+npm run test:e2e:ui
+
+# Local: visible browser windows (debugging locators or visuals)
+npm run test:e2e:headed
+
+# Match CI: Chromium only (CI also sets this via playwright.config.js)
+CI=true npm run test:e2e
+
+# Runs the tests only on Chromium (local shortcut)
+npm run test:e2e -- --project=chromium
+# Runs the tests of a specific file
+npm run test:e2e -- e2e/smoke.spec.js
+# Runs the tests in debug mode
+npm run test:e2e -- --debug
+```
+
+### Lint with [ESLint](https://eslint.org/)
+
+```sh
+npm run lint
+```

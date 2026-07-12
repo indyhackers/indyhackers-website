@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount, flushPromises, RouterLinkStub } from '@vue/test-utils'
 import EventDetailView from '@/views/EventDetailView.vue'
-import { fakePocketBase } from '@/mocks/fakePocketBase'
+import { createFakeEventsPocketBase } from '@/mocks/createFakeEventsPocketBase'
 
 vi.mock('vue-router', async (importOriginal) => {
   const actual = await importOriginal()
@@ -12,7 +12,7 @@ describe('EventDetailView', () => {
   it('loads a recurring event and shows the reminders panel', async () => {
     const wrapper = mount(EventDetailView, {
       global: {
-        provide: { pocketbase: fakePocketBase() },
+        provide: { pocketbase: createFakeEventsPocketBase() },
         stubs: { RouterLink: RouterLinkStub }
       }
     })

@@ -70,8 +70,16 @@ jobs:
       github.event.pull_request.draft == false
     needs: [vitest, playwright]
     runs-on: ubuntu-latest
+    env:
+      # Empty for fork PRs (secrets unavailable) and when the secret is unset.
+      SLACK_WEBHOOK: ${{ secrets.SLACK_COMMUNITY_PROJECTS_WEBHOOK }}
     steps:
+      - name: Skip when webhook unavailable
+        if: env.SLACK_WEBHOOK == ''
+        run: echo 'Skipping Slack notify (fork PR or SLACK_COMMUNITY_PROJECTS_WEBHOOK unset).'
+
       - name: Check if already notified
+        if: env.SLACK_WEBHOOK != ''
         id: notified
         uses: actions/cache/restore@v4
         with:
@@ -80,9 +88,8 @@ jobs:
           lookup-only: true
 
       - name: Post to Slack
-        if: steps.notified.outputs.cache-hit != 'true'
+        if: env.SLACK_WEBHOOK != '' && steps.notified.outputs.cache-hit != 'true'
         env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_COMMUNITY_PROJECTS_WEBHOOK }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -97,11 +104,11 @@ jobs:
             "$SLACK_WEBHOOK"
 
       - name: Mark PR as notified
-        if: steps.notified.outputs.cache-hit != 'true'
+        if: env.SLACK_WEBHOOK != '' && steps.notified.outputs.cache-hit != 'true'
         run: mkdir -p /tmp/slack-notified && touch /tmp/slack-notified/sent
 
       - name: Save notification state
-        if: steps.notified.outputs.cache-hit != 'true'
+        if: env.SLACK_WEBHOOK != '' && steps.notified.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: /tmp/slack-notified

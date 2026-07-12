@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises, RouterLinkStub } from '@vue/test-utils'
 import CalendarView from '@/components/CalendarView.vue'
-import { fakePocketBase } from '@/mocks/fakePocketBase'
+import { createFakeEventsPocketBase } from '@/mocks/createFakeEventsPocketBase'
 
-function mountWith(component, props = {}) {
-  return mount(component, {
+function mountCalendarView(props = {}) {
+  return mount(CalendarView, {
     props,
     global: {
-      provide: { pocketbase: fakePocketBase() },
+      provide: { pocketbase: createFakeEventsPocketBase() },
       stubs: { RouterLink: RouterLinkStub }
     }
   })
@@ -24,7 +24,7 @@ describe('CalendarView', () => {
   })
 
   it('renders upcoming events from the mocked events collection', async () => {
-    const wrapper = mountWith(CalendarView)
+    const wrapper = mountCalendarView()
     await flushPromises()
 
     const text = wrapper.text()
@@ -34,7 +34,7 @@ describe('CalendarView', () => {
   })
 
   it('filters the list by search query', async () => {
-    const wrapper = mountWith(CalendarView)
+    const wrapper = mountCalendarView()
     await flushPromises()
 
     await wrapper.find('input[type="search"]').setValue('IndyPy')
@@ -46,7 +46,7 @@ describe('CalendarView', () => {
   })
 
   it('switches to the calendar grid view', async () => {
-    const wrapper = mountWith(CalendarView)
+    const wrapper = mountCalendarView()
     await flushPromises()
 
     const calendarTab = wrapper.findAll('button').find((b) => b.text() === 'Calendar')

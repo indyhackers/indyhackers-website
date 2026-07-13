@@ -156,9 +156,12 @@ function handleSubscribe(e) {
   }
 
   if (record) {
-    // Already confirmed: just refresh their topic selection, no need to make
-    // them reconfirm. Pending/unsubscribed: issue a fresh token and re-send.
-    record.set('topics', topicIds)
+    // Re-subscribing only ever adds topics, never drops previously-selected
+    // ones — merge instead of overwrite so picking one more topic doesn't
+    // silently unsubscribe them from the rest.
+    const existingTopics = record.get('topics') || []
+    const mergedTopics = existingTopics.concat(topicIds.filter((id) => !existingTopics.includes(id)))
+    record.set('topics', mergedTopics)
     record.set('ip', ip)
     if (record.getString('status') === 'confirmed') {
       $app.save(record)
@@ -182,7 +185,7 @@ function handleSubscribe(e) {
   // succeeded. Matches the try/catch-around-send pattern in slack.pb.js /
   // jobs.pb.js.
   try {
-    sendConfirmEmail(record, topicNamesFor(topicIds))
+    sendConfirmEmail(record, topicNamesFor(record.get('topics') || []))
   } catch (err) {
     console.error('[event_alerts] confirm email failed for ' + email + ': ' + err)
   }
@@ -210,12 +213,12 @@ function handleUnsubscribe(e) {
   try {
     record = $app.findFirstRecordByFilter('event_alerts', 'token = {:token}', { token })
   } catch (_) {
-    return e.html(400, '<p>That unsubscribe link is invalid.</p>')
+    return e.html(400, statusPage('That unsubscribe link is invalid.'))
   }
 
   record.set('status', 'unsubscribed')
   $app.save(record)
-  return e.html(200, "<p>You've been unsubscribed from event alerts.</p>")
+  return e.html(200, statusPage("You've been unsubscribed from event alerts."))
 }
 
 // --- Delivery: weekly digest, run by the event-alerts-weekly cron ----------

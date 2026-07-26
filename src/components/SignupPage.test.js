@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import SignupPage from '../SignupPage.vue'
+import SignupPage from './SignupPage.vue'
 
 describe('SignupPage', () => {
   it('renders properly', () => {
@@ -9,15 +9,16 @@ describe('SignupPage', () => {
   })
 
   it('prevents signup if passwords do not match', async () => {
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
     const wrapper = mount(SignupPage)
 
     await wrapper.find('#email').setValue('newuser@example.com')
     await wrapper.find('#password').setValue('password123')
     await wrapper.find('#confirmPassword').setValue('wrongpassword')
-    await wrapper.find("button[type='submit']").trigger('click')
+    await wrapper.find('form').trigger('submit')
 
-    // Check for an alert or error message
-    expect(wrapper.text()).toContain('Passwords do not match')
+    expect(alertSpy).toHaveBeenCalledWith('Passwords do not match')
+    alertSpy.mockRestore()
   })
 
   it('submits the form with correct data', async () => {
@@ -28,7 +29,6 @@ describe('SignupPage', () => {
     await wrapper.find('#confirmPassword').setValue('password123')
     await wrapper.find("button[type='submit']").trigger('click')
 
-    // Check if the mock server handled the request correctly
     expect(wrapper.text()).not.toContain('Passwords do not match')
   })
 })

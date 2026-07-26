@@ -86,12 +86,7 @@ still insert.
 
 ### Backend development (PocketBase)
 
-PocketBase has to be running for `npm run dev` to work at all. Use Option A
-unless you have a reason not to.
-
-#### Option A — docker-compose (recommended)
-
-Use this when you want parity with the project's Docker setup (dev hooks, volumes, same image as deploy). You may need to replace `docker-compose` with `docker compose`.
+PocketBase has to be running for `npm run dev` to work at all.
 
 ```sh
 docker-compose up --build                  # --build only needed the first time
@@ -111,28 +106,6 @@ and `/_/` routes.
 - Port `8090`; mounts `pb/hooks`, `pb/migrations`, and `pb/data` (data persists in `./pb/data`)
 - **Linux / amd64:** use the command above (`TARGETARCH` defaults to `amd64` in `docker-compose.yaml`)
 - **Apple Silicon:** `task run-dev` / `task build-dev` work but hardcode `TARGETARCH=arm64` in `Taskfile.yml` — on Linux, use the `docker-compose` command above instead
-
-#### Option B — bare PocketBase binary (alternative, no Docker, untested)
-
-Use this for the fastest native backend loop when you don't want Docker — hook edits, migrations, admin UI, `apply-mocks`. Prefer Option A when you need dev-only hooks (`.pb.js.dev` → `.pb.js`), which run through the dev Docker image.
-
-Download [PocketBase 0.39.4](https://github.com/pocketbase/pocketbase/releases/tag/v0.39.4) (matches `PB_VERSION` in the Dockerfile), then from the repo root:
-
-```sh
-set -a; source .env; set +a          # hooks read config via $os.getenv
-pocketbase serve \
-  --dir=pb/data \
-  --hooksDir=pb/hooks \
-  --migrationsDir=pb/migrations \
-  --publicDir=dist
-```
-
-PocketBase does not read `.env` itself — the `env_file` entry in
-`docker-compose.yaml` covers Option A, but running the binary directly means
-exporting the variables into your shell first, as above. Without them, hooks like
-`calendar_sync.js` throw `GOOGLE_API_KEY is not set`.
-
-Admin UI: `http://127.0.0.1:8090/_/`
 
 #### First-run admin login
 

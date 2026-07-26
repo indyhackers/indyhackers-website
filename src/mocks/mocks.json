@@ -101,6 +101,42 @@
           "presentable": false,
           "unique": false,
           "options": {}
+        },
+        {
+          "autogeneratePattern": "",
+          "hidden": false,
+          "id": "text1579384326",
+          "max": 0,
+          "min": 0,
+          "name": "name",
+          "pattern": "",
+          "presentable": false,
+          "primaryKey": false,
+          "required": true,
+          "system": false,
+          "type": "text"
+        },
+        {
+          "exceptDomains": [],
+          "hidden": false,
+          "id": "email3885137012",
+          "name": "email",
+          "onlyDomains": [],
+          "presentable": false,
+          "required": true,
+          "system": false,
+          "type": "email"
+        },
+        {
+          "convertURLs": false,
+          "hidden": false,
+          "id": "editor4243115111",
+          "maxSize": 0,
+          "name": "how_to_apply",
+          "presentable": false,
+          "required": true,
+          "system": false,
+          "type": "editor"
         }
       ],
       "indexes": [],
@@ -119,13 +155,16 @@
         "collectionName": "jobs",
         "company": " Knowledge Services",
         "created": "2024-09-18 15:56:45.162Z",
-        "description": "\u003Cp\u003EKnowledge Services is actively seeking a Data Product Owner for a contract-to-hire client opening in Indianapolis, IN. Applicants must be able to work in a hybrid work schedule of 2-days onsite (Tues and Wed) each week in downtown Indianapolis. Parking is provided!\u003C/p\u003E\r\n\u003Cp\u003EData Product Owner Responsibilities: Product Vision and Strategy: &bull; Develop and communicate a clear vision and strategy for data products, aligning with business goals and objectives.\u003C/p\u003E\r\n\u003Cp\u003EProduct Roadmap and Planning: &bull; Create and maintain a detailed product roadmap, outlining the development journey and key milestones. &bull; Define key performance indicators (KPIs) to measure the success of data products.\u003C/p\u003E\r\n\u003Cp\u003EStakeholder Management: &bull; Act as a bridge between data teams, stakeholders, and end-users, translating complex data concepts into actionable insights. &bull; Collaborate with cross-functional teams to gather feedback and ensure data products meet stakeholder requirements.\u003C/p\u003E\r\n\u003Cp\u003EBacklog Management: &bull; Create, maintain, and prioritize the product backlog, ensuring that the most valuable features are delivered first.\u003C/p\u003E\r\n\u003Cp\u003ECross-Functional Collaboration: &bull; Work closely with data engineers, data analysts, and other cross-functional teams to ensure successful product development and delivery.\u003C/p\u003E\r\n\u003Cp\u003EProject Planning: &bull; Oversee project planning, resource allocation, and timeline management to ensure timely delivery of high-quality data products.\u003C/p\u003E\r\n\u003Cp\u003EQuality Assurance: &bull; Ensure that data products meet quality standards and are delivered within budget.\u003C/p\u003E\r\n\u003Cp\u003EMarket Analysis: &bull; Conduct market research and competitive analysis to identify opportunities for innovation and improvement.\u003C/p\u003E\r\n\u003Cp\u003EUser Feedback: &bull; Gather and analyze user feedback to continuously improve data products and enhance user experience. Focus on the user experience, ensuring data products are intuitive and meet user needs\u003C/p\u003E\r\n\u003Cp\u003EData Governance: &bull; Ensure that data used within the data products is clean, secure, and adheres to company-wide governance policies Ensure data products comply with accepted standards and data governance rules. Provide detailed metadata descriptions and ensure data quality and integrity.\u003C/p\u003E\r\n\u003Cp\u003EData Literacy and Training: &bull; Promote data literacy within the organization, providing training and support to stakeholders. &bull; Foster a culture of data-driven decision-making\u003C/p\u003E\r\n\u003Cp\u003EData Product Owner Requirements: &bull; Bachelor&rsquo;s degree in computer science, Data Science, Business Administration, or a related field. Master&rsquo;s degree preferred. &bull; Minimum of 5 years of experience as a Product Manager/Product Owner, product management, with a focus on data products or data-driven projects. &bull; Strong understanding of the modern data stack, data science, data engineering, and analytics. Proficiency in SQL, Python, or other relevant programming languages. &bull; Ability to translate complex data concepts into actionable business insights. &bull; Excellent verbal and written communication skills, with the ability to effectively communicate with technical and non-technical stakeholders. &bull; Proven ability to lead cross-functional teams and manage multiple projects simultaneously. &bull; Strong analytical and problem-solving skills, with a focus on delivering innovative solutions\u003C/p\u003E\r\n\u003Cp\u003ETo apply, please contact&nbsp;\u003Ca href=\"mailto:pauld@knowledgeservices.com\"\u003EPaul Doray\u003C/a\u003E\u003C/p\u003E",
+        "description": "<p>Knowledge Services is actively seeking a Data Product Owner for a contract-to-hire client opening in Indianapolis, IN. Applicants must be able to work in a hybrid work schedule of 2-days onsite (Tues and Wed) each week in downtown Indianapolis. Parking is provided!</p>\r\n<p>Data Product Owner Responsibilities: Product Vision and Strategy: &bull; Develop and communicate a clear vision and strategy for data products, aligning with business goals and objectives.</p>\r\n<p>Product Roadmap and Planning: &bull; Create and maintain a detailed product roadmap, outlining the development journey and key milestones. &bull; Define key performance indicators (KPIs) to measure the success of data products.</p>\r\n<p>Stakeholder Management: &bull; Act as a bridge between data teams, stakeholders, and end-users, translating complex data concepts into actionable insights. &bull; Collaborate with cross-functional teams to gather feedback and ensure data products meet stakeholder requirements.</p>\r\n<p>Backlog Management: &bull; Create, maintain, and prioritize the product backlog, ensuring that the most valuable features are delivered first.</p>\r\n<p>Cross-Functional Collaboration: &bull; Work closely with data engineers, data analysts, and other cross-functional teams to ensure successful product development and delivery.</p>\r\n<p>Project Planning: &bull; Oversee project planning, resource allocation, and timeline management to ensure timely delivery of high-quality data products.</p>\r\n<p>Quality Assurance: &bull; Ensure that data products meet quality standards and are delivered within budget.</p>\r\n<p>Market Analysis: &bull; Conduct market research and competitive analysis to identify opportunities for innovation and improvement.</p>\r\n<p>User Feedback: &bull; Gather and analyze user feedback to continuously improve data products and enhance user experience. Focus on the user experience, ensuring data products are intuitive and meet user needs</p>\r\n<p>Data Governance: &bull; Ensure that data used within the data products is clean, secure, and adheres to company-wide governance policies Ensure data products comply with accepted standards and data governance rules. Provide detailed metadata descriptions and ensure data quality and integrity.</p>\r\n<p>Data Literacy and Training: &bull; Promote data literacy within the organization, providing training and support to stakeholders. &bull; Foster a culture of data-driven decision-making</p>\r\n<p>Data Product Owner Requirements: &bull; Bachelor&rsquo;s degree in computer science, Data Science, Business Administration, or a related field. Master&rsquo;s degree preferred. &bull; Minimum of 5 years of experience as a Product Manager/Product Owner, product management, with a focus on data products or data-driven projects. &bull; Strong understanding of the modern data stack, data science, data engineering, and analytics. Proficiency in SQL, Python, or other relevant programming languages. &bull; Ability to translate complex data concepts into actionable business insights. &bull; Excellent verbal and written communication skills, with the ability to effectively communicate with technical and non-technical stakeholders. &bull; Proven ability to lead cross-functional teams and manage multiple projects simultaneously. &bull; Strong analytical and problem-solving skills, with a focus on delivering innovative solutions</p>\r\n<p>To apply, please contact&nbsp;<a href=\"mailto:pauld@knowledgeservices.com\">Paul Doray</a></p>",
         "id": "9jguvjqw6fzjb79",
         "salary_max": 125,
         "salary_min": 110,
         "title": "Data Product Owner",
         "updated": "2024-09-18 15:56:45.162Z",
-        "user": "p7ysp1yvccn2195"
+        "user": "p7ysp1yvccn2195",
+        "name": "Hiring Team",
+        "email": "hiring@example.com",
+        "how_to_apply": "<p>Email <a href=\"mailto:hiring@example.com\">hiring@example.com</a> with a resume.</p>"
       },
       {
         "approved": true,
@@ -134,13 +173,16 @@
         "collectionName": "jobs",
         "company": "Theoris",
         "created": "2024-09-18 16:16:05.309Z",
-        "description": "\u003Cp\u003EWe have 3 fully remote .NET positions available for long-term, benefited contract to hire. Ideally looking for React experience on the front end.\u003C/p\u003E\r\n\u003Cp\u003EASP.Net, MVC, .NET 4.8, .NET 8 50% is frontend 50% API development\u003C/p\u003E\r\n\u003Cp\u003EPlease reach out if you may want more details.\u003C/p\u003E\r\n\u003Cp\u003E\"To apply, please contact&nbsp;\u003Ca href=\"mailto:mdodson@theoris.com\"\u003EMegan Dodson\u003C/a\u003E\u003C/p\u003E",
+        "description": "<p>We have 3 fully remote .NET positions available for long-term, benefited contract to hire. Ideally looking for React experience on the front end.</p>\r\n<p>ASP.Net, MVC, .NET 4.8, .NET 8 50% is frontend 50% API development</p>\r\n<p>Please reach out if you may want more details.</p>\r\n<p>\"To apply, please contact&nbsp;<a href=\"mailto:mdodson@theoris.com\">Megan Dodson</a></p>",
         "id": "vx9r0y79gj419dt",
         "salary_max": 125,
         "salary_min": 115,
         "title": "Senior .NET Developer",
         "updated": "2024-09-18 16:17:07.547Z",
-        "user": "78e6lprv2po3upi"
+        "user": "78e6lprv2po3upi",
+        "name": "Hiring Team",
+        "email": "hiring@example.com",
+        "how_to_apply": "<p>Email <a href=\"mailto:hiring@example.com\">hiring@example.com</a> with a resume.</p>"
       },
       {
         "approved": true,
@@ -149,13 +191,16 @@
         "collectionName": "jobs",
         "company": "SEP",
         "created": "2024-09-18 16:16:59.040Z",
-        "description": "\u003Cp\u003EFor more details about the role and to apply for the role, please visit:&nbsp;\u003Ca href=\"https://jobs.lever.co/sep/0eccbd97-a731-4912-8856-a92942897be9\"\u003Ehttps://jobs.lever.co/sep/0eccbd97-a731-4912-8856-a92942897be9\u003C/a\u003E\u003C/p\u003E",
+        "description": "<p>For more details about the role and to apply for the role, please visit:&nbsp;<a href=\"https://jobs.lever.co/sep/0eccbd97-a731-4912-8856-a92942897be9\">https://jobs.lever.co/sep/0eccbd97-a731-4912-8856-a92942897be9</a></p>",
         "id": "yyfjkp1cxfnbvpy",
         "salary_max": 105,
         "salary_min": 100,
         "title": "Senior/Lead Product Designer",
         "updated": "2024-09-18 16:17:11.089Z",
-        "user": "p7ysp1yvccn2195"
+        "user": "p7ysp1yvccn2195",
+        "name": "Hiring Team",
+        "email": "hiring@example.com",
+        "how_to_apply": "<p>Email <a href=\"mailto:hiring@example.com\">hiring@example.com</a> with a resume.</p>"
       },
       {
         "approved": false,
@@ -164,13 +209,16 @@
         "collectionName": "jobs",
         "company": "Bunk Company",
         "created": "2024-09-18 16:26:50.409Z",
-        "description": "\u003Cp\u003EYou can make thousands of dollars a month by starting your own fans page, or joining a pyramid scheme... have you heard about Amway? Let me tell you about it. \u003Ca href=\"mailto:john.nefarious@somewhere.else\" target=\"_blank\" rel=\"noopener\"\u003Ejohn.nefarious@somewhere.else\u003C/a\u003E\u003C/p\u003E",
+        "description": "<p>You can make thousands of dollars a month by starting your own fans page, or joining a pyramid scheme... have you heard about Amway? Let me tell you about it. <a href=\"mailto:john.nefarious@somewhere.else\" target=\"_blank\" rel=\"noopener\">john.nefarious@somewhere.else</a></p>",
         "id": "uuzcym8emnjupr1",
         "salary_max": 450,
         "salary_min": 300,
         "title": "Bunk Job Title",
         "updated": "2024-09-18 16:26:50.409Z",
-        "user": "ufvy8er5x1z8uy8"
+        "user": "ufvy8er5x1z8uy8",
+        "name": "Hiring Team",
+        "email": "hiring@example.com",
+        "how_to_apply": "<p>Email <a href=\"mailto:hiring@example.com\">hiring@example.com</a> with a resume.</p>"
       }
     ]
   },
@@ -208,6 +256,18 @@
           "options": {
             "convertUrls": false
           }
+        },
+        {
+          "hidden": false,
+          "id": "number2683508278",
+          "max": 100,
+          "min": 0,
+          "name": "level",
+          "onlyInt": true,
+          "presentable": false,
+          "required": true,
+          "system": false,
+          "type": "number"
         }
       ],
       "indexes": [],
@@ -223,28 +283,21 @@
         "collectionId": "8w3c1s8vh09ggi7",
         "collectionName": "roles",
         "created": "2024-09-18 15:43:56.427Z",
-        "description": "\u003Cp\u003ERole for Employers (grants access to create/modify job postings)\u003C/p\u003E",
+        "description": "<p>Role for Employers (grants access to create/modify job postings)</p>",
         "id": "c4zs8dywx1b4oum",
         "name": "employer",
-        "updated": "2024-09-18 15:43:56.427Z"
-      },
-      {
-        "collectionId": "8w3c1s8vh09ggi7",
-        "collectionName": "roles",
-        "created": "2024-09-18 15:45:05.731Z",
-        "description": "\u003Cp\u003ERole for Website Admins (grants access to Admin UI)\u003C/p\u003E",
-        "id": "dvd8qcpwdva72z0",
-        "name": "admin",
-        "updated": "2024-09-18 15:45:05.731Z"
+        "updated": "2024-09-18 15:43:56.427Z",
+        "level": 50
       },
       {
         "collectionId": "8w3c1s8vh09ggi7",
         "collectionName": "roles",
         "created": "2024-09-18 15:52:30.362Z",
-        "description": "\u003Cp\u003ERole for IndyHackers members (joined via Slack)\u003C/p\u003E",
+        "description": "<p>Role for IndyHackers members (joined via Slack)</p>",
         "id": "po8xycl3w2b6h0o",
         "name": "member",
-        "updated": "2024-09-18 15:52:30.362Z"
+        "updated": "2024-09-18 15:52:30.362Z",
+        "level": 10
       }
     ]
   },
@@ -280,7 +333,13 @@
           "presentable": false,
           "unique": false,
           "options": {
-            "mimeTypes": ["image/jpeg", "image/png", "image/svg+xml", "image/gif", "image/webp"],
+            "mimeTypes": [
+              "image/jpeg",
+              "image/png",
+              "image/svg+xml",
+              "image/gif",
+              "image/webp"
+            ],
             "thumbs": null,
             "maxSelect": 1,
             "maxSize": 5242880,
@@ -331,10 +390,13 @@
         "emailVisibility": false,
         "id": "0yi0op6wkn5olcd",
         "name": "Joe Public",
-        "roles": ["po8xycl3w2b6h0o"],
+        "roles": [
+          "po8xycl3w2b6h0o"
+        ],
         "updated": "2024-09-18 15:52:48.852Z",
         "username": "joe_public",
-        "verified": true
+        "verified": true,
+        "email": "joe.public@example.com"
       },
       {
         "avatar": "",
@@ -344,10 +406,14 @@
         "emailVisibility": false,
         "id": "78e6lprv2po3upi",
         "name": "Jack Employer",
-        "roles": ["c4zs8dywx1b4oum", "po8xycl3w2b6h0o"],
+        "roles": [
+          "c4zs8dywx1b4oum",
+          "po8xycl3w2b6h0o"
+        ],
         "updated": "2024-09-18 15:53:02.056Z",
         "username": "jack_employer",
-        "verified": true
+        "verified": true,
+        "email": "jack.employer@example.com"
       },
       {
         "avatar": "",
@@ -357,10 +423,13 @@
         "emailVisibility": false,
         "id": "p7ysp1yvccn2195",
         "name": "Sally Employer",
-        "roles": ["c4zs8dywx1b4oum"],
+        "roles": [
+          "c4zs8dywx1b4oum"
+        ],
         "updated": "2024-09-18 15:46:02.794Z",
         "username": "sally_employer",
-        "verified": true
+        "verified": true,
+        "email": "sally.employer@example.com"
       },
       {
         "avatar": "",
@@ -370,10 +439,13 @@
         "emailVisibility": false,
         "id": "ufvy8er5x1z8uy8",
         "name": "John Nefarious",
-        "roles": ["c4zs8dywx1b4oum"],
+        "roles": [
+          "c4zs8dywx1b4oum"
+        ],
         "updated": "2024-09-18 16:24:32.490Z",
         "username": "john_nefarious",
-        "verified": false
+        "verified": false,
+        "email": "john.nefarious@example.com"
       }
     ]
   }

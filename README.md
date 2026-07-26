@@ -38,15 +38,41 @@ Open `http://localhost:5173`. Vite proxies `/api` and `/_` through to PocketBase
 so the frontend runs against real data with hot reload, and the admin UI stays at
 `http://localhost:8090/_/`.
 
-If your database is empty, seed it with the same fixture data the tests use:
+A fresh `pb/data` starts completely empty — no schema, no content. Bootstrapping
+it takes two steps:
 
 ```sh
+# 1. create the schema (30+ migrations)
+docker exec -it pocketbase /usr/local/bin/pocketbase \
+  migrate up --dir=/pb_data --migrationsDir=/pb_migrations
+
+# 2. seed jobs, roles, and users
+cp src/mocks/mocks.json pb/hooks/mocks.json      # see note below
 docker exec -it pocketbase /usr/local/bin/pocketbase \
   --hooksDir /pb_hooks --dir /pb_data apply-mocks
 ```
 
-`apply-mocks` reads `pb/hooks/mocks.json` and inserts any records that don't
-already exist, so it is safe to re-run.
+**Step 1 is not automatic.** The image's `ENTRYPOINT` does not pass
+`--migrationsDir`, so `docker-compose up` on an empty `pb/data` starts a server
+with no collections at all — every `/api/collections/...` request returns 400.
+Existing checkouts don't hit this because their `pb/data` already has the schema.
+
+The `cp` in step 2 is likewise not optional on a fresh clone: `apply-mocks` reads
+`pb/hooks/mocks.json`, which is gitignored (`.gitignore:10`) as `export-mocks`
+output. The tracked copy is `src/mocks/mocks.json`.
+
+`apply-mocks` reads `pb/hooks/mocks.json` and inserts records that don't already
+exist, so it is safe to re-run. It seeds **`jobs`, `roles`, and `users` only** —
+that is everything `mocks.json` contains.
+
+**Events are not seeded.** They come from the `events` collection, which
+`pb/hooks/calendar_sync.js` populates from Google Calendar, so an empty calendar
+means `GOOGLE_API_KEY` and `GOOGLE_CALENDAR_ID` are missing or the sync has not
+run yet. See [Environment Variables](#environment-variables).
+
+You will see `[jobs] new-job email failed` lines during seeding. That is the
+new-job notification hook finding no SMTP server configured locally; the records
+still insert.
 
 > **MSW is test-only.** [MSW](https://mswjs.io/) still backs Vitest and
 > Playwright, but it no longer intercepts anything during normal development.
@@ -125,6 +151,15 @@ Change that password immediately after first login. Assign roles via Collections
   Vitest and Playwright, and `pb/hooks/mocks.json` is what `apply-mocks` seeds a
   local database from. Keep them in sync so tests and local dev see the same data.
   For now, ignore `.dev` extension removals in git when committing hook changes.
+
+  > **`export-mocks` output needs hand-editing before it will re-import.** It
+  > serializes records with `publicExport()`, which omits fields the public API
+  > hides — notably `email` on the `users` auth collection, which is required on
+  > insert. A raw export therefore fails `apply-mocks` with
+  > `email: cannot be blank`. The snapshot also goes stale whenever a migration
+  > adds a required field, since the exported records predate it. After
+  > exporting, re-run `apply-mocks` against an empty database to confirm the
+  > snapshot still imports.
 
 ### Compile and Minify for Production
 

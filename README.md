@@ -38,28 +38,33 @@ Open `http://localhost:5173`. Vite proxies `/api` and `/_` through to PocketBase
 so the frontend runs against real data with hot reload, and the admin UI stays at
 `http://localhost:8090/_/`.
 
-A fresh `pb/data` starts completely empty — no schema, no content. Bootstrapping
-it takes two steps:
+**This is automatic.** `docker-compose up` on an empty `pb/data` applies every
+migration and seeds fixture data before the server starts, so a fresh clone gets
+a working database with no manual steps. [`pb/entrypoint.sh`](pb/entrypoint.sh)
+does the work; watch it happen with `docker-compose logs -f pocketbase`.
+
+What you get: `jobs`, `roles`, and `users` from `mocks.json`, plus anything the
+migrations seed themselves (topics, the `admin` role). Both phases are
+idempotent, so restarts don't duplicate anything.
+
+| Variable | Effect |
+| --- | --- |
+| `NODE_ENV=development` | Required for seeding. Set by `docker-compose.yaml`; the production compose file sets `production`, so **fixtures never reach production**. |
+| `PB_SEED=off` | Skip seeding but still migrate — use when you want a real empty database. |
+| `PB_MIGRATE=off` | Skip migrations entirely. |
+
+To re-seed by hand (after wiping `pb/data`, say):
 
 ```sh
-# 1. create the schema (30+ migrations)
-docker exec -it pocketbase /usr/local/bin/pocketbase \
-  migrate up --dir=/pb_data --migrationsDir=/pb_migrations
-
-# 2. seed jobs, roles, and users
-cp src/mocks/mocks.json pb/hooks/mocks.json      # see note below
 docker exec -it pocketbase /usr/local/bin/pocketbase \
   --hooksDir /pb_hooks --dir /pb_data apply-mocks
 ```
 
-**Step 1 is not automatic.** The image's `ENTRYPOINT` does not pass
-`--migrationsDir`, so `docker-compose up` on an empty `pb/data` starts a server
-with no collections at all — every `/api/collections/...` request returns 400.
-Existing checkouts don't hit this because their `pb/data` already has the schema.
-
-The `cp` in step 2 is likewise not optional on a fresh clone: `apply-mocks` reads
-`pb/hooks/mocks.json`, which is gitignored (`.gitignore:10`) as `export-mocks`
-output. The tracked copy is `src/mocks/mocks.json`.
+`apply-mocks` reads `pb/hooks/mocks.json`, which is gitignored (`.gitignore:10`)
+because it is `export-mocks` output; the tracked copy is `src/mocks/mocks.json`.
+The entrypoint copies the tracked version into place when the file is missing, so
+a fresh clone works — but if you run `apply-mocks` manually against a checkout
+that has never exported, `cp src/mocks/mocks.json pb/hooks/mocks.json` first.
 
 `apply-mocks` reads `pb/hooks/mocks.json` and inserts records that don't already
 exist, so it is safe to re-run. It seeds **`jobs`, `roles`, and `users` only** —

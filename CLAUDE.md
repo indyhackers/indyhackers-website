@@ -30,6 +30,7 @@ Docker/Task commands for local PocketBase development:
 ```bash
 # Linux / amd64 (default TARGETARCH in docker-compose.yaml):
 docker-compose up -d      # required for `npm run dev` to have a backend
+                          # migrates + seeds an empty pb/data automatically
 
 # Apple Silicon only — Taskfile hardcodes TARGETARCH=arm64:
 task run-dev         # Run PocketBase + Vue with hot reload via docker-compose
@@ -64,6 +65,7 @@ Mock data lives in `src/mocks/mocks.json`. To update it: edit data in PocketBase
 - `src/mocks/` — MSW handlers and shared mock data
 - `src/stores/` — Pinia stores
 - `pb/hooks/` — PocketBase server-side JS hooks (`.pb.js` files; `.pb.js.dev` suffix = dev-only, stripped in production)
+- `pb/entrypoint.sh` — container entrypoint: migrates, seeds fixtures when `NODE_ENV=development`, then serves. Seeding is gated so production never receives fixture users/jobs; `PB_SEED=off` / `PB_MIGRATE=off` opt out.
 - `pb/migrations/` — PocketBase schema migrations (auto-generated when editing schema in admin UI)
 
 ### Important Patterns

@@ -66,10 +66,6 @@ The entrypoint copies the tracked version into place when the file is missing, s
 a fresh clone works — but if you run `apply-mocks` manually against a checkout
 that has never exported, `cp src/mocks/mocks.json pb/hooks/mocks.json` first.
 
-`apply-mocks` reads `pb/hooks/mocks.json` and inserts records that don't already
-exist, so it is safe to re-run. It seeds **`jobs`, `roles`, and `users` only** —
-that is everything `mocks.json` contains.
-
 **Events are not seeded.** They come from the `events` collection, which
 `pb/hooks/calendar_sync.js` populates from Google Calendar, so an empty calendar
 means `GOOGLE_API_KEY` and `GOOGLE_CALENDAR_ID` are missing or the sync has not

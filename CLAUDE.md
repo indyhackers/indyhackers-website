@@ -9,8 +9,8 @@ IndyHackers Redux — a Vue 3 + PocketBase community site for Indianapolis tech.
 ## Commands
 
 ```bash
-npm run dev          # Vite dev server (localhost:5173); MSW mocks PocketBase by default
-npm run dev:backend  # Vite dev with VITE_USE_MSW=false — proxies to PocketBase on :8090
+npm run dev          # Vite dev server (localhost:5173); proxies /api + /_ to PocketBase on :8090
+npm run dev:mock     # Vite with VITE_USE_MSW=true — MSW fixtures; for reproducing e2e failures
 npm run build        # Production build
 npm run lint         # ESLint with auto-fix
 npm run format       # Prettier formatting
@@ -29,23 +29,30 @@ CI runs `vitest` and `playwright` jobs on pull requests. See [CONTRIBUTING.md](C
 Docker/Task commands for local PocketBase development:
 ```bash
 # Linux / amd64 (default TARGETARCH in docker-compose.yaml):
-npm run build && VERSION=dev docker-compose up --build
+docker-compose up -d      # required for `npm run dev` to have a backend
 
 # Apple Silicon only — Taskfile hardcodes TARGETARCH=arm64:
 task run-dev         # Run PocketBase + Vue with hot reload via docker-compose
 task build-dev       # Build dev Docker image
 ```
 
-See [README.md — Backend development (PocketBase)](README.md#backend-development-pocketbase) for bare-binary setup, admin login, and Option C (`dev:backend` / `VITE_USE_MSW=false`).
+See [README.md — Backend development (PocketBase)](README.md#backend-development-pocketbase) for bare-binary setup, admin login, and seeding a local database with `apply-mocks`.
 
 ## Architecture
 
-### Dual-Mode Development (MSW Mocking)
+### Local Development (single mode)
 
-The app runs in three local modes:
-- **Default dev (`npm run dev`)**: MSW intercepts PocketBase API calls. No backend needed.
-- **Backend dev (`npm run dev:backend` or `VITE_USE_MSW=false`)**: Vite proxies `/api` and `/_` to PocketBase on `:8090`. Requires PocketBase running (docker-compose or bare binary).
-- **Production**: Real PocketBase backend serves the built SPA.
+There is **one** way to develop: PocketBase on `:8090` (docker-compose) plus Vite on
+`:5173`. Vite proxies `/api` and `/_` to PocketBase, so the frontend has HMR and real
+data. `npm run dev` will not work without a running backend — that is intentional.
+
+MSW is a **test fixture, not a development mode**. It only activates when
+`VITE_USE_MSW=true`:
+- Vitest — via the Node interceptor in `vitest.setup.js` (`src/mocks/server.js`), independent of the browser worker
+- Playwright — its `webServer` runs `npm run dev:mock` on port **5174**, deliberately not 5173, so `reuseExistingServer` can't adopt a real-backend dev server and make the suite non-deterministic
+
+Do not reintroduce a mock-by-default dev path. If a task seems to need one, the answer is
+usually `apply-mocks` (seeds a real local database from the same `mocks.json`).
 
 Mock data lives in `src/mocks/mocks.json`. To update it: edit data in PocketBase admin UI → run `export-mocks` command in the container → copy `pb/hooks/mocks.json` to `src/mocks/mocks.json`.
 
@@ -75,8 +82,9 @@ Mock data lives in `src/mocks/mocks.json`. To update it: edit data in PocketBase
 
 ### Environment Variables
 
-- `VITE_USE_MSW` — set to `false` (or use `npm run dev:backend`) to proxy to real PocketBase on `:8090`
+- `VITE_USE_MSW` — `true` enables MSW. Set only by `npm run dev:mock` and Playwright; unset everywhere else.
 - Events come from the PocketBase `events` collection (synced from Google
   Calendar by `pb/hooks/calendar_sync.js`), not a browser-side Google API key.
-- Copy `.env.example` to `.env` for local development; the vars there are read
-  by the PocketBase container. Frontend MSW needs no secrets.
+- Copy `.env.example` to `.env`. PocketBase does **not** read `.env` itself —
+  `docker-compose.yaml` loads it via `env_file`, and hooks read values with
+  `$os.getenv`. Running the bare binary requires `set -a; source .env; set +a` first.

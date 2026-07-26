@@ -18,32 +18,63 @@ npm install
 
 ### Environment Variables
 
-Copy `.env.example` to `.env`. The frontend needs no secrets for local
-development — API calls are intercepted by MSW mocks (see `src/mocks/`). Events
-are served by the PocketBase backend (synced from Google Calendar server-side),
-so there is no browser-side Google API key. The variables in `.env.example` are
-read by the PocketBase container in production; see the comments there.
+Copy `.env.example` to `.env`. The frontend itself needs no secrets, but the
+variables in `.env` are loaded into the PocketBase container (`env_file` in
+`docker-compose.yaml`) and read by the server-side hooks via `$os.getenv` —
+`GOOGLE_API_KEY` for calendar sync, the `SLACK_*` vars for invites, and so on. A
+hook that needs a missing variable fails at runtime, not at startup. Events are
+synced from Google Calendar server-side, so there is no browser-side Google key.
 
 ### Compile and Hot-Reload for Development
 
+There is one way to run the app locally: PocketBase on `:8090`, Vite on `:5173`.
+
 ```sh
-npm run dev
+docker-compose up -d          # PocketBase on :8090 (see Backend development below)
+npm run dev                   # Vite + HMR on :5173
 ```
 
-By default, `npm run dev` uses [MSW](https://mswjs.io/) to mock PocketBase API calls — no backend container required. See [Backend development (PocketBase)](#backend-development-pocketbase) when you need a real PocketBase instance (hooks, migrations, roles, Slack, admin screens).
+Open `http://localhost:5173`. Vite proxies `/api` and `/_` through to PocketBase,
+so the frontend runs against real data with hot reload, and the admin UI stays at
+`http://localhost:8090/_/`.
+
+If your database is empty, seed it with the same fixture data the tests use:
+
+```sh
+docker exec -it pocketbase /usr/local/bin/pocketbase \
+  --hooksDir /pb_hooks --dir /pb_data apply-mocks
+```
+
+`apply-mocks` reads `pb/hooks/mocks.json` and inserts any records that don't
+already exist, so it is safe to re-run.
+
+> **MSW is test-only.** [MSW](https://mswjs.io/) still backs Vitest and
+> Playwright, but it no longer intercepts anything during normal development.
+> `npm run dev:mock` starts Vite with `VITE_USE_MSW=true` if you need to
+> reproduce an e2e failure by hand; it is not a development mode.
 
 ### Backend development (PocketBase)
 
-Use real PocketBase when working on server-side hooks, schema migrations, collection rules, Slack invites, roles, or the admin UI. The Vite dev server with MSW never talks to PocketBase — it intercepts all `/api` calls with mocks.
+PocketBase has to be running for `npm run dev` to work at all. Use Option A
+unless you have a reason not to.
 
 #### Option A — docker-compose (recommended)
 
 Use this when you want parity with the project's Docker setup (dev hooks, volumes, same image as deploy). You may need to replace `docker-compose` with `docker compose`.
 
 ```sh
-npm run build                              # populates ./dist → PocketBase public dir
-VERSION=dev docker-compose up --build
+docker-compose up --build                  # --build only needed the first time
 ```
+
+The image tag defaults to `dev` via `${VERSION:-dev}`; set `VERSION=` explicitly
+only when building a tagged image to push. `--build` is needed after Dockerfile
+or `PB_VERSION` changes — hooks, migrations, and `dist` are bind-mounted, so
+edits to those take effect without rebuilding.
+
+`./dist` is mounted as PocketBase's public dir, but you only need to
+`npm run build` into it if you want PocketBase itself to serve the site at
+`:8090`. For day-to-day work you use Vite on `:5173` and only PocketBase's `/api`
+and `/_/` routes.
 
 - Admin UI: `http://localhost:8090/_/` (**trailing slash required** — `/_` without it will not work)
 - Port `8090`; mounts `pb/hooks`, `pb/migrations`, and `pb/data` (data persists in `./pb/data`)
@@ -54,9 +85,10 @@ VERSION=dev docker-compose up --build
 
 Use this for the fastest native backend loop when you don't want Docker — hook edits, migrations, admin UI, `apply-mocks`. Prefer Option A when you need dev-only hooks (`.pb.js.dev` → `.pb.js`), which run through the dev Docker image.
 
-Download [PocketBase 0.39.4](https://github.com/pocketbase/pocketbase/releases/tag/v0.39.4) (matches `PB_VERSION` in the Dockerfile), then from the repo root (after `npm run build`):
+Download [PocketBase 0.39.4](https://github.com/pocketbase/pocketbase/releases/tag/v0.39.4) (matches `PB_VERSION` in the Dockerfile), then from the repo root:
 
 ```sh
+set -a; source .env; set +a          # hooks read config via $os.getenv
 pocketbase serve \
   --dir=pb/data \
   --hooksDir=pb/hooks \
@@ -64,16 +96,12 @@ pocketbase serve \
   --publicDir=dist
 ```
 
+PocketBase does not read `.env` itself — the `env_file` entry in
+`docker-compose.yaml` covers Option A, but running the binary directly means
+exporting the variables into your shell first, as above. Without them, hooks like
+`calendar_sync.js` throw `GOOGLE_API_KEY is not set`.
+
 Admin UI: `http://127.0.0.1:8090/_/`
-
-#### Option C — Vite hot reload against real PocketBase
-
-For full-stack work with hot-reloading frontend pointed at real data:
-
-1. Start PocketBase (Option A or B above)
-2. Set `VITE_USE_MSW=false` in `.env` (or run `npm run dev:backend`)
-3. Open `http://localhost:5173` — API calls proxy to PocketBase on `:8090`
-4. PocketBase admin UI remains at `http://localhost:8090/_/` (not on the Vite port)
 
 #### First-run admin login
 
@@ -93,7 +121,10 @@ Change that password immediately after first login. Assign roles via Collections
   docker exec -it pocketbase /usr/local/bin/pocketbase --hooksDir /pb_hooks --dir /pb_data export-mocks
   cp pb/hooks/mocks.json src/mocks/mocks.json   # commit both to keep MSW in sync
   ```
-  Import with the `apply-mocks` subcommand inside the container. For now, ignore `.dev` extension removals in git when committing hook changes.
+  `mocks.json` serves two purposes: `src/mocks/mocks.json` is the fixture set for
+  Vitest and Playwright, and `pb/hooks/mocks.json` is what `apply-mocks` seeds a
+  local database from. Keep them in sync so tests and local dev see the same data.
+  For now, ignore `.dev` extension removals in git when committing hook changes.
 
 ### Compile and Minify for Production
 

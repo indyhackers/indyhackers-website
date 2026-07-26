@@ -13,8 +13,9 @@
         <TopicFilters :topics="topics" :selected-slug="selectedSlug" @select="selectTopic" />
 
         <div class="calendar-actions">
+          <RouterLink class="ih-btn-primary" to="/events/submit">Submit an Event</RouterLink>
           <a
-            class="ih-btn-primary"
+            class="ih-btn-outline"
             target="_blank"
             href="https://docs.google.com/forms/d/e/1FAIpQLSdlfIqF42uU8iyoYyqKDFPEYRsNCOCFYpFJwMTvdVOkK3otSg/viewform?usp=sf_link"
           >Recommend an Event</a>

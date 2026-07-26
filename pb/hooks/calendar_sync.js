@@ -152,6 +152,9 @@ function deleteByGoogleId(gid) {
     records = []
   }
   records.forEach((r) => {
+    // The database is authoritative for locked (owned/edited) rows — leave them
+    // alone even if Google reports the occurrence cancelled.
+    if (r.getBool('locked')) return
     $app.delete(r)
     removed += 1
   })
@@ -179,6 +182,13 @@ function processItem(item, topics, eventsCollection, result) {
     wasNew = true
   }
 
+  // The database is the source of truth for locked (owned/edited) rows: skip
+  // them so human edits and topic assignments survive the hourly sync.
+  if (!wasNew && record.getBool('locked')) {
+    result.skipped += 1
+    return
+  }
+
   record.set('event_series', seriesId || null)
   record.set('title', item.summary || '(untitled event)')
   record.set('description', item.description || '')
@@ -191,6 +201,14 @@ function processItem(item, topics, eventsCollection, result) {
   record.set('raw', item)
   record.set('synced_at', new Date().toISOString())
   record.set('topics', topicsForEvent(record, topics))
+
+  if (wasNew) {
+    // Synced Google events are pre-vetted and public; they stay unlocked so
+    // future syncs keep them current until someone edits or claims them.
+    record.set('source', 'google')
+    record.set('approved', true)
+    record.set('locked', false)
+  }
 
   $app.save(record)
   if (wasNew) result.created += 1
@@ -205,7 +223,7 @@ function syncCalendar() {
   if (!cfg.calendarId) throw new Error('GOOGLE_CALENDAR_ID is not set')
 
   const now = new Date()
-  const result = { created: 0, updated: 0, deleted: 0, series: 0 }
+  const result = { created: 0, updated: 0, deleted: 0, skipped: 0, series: 0 }
   const topics = $app.findAllRecords('topics')
   const eventsCollection = $app.findCollectionByNameOrId('events')
 
@@ -218,6 +236,8 @@ function syncCalendar() {
     ' updated, ' +
     result.deleted +
     ' removed, ' +
+    result.skipped +
+    ' skipped (locked), ' +
     result.series +
     ' new series'
   console.log('[calendar_sync] ' + summary)

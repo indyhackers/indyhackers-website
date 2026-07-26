@@ -37,6 +37,9 @@ function normalizeEvent(record) {
     end: record.ends_at || null,
     isAllDay: !!record.all_day,
     status: record.status || 'confirmed',
+    // Undefined on legacy rows that predate the moderation field — treat those
+    // as visible; only an explicit `false` hides an event.
+    approved: record.approved !== false,
     seriesId: record.event_series || '',
     series: series ? { id: series.id, title: series.title } : null,
     topics
@@ -65,7 +68,7 @@ export function useEvents() {
 
       events.value = eventRecords
         .map(normalizeEvent)
-        .filter((e) => e.status !== 'cancelled')
+        .filter((e) => e.status !== 'cancelled' && e.approved)
       topics.value = topicRecords.map((t) => ({
         id: t.id,
         name: t.name,

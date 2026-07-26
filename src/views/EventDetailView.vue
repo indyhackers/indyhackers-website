@@ -55,6 +55,35 @@
               </p>
             </template>
           </div>
+
+          <div class="event-detail__card event-detail__card--own">
+            <h2 class="event-detail__card-title">Organize this event?</h2>
+            <template v-if="!isLoggedIn">
+              <p class="event-detail__card-sub">
+                <RouterLink to="/login">Log in</RouterLink> to claim this event and keep its details
+                up to date.
+              </p>
+            </template>
+            <template v-else-if="isOwner">
+              <p class="event-detail__card-sub">
+                You own this event. <RouterLink to="/events/mine">Manage it</RouterLink>.
+              </p>
+            </template>
+            <template v-else-if="claimState === 'done'">
+              <p class="event-detail__card-sub">
+                ✅ Your ownership claim was submitted. A board member will review it.
+              </p>
+            </template>
+            <template v-else>
+              <p class="event-detail__card-sub">
+                Claim ownership and the board can hand you the keys to edit it.
+              </p>
+              <button class="ih-btn-outline" :disabled="claimState === 'submitting'" @click="claim">
+                {{ claimState === 'submitting' ? 'Submitting…' : 'Claim ownership' }}
+              </button>
+              <p v-if="claimState === 'error'" class="event-detail__card-error">{{ claimError }}</p>
+            </template>
+          </div>
         </aside>
       </div>
     </div>
@@ -75,6 +104,33 @@ const event = ref(null)
 const loading = ref(true)
 const error = ref(null)
 
+const claimState = ref('idle') // idle | submitting | done | error
+const claimError = ref('')
+
+const currentUserId = computed(() => pocketbase.authStore.record?.id || '')
+const isLoggedIn = computed(() => pocketbase.authStore.isValid)
+const isOwner = computed(() => !!event.value && event.value.owner === currentUserId.value)
+
+async function claim() {
+  claimState.value = 'submitting'
+  claimError.value = ''
+  try {
+    await pocketbase.collection('event_ownership_requests').create({
+      event: event.value.id,
+      requested_by: currentUserId.value,
+      status: 'pending'
+    })
+    claimState.value = 'done'
+  } catch (err) {
+    console.error('Ownership claim failed:', err)
+    claimState.value = 'error'
+    claimError.value =
+      err?.status === 401 || err?.status === 403
+        ? 'Please log in to claim this event.'
+        : 'Could not submit your claim. Please try again.'
+  }
+}
+
 function normalize(record) {
   const expand = record.expand || {}
   const series = expand.event_series || null
@@ -87,6 +143,7 @@ function normalize(record) {
     start: record.starts_at,
     end: record.ends_at || null,
     isAllDay: !!record.all_day,
+    owner: record.owner || '',
     series: series ? { id: series.id, title: series.title } : null,
     topics: (expand.topics || []).map((t) => ({
       id: t.id,
@@ -256,6 +313,20 @@ onMounted(load)
   font-size: 0.875rem;
   color: var(--text-muted);
   margin: 0.25rem 0 1rem;
+}
+
+.event-detail__card-sub a {
+  color: var(--accent-deep);
+}
+
+.event-detail__card--own {
+  margin-top: 1rem;
+}
+
+.event-detail__card-error {
+  font-size: 0.8125rem;
+  color: var(--danger);
+  margin: 0.75rem 0 0;
 }
 
 @media (max-width: 768px) {

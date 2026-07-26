@@ -112,6 +112,12 @@ export const routes = [
       meta: { noindex: true }
     },
     {
+      path: '/admin/events',
+      name: 'EventsAdmin',
+      component: () => import('../components/admin/EventsAdmin.vue'),
+      meta: { noindex: true }
+    },
+    {
       path: '/not-authorized',
       name: 'NotAuthorized',
       component: () => import('../components/NotAuthorized.vue'),
@@ -170,6 +176,22 @@ export const routes = [
       }
     },
     { path: '/events', redirect: '/calendar' },
+    {
+      path: '/events/submit',
+      name: 'SubmitEvent',
+      component: () => import('../components/events/SubmitEventView.vue'),
+      meta: {
+        title: 'Submit an Event',
+        description:
+          'Add a tech event, meetup, or workshop to the IndyHackers community calendar — reviewed by the board before it goes live.'
+      }
+    },
+    {
+      path: '/events/mine',
+      name: 'MyEvents',
+      component: () => import('../components/events/MyEventsView.vue'),
+      meta: { noindex: true }
+    },
     {
       path: '/event/:id',
       name: 'EventDetail',

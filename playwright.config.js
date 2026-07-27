@@ -33,8 +33,9 @@ export default defineConfig({
   use: {
     /* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
     actionTimeout: 0,
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:5173',
+    /* Base URL to use in actions like `await page.goto('/')`. Port 5174, not the
+       5173 dev server — see the webServer block below. */
+    baseURL: 'http://localhost:5174',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -60,12 +61,16 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: {
     /**
-     * Always use the Vite dev server so MSW is active (see src/main.js).
-     * Smoke tests assert against mock data, not a production PocketBase build.
-     * Playwright re-uses an existing dev server locally when one is already running.
+     * e2e runs against MSW, not a real backend, so specs stay deterministic and
+     * need no PocketBase container. `npm run dev:mock` sets VITE_USE_MSW=true —
+     * plain `npm run dev` talks to real PocketBase and would make these flaky.
+     *
+     * Deliberately port 5174: that keeps this mock server from colliding with a
+     * dev server on 5173, and stops reuseExistingServer from silently adopting
+     * one (which would run the suite against real data).
      */
-    command: 'vite dev --port 5173',
-    port: 5173,
+    command: 'npm run dev:mock -- --port 5174',
+    port: 5174,
     reuseExistingServer: !process.env.CI
   }
 })

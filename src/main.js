@@ -103,10 +103,12 @@ export const createApp = ViteSSG(
       import('@popperjs/core/dist/umd/popper.min.js')
       import('bootstrap/dist/js/bootstrap.min.js')
 
-      // Dev-only: start the MSW mock backend and wait for it before mounting
-      // (vite-ssg awaits this callback), so initial fetches are intercepted.
-      // Set VITE_USE_MSW=false to proxy API calls to real PocketBase on :8090.
-      if (import.meta.env.DEV && import.meta.env.VITE_USE_MSW !== 'false') {
+      // Opt-in only: `npm run dev` talks to the real PocketBase on :8090 via the
+      // Vite proxy (see vite.config.js). MSW is a test fixture — Playwright sets
+      // VITE_USE_MSW=true so e2e specs run against deterministic mock data.
+      // We await the worker before mounting (vite-ssg awaits this callback) so
+      // initial fetches are intercepted.
+      if (import.meta.env.DEV && import.meta.env.VITE_USE_MSW === 'true') {
         const { worker } = await import('./mocks/browser')
         await worker.start()
       }

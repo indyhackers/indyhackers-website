@@ -291,12 +291,15 @@ const captchaSignalLabel = (signals) => {
 // Returns { ok, outcome }:
 //   { ok: true,  outcome: "sent" }
 //   { ok: false, outcome: "not_configured" | "http_<status>" | "already_in_team"
-//                       | "already_invited" | "<slack error>" | "unknown_error" }
+//                       | "already_invited" | "user_disabled" | "<slack error>"
+//                       | "unknown_error" }
 //
-// NOTE: `already_invited` / `already_in_team` are treated as FAILURES. An
-// approval that lands on someone already in the workspace (or already invited)
-// doesn't deliver a usable new invite, so it should surface to the reviewer
-// rather than silently look like success.
+// NOTE: every non-"sent" outcome is `ok: false` because no NEW invite was
+// delivered — the CALLER decides what each one means. In particular
+// `already_in_team` (an existing active member) and `user_disabled` (a
+// deactivated, i.e. removed/banned, account) are not real failures so much as
+// "nothing to send"; the manual-approval path in slack.pb.js special-cases them
+// (email the member vs. ignore the ban) instead of treating them as errors.
 function slackInviteOutcome(email) {
     const token = $os.getenv("SLACK_API_TOKEN")
     const org = $os.getenv("SLACK_SUBDOMAIN")
@@ -341,11 +344,69 @@ function inviteErrorMessage(outcome) {
             return "That email is already a member of the Slack workspace — no invite was sent."
         case "already_invited":
             return "That email has already been invited to Slack — no new invite was sent."
+        case "user_disabled":
+            return "That account is deactivated in Slack (the member was removed/banned), so it was not reinvited and no email was sent."
     }
     if (outcome.indexOf("http_") === 0) {
         return "Slack returned an HTTP error (" + outcome.slice(5) + "); the invite was not sent."
     }
     return "Slack rejected the invite (" + outcome + "); the invite was not sent."
+}
+
+// Emails an applicant whose invite bounced with `already_in_team` — they already
+// have an active account on the workspace, so there's no invite to send. Rather
+// than a dead-end, we tell them the account exists, how to sign in, how to reset
+// a forgotten password, and that admin@indyhackers.org is there if they get
+// stuck. Best-effort: wrapped so a mail failure can never turn the approval it
+// accompanies into an error. Returns true when the mail was handed to the
+// client, false otherwise. NOTE: only call this for `already_in_team` — a
+// `user_disabled` (deactivated/banned) account must NOT be emailed.
+function notifyAlreadyMember(record) {
+    try {
+        const email = record.getString("email")
+        if (!email) return false
+        const firstName = record.getString("first_name")
+        const greeting = firstName ? "Hi " + firstName + "," : "Hi,"
+
+        const org = $os.getenv("SLACK_SUBDOMAIN") || ""
+        const signInUrl = org ? "https://" + org + ".slack.com" : "https://slack.com/signin"
+        // Slack's per-workspace forgot-password page pre-fills the workspace so
+        // the reset lands on the right account; fall back to the generic page.
+        const resetUrl = org ? "https://" + org + ".slack.com/forgot" : "https://slack.com/forgot"
+        const adminEmail = "admin@indyhackers.org"
+
+        const esc = (v) =>
+            String(v == null ? "" : v)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;")
+
+        const html =
+            "<p>" + esc(greeting) + "</p>" +
+            "<p>Thanks for your interest in the IndyHackers Slack! Good news — you already have an " +
+            "account on our workspace, so there's nothing more you need to do to join. You're already in.</p>" +
+            '<p>You can sign in any time at <a href="' + esc(signInUrl) + '">' + esc(signInUrl) + "</a>.</p>" +
+            '<p>Forgot your password? You can reset it here: <a href="' + esc(resetUrl) + '">' + esc(resetUrl) + "</a>.</p>" +
+            '<p>If you run into any trouble, just email us at <a href="mailto:' + esc(adminEmail) + '">' +
+            esc(adminEmail) + "</a> and we'll help you get back in.</p>" +
+            "<p>See you in Slack!<br>— The IndyHackers team</p>"
+
+        const settings = $app.settings()
+        const message = new MailerMessage({
+            from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
+            to: [{ address: email }],
+            subject: "You're already a member of the IndyHackers Slack",
+            html: html,
+        })
+        $app.newMailClient().send(message)
+        console.log("[slack] already-member email sent to " + email)
+        return true
+    } catch (err) {
+        console.error("[slack] already-member email failed: " + err)
+        return false
+    }
 }
 
 // True when `ip` is a routable public address worth sending to the ISP lookup —
@@ -668,19 +729,33 @@ function adminLabel(authRecord) {
 
 // Posts a Slack ping when a board member approves or rejects an invite request,
 // naming the acting admin. `decision` is "approved" or "rejected"; `authRecord`
-// is the request's e.auth. Best-effort (delegates to postSlackWebhook).
-function notifyInviteDecision(record, decision, authRecord) {
+// is the request's e.auth. `deliveryKind` (only meaningful when approved) is
+// "invited" for a normal fresh invite or "already_member" when the applicant was
+// already an active member — in that case no invite was sent and they were
+// emailed how to sign in / reset their password instead, which the ping spells
+// out so the board isn't left thinking a new invite went out. Best-effort
+// (delegates to postSlackWebhook).
+function notifyInviteDecision(record, decision, authRecord, deliveryKind) {
     const approved = decision === "approved"
+    const alreadyMember = approved && deliveryKind === "already_member"
     const email = record.getString("email")
     const name = [record.getString("first_name"), record.getString("last_name")]
         .filter(Boolean).join(" ") || "(no name given)"
 
+    let header
+    if (!approved) header = ":x: *Slack invite rejected*"
+    else if (alreadyMember) header = ":information_source: *Already a Slack member — no new invite sent*"
+    else header = ":white_check_mark: *Slack invite approved*"
+
     const lines = [
-        approved ? ":white_check_mark: *Slack invite approved*" : ":x: *Slack invite rejected*",
+        header,
         "*Name:* " + slackEscape(name),
         "*Email:* " + slackEscape(email),
         "*" + (approved ? "Approved" : "Rejected") + " by:* " + slackEscape(adminLabel(authRecord)),
     ]
+    if (alreadyMember) {
+        lines.push("*Result:* They already had an account, so no invite was sent — emailed them how to sign in and reset their Slack password.")
+    }
 
     postSlackWebhook(lines.join("\n"))
 }
@@ -696,6 +771,7 @@ module.exports = {
     ispLabel,
     slackInviteOutcome,
     inviteErrorMessage,
+    notifyAlreadyMember,
     notifyBoard,
     slackEscape,
     postSlackWebhook,

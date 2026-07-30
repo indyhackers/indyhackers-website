@@ -8,6 +8,10 @@
         or reject to drop it.
       </p>
 
+      <div v-if="message" class="slack-admin__message" role="status" aria-live="polite">
+        {{ message }}
+      </div>
+
       <div
         v-if="autoApprove !== null"
         class="slack-admin__mode"
@@ -162,8 +166,6 @@
           </div>
         </li>
       </ul>
-
-      <div v-if="message" class="slack-admin__message">{{ message }}</div>
     </div>
   </section>
 </template>
@@ -525,10 +527,17 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+/* Action feedback (approve/reject result). Sits at the top of the page as a
+   banner so it's actually seen — it used to render at the bottom where it was
+   routinely missed. */
 .slack-admin__message {
-  margin-top: 1.5rem;
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent-deep) 40%, transparent);
+  background: color-mix(in srgb, var(--accent-deep) 10%, transparent);
+  border-radius: var(--radius-md);
   font-family: var(--font-mono);
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
 }
 </style>

@@ -35,6 +35,16 @@ export const routes = [
       meta: { title: 'Job Listing' }
     },
     {
+      path: '/jobs/new',
+      name: 'CreateJob',
+      component: () => import('../components/jobs/CreateJobView.vue'),
+      meta: {
+        title: 'Submit a Job',
+        description:
+          'Post a developer or tech job opening to the IndyHackers community job board — free to submit.'
+      }
+    },
+    {
       path: '/jobs-markdown',
       name: 'JobsMarkdown',
       component: () => import('../components/jobs/JobsMarkdown.vue'),
@@ -53,7 +63,7 @@ export const routes = [
       meta: {
         title: 'About',
         description:
-          "Learn about IndyHackers — Indiana's tech community since 2017: our meetups, our mission, and how to get involved."
+          "Learn about IndyHackers — Indiana's tech community since 2008: our meetups, our mission, and how to get involved."
       }
     },
     {
@@ -87,12 +97,6 @@ export const routes = [
       path: '/admin',
       name: 'Admin',
       component: () => import('../components/admin/AdminHome.vue'),
-      meta: { noindex: true }
-    },
-    {
-      path: '/admin/console',
-      name: 'AdminConsole',
-      component: () => import('../components/AdminLogin.vue'),
       meta: { noindex: true }
     },
     {

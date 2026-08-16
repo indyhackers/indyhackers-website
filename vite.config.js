@@ -16,7 +16,12 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     // Allow access via the temporary Cloudflare quick tunnel
-    allowedHosts: ['.trycloudflare.com']
+    allowedHosts: ['.trycloudflare.com'],
+    // When VITE_USE_MSW=false, API and admin routes proxy to local PocketBase
+    proxy: {
+      '/api': { target: 'http://localhost:8090', changeOrigin: true },
+      '/_': { target: 'http://localhost:8090', changeOrigin: true }
+    }
   },
   plugins: [
     vue({

@@ -3,7 +3,7 @@
   <section class="hero">
     <div class="ih-container hero__layout">
       <div class="hero__copy">
-        <h1 class="hero__heading">Indiana's tech community<br />since 2017</h1>
+        <h1 class="hero__heading">Indiana's tech community<br />since 2008</h1>
         <p class="hero__sub">
           What started as a few devs meeting for coffee is now 3,000 members strong.
           Come hang out.

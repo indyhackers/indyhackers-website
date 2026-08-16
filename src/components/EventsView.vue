@@ -14,11 +14,11 @@
     <b-alert v-else-if="error" variant="danger" show class="my-4">
       <h5>Unable to load events</h5>
       <p>{{ error }}</p>
-      <button class="ih-btn-outline" @click="fetchEvents">Retry</button>
+      <button class="ih-btn-outline" @click="fetchAll">Retry</button>
     </b-alert>
 
     <!-- No Events State -->
-    <b-alert v-else-if="events.length === 0" variant="info" show class="my-4">
+    <b-alert v-else-if="upcoming.length === 0" variant="info" show class="my-4">
       <h5>No upcoming events</h5>
       <p>Check back soon for new events, or recommend one below!</p>
     </b-alert>
@@ -56,10 +56,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useHead } from '@unhead/vue'
 import { BAlert, BSpinner } from 'bootstrap-vue-next'
-import { useCalendar } from '@/composables/useCalendar'
+import { useEvents } from '@/composables/useEvents'
 import { jsonLd, stripHtml, SITE_NAME, SITE_URL } from '@/seo'
 import EventListItem from '@/components/EventListItem.vue'
 
@@ -70,7 +70,22 @@ const props = defineProps({
   }
 })
 
-const { events, loading, error, fetchEvents, visibleEvents, hasMore, loadMore } = useCalendar({ initialCount: props.limit })
+const { events, loading, error, fetchAll } = useEvents()
+
+// The synced `events` collection holds past and future events; this widget only
+// shows upcoming ones (the old Google-Calendar path filtered with timeMin=now).
+const upcoming = computed(() =>
+  events.value.filter((e) => new Date(e.start) >= new Date())
+)
+
+// Local pagination (previously provided by useCalendar): show `limit` at first,
+// reveal 5 more per click.
+const visibleCount = ref(props.limit)
+const visibleEvents = computed(() => upcoming.value.slice(0, visibleCount.value))
+const hasMore = computed(() => visibleCount.value < upcoming.value.length)
+function loadMore() {
+  visibleCount.value += 5
+}
 
 // Event structured data for the upcoming events shown here → eligible for
 // Google's event rich results. Rebuilds reactively as events load.
@@ -107,7 +122,7 @@ useHead(
 )
 
 onMounted(() => {
-  fetchEvents()
+  fetchAll()
 })
 </script>
 

@@ -17,13 +17,91 @@
 
       <form v-else class="slack-form" @submit.prevent="requestInvite">
         <div class="slack-form__row">
+          <label class="slack-form__label" for="slack-email">Email</label>
           <input
+            id="slack-email"
             v-model="email"
             type="email"
             required
             placeholder="you@example.com"
             class="slack-form__input"
-            aria-label="Email address"
+            :disabled="submitting"
+          />
+        </div>
+
+        <div class="slack-form__names">
+          <div class="slack-form__row">
+            <label class="slack-form__label" for="slack-first">First name</label>
+            <input
+              id="slack-first"
+              v-model="firstName"
+              type="text"
+              required
+              autocomplete="given-name"
+              class="slack-form__input"
+              :disabled="submitting"
+            />
+          </div>
+          <div class="slack-form__row">
+            <label class="slack-form__label" for="slack-last">Last name</label>
+            <input
+              id="slack-last"
+              v-model="lastName"
+              type="text"
+              required
+              autocomplete="family-name"
+              class="slack-form__input"
+              :disabled="submitting"
+            />
+          </div>
+        </div>
+
+        <div class="slack-form__row">
+          <label class="slack-form__label" for="slack-connection">What is your connection to Indiana?</label>
+          <textarea
+            id="slack-connection"
+            v-model="indianaConnection"
+            required
+            rows="3"
+            class="slack-form__input slack-form__textarea"
+            :disabled="submitting"
+          ></textarea>
+        </div>
+
+        <div class="slack-form__row">
+          <label class="slack-form__label" for="slack-city">City or region you're currently based in?</label>
+          <input
+            id="slack-city"
+            v-model="cityRegion"
+            type="text"
+            required
+            class="slack-form__input"
+            :disabled="submitting"
+          />
+        </div>
+
+        <div class="slack-form__row">
+          <label class="slack-form__label" for="slack-linkedin">LinkedIn profile (optional)</label>
+          <input
+            id="slack-linkedin"
+            v-model="linkedin"
+            type="text"
+            inputmode="url"
+            placeholder="https://linkedin.com/in/…"
+            class="slack-form__input"
+            :disabled="submitting"
+          />
+        </div>
+
+        <div class="slack-form__row">
+          <label class="slack-form__label" for="slack-github">GitHub profile (optional)</label>
+          <input
+            id="slack-github"
+            v-model="github"
+            type="text"
+            inputmode="url"
+            placeholder="https://github.com/…"
+            class="slack-form__input"
             :disabled="submitting"
           />
         </div>
@@ -39,8 +117,17 @@
           aria-hidden="true"
         />
 
-        <!-- reCAPTCHA renders here when a site key is configured -->
-        <div v-show="siteKey" ref="recaptchaEl" class="slack-form__captcha"></div>
+        <!-- reCAPTCHA v3 is invisible: no widget here. When a site key is
+             configured, a token is fetched via grecaptcha.execute() on submit
+             and Google shows its badge in the corner of the page. -->
+
+        <label class="slack-form__check">
+          <input v-model="cocAgreed" type="checkbox" required :disabled="submitting" />
+          <span>
+            I agree to the
+            <RouterLink to="/code-of-conduct" target="_blank" rel="noopener noreferrer">code of conduct</RouterLink>.
+          </span>
+        </label>
 
         <button type="submit" class="ih-btn-primary slack-form__btn" :disabled="submitting">
           {{ submitting ? 'Sending…' : 'Send me an invite' }}
@@ -49,10 +136,6 @@
         <div v-if="error" class="slack-error">{{ error }}</div>
       </form>
 
-      <p class="slack-coc">
-        By joining you agree to our
-        <RouterLink to="/code-of-conduct">code of conduct</RouterLink>.
-      </p>
     </div>
   </section>
 </template>
@@ -60,39 +143,52 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
+const CAPTCHA_ACTION = 'slack_invite'
+
 const email = ref('')
+const firstName = ref('')
+const lastName = ref('')
+const indianaConnection = ref('')
+const cityRegion = ref('')
+const linkedin = ref('')
+const github = ref('')
+const cocAgreed = ref(false)
 const website = ref('') // honeypot — must stay empty
 const siteKey = ref('')
-const recaptchaEl = ref(null)
 
 const submitting = ref(false)
 const error = ref(null)
 const result = ref(null)
 
-let widgetId = null
-
-const renderCaptcha = () => {
-  if (!siteKey.value || widgetId !== null) return
-  if (!window.grecaptcha || !window.grecaptcha.render || !recaptchaEl.value) return
-  widgetId = window.grecaptcha.render(recaptchaEl.value, { sitekey: siteKey.value })
-}
-
+// reCAPTCHA v3: load the script with the site key so grecaptcha.execute() is
+// available. There's no visible widget — a token is minted per submission.
 const loadCaptcha = () => {
   if (!siteKey.value) return
-  if (window.grecaptcha && window.grecaptcha.render) {
-    renderCaptcha()
-    return
-  }
-  // Implicit-render callback fired by the reCAPTCHA script once it loads.
-  window.__onIhRecaptchaLoad = renderCaptcha
+  if (window.grecaptcha && window.grecaptcha.execute) return
   if (document.querySelector('script[data-ih-recaptcha]')) return
   const s = document.createElement('script')
-  s.src = 'https://www.google.com/recaptcha/api.js?onload=__onIhRecaptchaLoad&render=explicit'
+  s.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey.value)}`
   s.async = true
   s.defer = true
   s.dataset.ihRecaptcha = 'true'
   document.head.appendChild(s)
 }
+
+// Resolve a fresh v3 token for this submission (empty string if captcha isn't
+// configured or the script failed to load — the server decides what to enforce).
+const getCaptchaToken = () =>
+  new Promise((resolve) => {
+    if (!siteKey.value || !window.grecaptcha || !window.grecaptcha.execute) {
+      resolve('')
+      return
+    }
+    window.grecaptcha.ready(() => {
+      window.grecaptcha
+        .execute(siteKey.value, { action: CAPTCHA_ACTION })
+        .then(resolve)
+        .catch(() => resolve(''))
+    })
+  })
 
 const fetchConfig = async () => {
   try {
@@ -106,25 +202,39 @@ const fetchConfig = async () => {
   }
 }
 
+// The browser's own IANA time zone (from the OS locale, not the IP), so a
+// VPN/proxy that masks the IP still reveals the real zone. Best-effort.
+const browserTimezone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+  } catch {
+    return ''
+  }
+}
+
 const requestInvite = async () => {
   error.value = null
-
-  let captchaToken = ''
-  if (siteKey.value) {
-    captchaToken = window.grecaptcha ? window.grecaptcha.getResponse(widgetId) : ''
-    if (!captchaToken) {
-      error.value = 'Please complete the captcha.'
-      return
-    }
-  }
-
   submitting.value = true
   try {
+    const captchaToken = await getCaptchaToken()
+    if (siteKey.value && !captchaToken) {
+      error.value = 'Captcha check failed. Please try again.'
+      return
+    }
+
     const res = await fetch('/api/slack/invite', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: email.value,
+        first_name: firstName.value,
+        last_name: lastName.value,
+        indiana_connection: indianaConnection.value,
+        city_region: cityRegion.value,
+        linkedin: linkedin.value,
+        github: github.value,
+        coc_agreed: cocAgreed.value,
+        browser_timezone: browserTimezone(),
         website: website.value,
         'g-recaptcha-response': captchaToken
       })
@@ -135,11 +245,9 @@ const requestInvite = async () => {
       result.value = data
     } else {
       error.value = data.message || 'Something went wrong. Please try again.'
-      if (siteKey.value && window.grecaptcha) window.grecaptcha.reset(widgetId)
     }
   } catch {
     error.value = 'Could not connect. Check your connection and try again.'
-    if (siteKey.value && window.grecaptcha) window.grecaptcha.reset(widgetId)
   } finally {
     submitting.value = false
   }
@@ -210,6 +318,43 @@ onMounted(fetchConfig)
   opacity: 0.6;
 }
 
+.slack-form__textarea {
+  resize: vertical;
+  min-height: 3.5rem;
+  line-height: 1.5;
+}
+
+.slack-form__names {
+  display: flex;
+  gap: 1rem;
+}
+
+.slack-form__names .slack-form__row {
+  flex: 1;
+}
+
+.slack-form__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.slack-form__check input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.slack-form__check a {
+  color: var(--accent-deep);
+}
+
+.slack-form__check a:hover {
+  color: var(--text-primary);
+}
+
 /* Honeypot — off-screen, not display:none, so bots still fill it. */
 .slack-form__hp {
   position: absolute;
@@ -244,21 +389,11 @@ onMounted(fetchConfig)
   color: var(--danger);
 }
 
-.slack-coc {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  margin-top: 1.5rem;
-}
-
-.slack-coc a {
-  color: var(--accent-deep);
-}
-
-.slack-coc a:hover {
-  color: var(--text-primary);
-}
-
 @media (max-width: 480px) {
+  .slack-form__names {
+    flex-direction: column;
+  }
+
   .slack-form__btn {
     align-self: stretch;
     text-align: center;

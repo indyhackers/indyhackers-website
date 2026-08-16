@@ -1,84 +1,106 @@
 <template>
   <div class="manage-job">
     <div class="ih-container">
-      <h1 class="title">Manage Your Job Post</h1>
+      <div class="manage-job-content">
+        <h1 class="title">Manage Your Job Post</h1>
 
-      <b-alert :model-value="!!error" variant="danger">{{ error }}</b-alert>
-      <b-alert v-model="notice.visible" :variant="notice.variant" dismissable>{{
-        notice.message
-      }}</b-alert>
+        <b-alert :model-value="!!error" variant="danger">{{ error }}</b-alert>
+        <b-alert v-model="notice.visible" :variant="notice.variant" dismissable>{{
+          notice.message
+        }}</b-alert>
 
-      <p v-if="loading" class="subtitle">Loading…</p>
+        <p v-if="loading" class="subtitle">Loading…</p>
 
-      <div v-else-if="job">
-        <b-alert :model-value="job.filled" variant="warning">
-          This post is marked as <strong>filled</strong> and is hidden from the public job board.
-        </b-alert>
+        <div v-else-if="job">
+          <b-card class="form-card">
+            <b-alert :model-value="job.filled" variant="warning">
+              This post is marked as <strong>filled</strong> and is hidden from the public job board.
+            </b-alert>
 
-        <b-form @submit.prevent="save">
-          <b-row>
-            <b-col md="6">
-              <b-form-group label="Job Title" label-for="input-title">
-                <b-form-input id="input-title" v-model="formData.title" required></b-form-input>
-              </b-form-group>
-            </b-col>
-            <b-col md="6">
-              <b-form-group label="Company" label-for="input-company">
-                <b-form-input id="input-company" v-model="formData.company" required></b-form-input>
-              </b-form-group>
-            </b-col>
-          </b-row>
+            <b-form @submit.prevent="save">
+              <b-row>
+                <b-col md="6">
+                  <b-form-group label="Job Title" label-for="input-title">
+                    <b-form-input id="input-title" v-model="formData.title" required></b-form-input>
+                  </b-form-group>
+                </b-col>
+                <b-col md="6">
+                  <b-form-group label="Company" label-for="input-company">
+                    <b-form-input id="input-company" v-model="formData.company" required></b-form-input>
+                  </b-form-group>
+                </b-col>
+              </b-row>
 
-          <b-row class="mt-3">
-            <b-form-group label="Salary Range (Optional)" class="w-100">
-              <div class="d-flex align-items-center">
-                <b-input-group append="K" class="w-auto" style="max-width: 120px;">
-                  <b-form-input type="number" id="input-salary-min" v-model="formData.salary_min" :min="0" :max="1000"></b-form-input>
-                </b-input-group>
-                <span class="mx-2">-</span>
-                <b-input-group append="K" class="w-auto" style="max-width: 120px;">
-                  <b-form-input type="number" id="input-salary-max" v-model="formData.salary_max" :min="0" :max="1000"></b-form-input>
-                </b-input-group>
-              </div>
-            </b-form-group>
-          </b-row>
+              <b-row class="mt-3">
+                <b-form-group label="Salary Range (Optional)" class="w-100">
+                  <div class="d-flex align-items-center">
+                    <b-input-group append="K" class="w-auto" style="max-width: 120px;">
+                      <b-form-input type="number" id="input-salary-min" v-model="formData.salary_min" :min="0" :max="1000"></b-form-input>
+                    </b-input-group>
+                    <span class="mx-2">-</span>
+                    <b-input-group append="K" class="w-auto" style="max-width: 120px;">
+                      <b-form-input type="number" id="input-salary-max" v-model="formData.salary_max" :min="0" :max="1000"></b-form-input>
+                    </b-input-group>
+                  </div>
+                </b-form-group>
+              </b-row>
 
-          <b-row class="mt-3">
-            <b-col cols="12">
-              <b-form-group label="Description">
-                <tip-tap-editor class="tip-tap-description" v-model="formData.description" />
-              </b-form-group>
-            </b-col>
-          </b-row>
-          <b-row class="mt-3">
-            <b-col cols="12">
-              <b-form-group label="How to Apply">
-                <tip-tap-editor class="tip-tap-how-to-apply" v-model="formData.how_to_apply" />
-              </b-form-group>
-            </b-col>
-          </b-row>
+              <b-row class="mt-3">
+                <b-col cols="12">
+                  <b-form-group label="Description">
+                    <tip-tap-editor class="tip-tap-description" v-model="formData.description" />
+                  </b-form-group>
+                </b-col>
+              </b-row>
+              <b-row class="mt-3">
+                <b-col cols="12">
+                  <b-form-group label="How to Apply">
+                    <tip-tap-editor class="tip-tap-how-to-apply" v-model="formData.how_to_apply" />
+                  </b-form-group>
+                </b-col>
+              </b-row>
 
-          <b-row class="mt-3">
-            <b-col cols="12" class="d-flex justify-content-between">
-              <b-button
-                v-if="!job.filled"
-                variant="outline-danger"
-                type="button"
-                :disabled="saving"
-                @click="markFilled"
-              >Mark as filled / take down</b-button>
-              <b-button
-                v-else
-                variant="outline-secondary"
-                type="button"
-                :disabled="saving"
-                @click="relist"
-              >Re-list this job</b-button>
+              <b-row class="mt-3" v-if="job.approved && !job.filled && expiresLabel">
+                <b-col cols="12">
+                  <div class="expiry-note">
+                    <p class="expiry-note__text">
+                      This posting is live until <strong>{{ expiresLabel }}</strong>, after which
+                      it's automatically taken down from the board. Still hiring? Extend it to keep
+                      it live for another 60 days.
+                    </p>
+                    <b-button
+                      variant="outline-secondary"
+                      type="button"
+                      :disabled="saving"
+                      @click="extend"
+                    >Extend for 60 days</b-button>
+                  </div>
+                </b-col>
+              </b-row>
 
-              <b-button variant="primary" type="submit" :disabled="saving">Save changes</b-button>
-            </b-col>
-          </b-row>
-        </b-form>
+              <b-row class="mt-3">
+                <b-col cols="12" class="d-flex justify-content-between">
+                  <b-button
+                    v-if="!job.filled"
+                    variant="outline-danger"
+                    type="button"
+                    :disabled="saving"
+                    @click="markFilled"
+                  >Mark as filled / take down</b-button>
+                  <b-button
+                    v-else
+                    variant="outline-secondary"
+                    type="button"
+                    :disabled="saving"
+                    @click="relist"
+                  >Re-list this job</b-button>
+
+                  <b-button variant="primary" type="submit" :disabled="saving">Save changes</b-button>
+                </b-col>
+              </b-row>
+            </b-form>
+          </b-card>
+        </div>
       </div>
     </div>
   </div>
@@ -107,6 +129,17 @@ export default defineComponent({
         how_to_apply: ''
       },
       notice: { message: '', visible: false, variant: 'success' }
+    }
+  },
+  computed: {
+    // The board hides a job 60 days after its approval date, so that's when it
+    // expires. Null until we have an approved job with an approved_at.
+    expiresLabel() {
+      if (!this.job || !this.job.approved || !this.job.approved_at) return null
+      const d = new Date(String(this.job.approved_at).replace(' ', 'T'))
+      if (Number.isNaN(d.getTime())) return null
+      d.setDate(d.getDate() + 60)
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
     }
   },
   methods: {
@@ -195,6 +228,9 @@ export default defineComponent({
     async relist() {
       await this.patch({ filled: false }, 'Your job has been re-listed.')
     },
+    async extend() {
+      await this.patch({ extend: true }, 'Your posting has been extended for another 60 days.')
+    },
     showNotice(message, variant) {
       this.notice = { message, visible: true, variant }
       try {
@@ -214,6 +250,27 @@ export default defineComponent({
 .manage-job {
   background-color: var(--surface-2);
   padding: 3rem 0;
+}
+.manage-job-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.form-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border) !important;
+  background: var(--surface-1) !important;
+  padding: 2rem;
+}
+.expiry-note {
+  border: 1px solid color-mix(in srgb, var(--border) 30%, var(--surface-1));
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-2);
+  padding: 1rem 1.25rem;
+}
+.expiry-note__text {
+  margin: 0 0 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
 .title {
   font-size: clamp(2rem, 4vw, 3rem);

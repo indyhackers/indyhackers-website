@@ -18,7 +18,10 @@ routerAdd("GET", "/api/jobs/manage/{token}", (e) => {
         description: r.getString("description"),
         how_to_apply: r.getString("how_to_apply"),
         approved: r.getBool("approved"),
-        filled: r.getBool("filled")
+        filled: r.getBool("filled"),
+        // Drives the "expires on / extend" UI on the manage page. The public
+        // list hides a job 60 days after approved_at, so that's its expiry.
+        approved_at: r.getString("approved_at")
     })
 
     const token = e.request.pathValue("token")
@@ -48,7 +51,10 @@ routerAdd("PATCH", "/api/jobs/manage/{token}", (e) => {
         description: r.getString("description"),
         how_to_apply: r.getString("how_to_apply"),
         approved: r.getBool("approved"),
-        filled: r.getBool("filled")
+        filled: r.getBool("filled"),
+        // Drives the "expires on / extend" UI on the manage page. The public
+        // list hides a job 60 days after approved_at, so that's its expiry.
+        approved_at: r.getString("approved_at")
     })
 
     const token = e.request.pathValue("token")
@@ -67,8 +73,10 @@ routerAdd("PATCH", "/api/jobs/manage/{token}", (e) => {
     const body = e.requestInfo().body || {}
 
     // Editable text/number fields (only those actually provided).
+    let edited = false
     for (const key of EDITABLE) {
         if (body[key] === undefined) continue
+        edited = true
 
         if (key === "salary_min" || key === "salary_max") {
             const n = Number(body[key])
@@ -101,6 +109,54 @@ routerAdd("PATCH", "/api/jobs/manage/{token}", (e) => {
         job.set("filled", !!body.filled)
     }
 
+    // "Extend for 60 days": reset approved_at to now so the 60-day visibility
+    // window (JobsList's approved_at >= now-60d filter) restarts. Only an
+    // already-approved, live posting can be extended. Resetting the reminder
+    // flag lets the expiry-reminder cron fire again for the new period.
+    if (body.extend === true) {
+        if (!job.getBool("approved")) {
+            throw new BadRequestError("Only an approved, live posting can be extended.")
+        }
+        job.set("approved_at", new Date().toISOString())
+        job.set("expiry_reminder_sent", false)
+    }
+
     $app.save(job)
+
+    // Tell the moderator channel (SLACK_WEBHOOK_URL) when a poster self-manages
+    // their post via the edit link. Best-effort — postSlackWebhook no-ops with no
+    // webhook and never throws, but guard the require/build too so a notification
+    // failure can never fail the poster's edit. Extend/take-down/re-list are
+    // mutually exclusive from the frontend; classify by priority just in case.
+    let action = null
+    let emoji = ":pencil2:"
+    if (body.extend === true) {
+        action = "extended for 60 days"
+        emoji = ":calendar:"
+    } else if (body.filled === true) {
+        action = "taken down"
+        emoji = ":outbox_tray:"
+    } else if (body.filled === false) {
+        action = "re-listed"
+        emoji = ":inbox_tray:"
+    } else if (edited) {
+        action = "edited"
+        emoji = ":pencil2:"
+    }
+    if (action) {
+        try {
+            const util = require(`${__hooks}/slack_util.js`)
+            const esc = util.slackEscape
+            const base = ($os.getenv("SITE_URL") || $app.settings().meta.appURL || "").replace(/\/+$/, "")
+            const link = base ? "\n<" + base + "/job?id=" + job.id + "|View posting>" : ""
+            util.postSlackWebhook(
+                emoji + " *Job " + action + " by the poster*\n" +
+                "*" + esc(job.getString("title")) + "* at *" + esc(job.getString("company")) + "*" + link
+            )
+        } catch (err) {
+            console.error("[jobs] manage webhook failed: " + err)
+        }
+    }
+
     return e.json(200, publicView(job))
 })

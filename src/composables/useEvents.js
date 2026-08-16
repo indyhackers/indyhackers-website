@@ -30,6 +30,9 @@ function normalizeEvent(record) {
     description: record.description || '',
     location: record.location || '',
     url: record.url || '',
+    // `link` alias: list/markdown views (ported from the old Google-Calendar
+    // path) reference event.link; keep it working off the synced url.
+    link: record.url || '',
     start: record.starts_at,
     end: record.ends_at || null,
     isAllDay: !!record.all_day,
@@ -110,9 +113,13 @@ export function filterEvents(list, { topicSlug, query } = {}) {
 // Upcoming events grouped by day, each group { key, date, label, events }.
 // Port of the list view branch of EventsController#index.
 export function upcomingByDay(list) {
-  const now = new Date()
+  // Keep events visible for the whole day they fall on: compare against the
+  // start of today rather than the current instant, so an event whose start
+  // time has already elapsed still shows until the day is over.
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
   const upcoming = list
-    .filter((e) => new Date(e.start) >= now)
+    .filter((e) => new Date(e.start) >= startOfToday)
     .sort((a, b) => new Date(a.start) - new Date(b.start))
 
   const groups = []

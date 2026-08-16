@@ -16,27 +16,23 @@
 // Env:
 //   SLACK_API_TOKEN     Slack token with admin scope (required to send invites)
 //   SLACK_SUBDOMAIN     the *.slack.com subdomain, e.g. "indyhackers"
-//   RECAPTCHA_SITE_KEY  Google reCAPTCHA v2 site key (public)
-//   RECAPTCHA_SECRET    Google reCAPTCHA v2 secret (server-side verification)
+//   RECAPTCHA_SITE_KEY  Google reCAPTCHA v3 site key (public)
+//   RECAPTCHA_SECRET    Google reCAPTCHA v3 secret (server-side verification).
+//                       Required for auto-approval: with no secret configured
+//                       every request goes to the human review queue.
+//   RECAPTCHA_MIN_SCORE v3 score below which a request is treated as suspicious
+//                       and sent to the review queue instead of auto-approved
+//                       (default 0.5; range 0.0–1.0)
 //   SLACK_REVIEW_EMAIL  where to email the board about pending requests
 //                       (falls back to JOB_NOTIFY_EMAIL, then the sender)
 //   SLACK_WEBHOOK_URL   optional Slack webhook for pending-request pings
 //   SLACK_AUTOAPPROVE   "off" disables auto-approval (everything queues)
 //   SLACK_RATE_PER_HOUR max invite requests per IP per hour (default 5)
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-// A small starter list of throwaway/temp-mail domains. Extend as needed.
-const DISPOSABLE_DOMAINS = [
-    "mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com",
-    "temp-mail.org", "throwawaymail.com", "yopmail.com", "getnada.com",
-    "trashmail.com", "sharklasers.com", "guerrillamailblock.com", "maildrop.cc",
-    "dispostable.com", "fakeinbox.com", "mailnesia.com", "mohmal.com",
-    "spam4.me", "tempr.email", "discard.email", "mailcatch.com",
-]
-
-const emailDomain = (email) => String(email).toLowerCase().split("@")[1] || ""
-const isDisposable = (email) => DISPOSABLE_DOMAINS.includes(emailDomain(email))
+// Constants and helpers (EMAIL_RE, isDisposable, sendSlackInvite, notifyBoard)
+// live in slack_util.js and are require()'d INSIDE each handler below —
+// PocketBase runs handlers in isolated runtimes that can't see this file's
+// module scope, so top-level declarations aren't visible at request time.
 
 // ---------------------------------------------------------------------------
 // Routes
@@ -46,15 +42,29 @@ routerAdd("GET", "/api/slack/config", (e) => {
     return e.json(200, {
         org: $os.getenv("SLACK_SUBDOMAIN") || "",
         siteKey: $os.getenv("RECAPTCHA_SITE_KEY") || "",
+        // Whether low-risk requests are auto-invited (default on; only "off"
+        // disables). Surfaced so the admin queue can show the current mode.
+        autoApprove: String($os.getenv("SLACK_AUTOAPPROVE") || "").toLowerCase() !== "off",
     })
 })
 
 routerAdd("POST", "/api/slack/invite", (e) => {
+    const util = require(`${__hooks}/slack_util.js`)
     const info = e.requestInfo()
     const body = info.body || {}
     const email = String(body.email || "").trim().toLowerCase()
     const captchaResponse = String(body["g-recaptcha-response"] || "")
     const honeypot = String(body.website || "").trim()
+    const firstName = String(body.first_name || "").trim()
+    const lastName = String(body.last_name || "").trim()
+    const indianaConnection = String(body.indiana_connection || "").trim()
+    const cityRegion = String(body.city_region || "").trim()
+    const linkedin = String(body.linkedin || "").trim()
+    const github = String(body.github || "").trim()
+    const cocAgreed = body.coc_agreed === true || body.coc_agreed === "true"
+    // The browser's own IANA time zone (OS locale, not the IP) — survives a
+    // VPN/proxy that masks the IP, so it's a stronger locale signal.
+    const browserTimezone = String(body.browser_timezone || "").trim()
 
     // Honeypot: real users never fill the hidden "website" field. Pretend it
     // worked so bots don't learn they were caught, but create nothing.
@@ -62,17 +72,67 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         return e.json(200, { ok: true, pending: true, msg: "Thanks! Your request is in." })
     }
 
-    if (!EMAIL_RE.test(email)) {
+    if (!util.EMAIL_RE.test(email)) {
         throw new BadRequestError("Please enter a valid email address.")
     }
-    if (isDisposable(email)) {
+    if (util.isDisposable(email)) {
         throw new BadRequestError("Please use a non-disposable email address.")
+    }
+    if (!firstName || !lastName) {
+        throw new BadRequestError("Please enter your first and last name.")
+    }
+    if (!indianaConnection) {
+        throw new BadRequestError("Please tell us your connection to Indiana.")
+    }
+    if (!cityRegion) {
+        throw new BadRequestError("Please enter the city or region you're based in.")
+    }
+    if (!cocAgreed) {
+        throw new BadRequestError("Please agree to the code of conduct to continue.")
     }
 
     const ip = e.realIP()
     const headers = info.headers || {}
-    const country = String(headers["cf-ipcountry"] || "").toUpperCase()
-    const userAgent = String(headers["user_agent"] || headers["user-agent"] || "")
+    // PocketBase normalizes request header keys to lowercase with hyphens turned
+    // into underscores (e.g. "CF-IPCity" -> "cf_ipcity"). Read both forms so the
+    // Cloudflare headers match regardless — the previous hyphenated lookups never
+    // hit, which is why country and geolocation came back empty.
+    const header = (name) => {
+        const key = name.toLowerCase()
+        return String(headers[key.replace(/-/g, "_")] || headers[key] || "")
+    }
+    const country = header("cf-ipcountry").toUpperCase()
+    const userAgent = header("user-agent")
+
+    // Approximate IP geolocation from Cloudflare. These headers are only present
+    // when the "Add visitor location headers" managed transform is enabled in
+    // the Cloudflare dashboard (cf-ipcountry is always sent; the rest are not).
+    // All empty locally / off Cloudflare — the admin card just hides what's blank.
+    const geo = {
+        city: header("cf-ipcity"),
+        region: header("cf-region"),
+        region_code: header("cf-region-code"),
+        continent: header("cf-ipcontinent"),
+        postal: header("cf-postal-code"),
+        metro_code: header("cf-metro-code"),
+        timezone: header("cf-timezone"),
+        lat: header("cf-iplatitude"),
+        lon: header("cf-iplongitude"),
+    }
+    // Whether the visitor shares Indianapolis's clock (US/Canada Eastern).
+    geo.same_tz_as_indy = util.sameTimezoneAsIndy(geo.timezone)
+    // Resolve the Nielsen DMA (metro) code to a market name where known.
+    geo.metro_name = util.metroName(geo.metro_code)
+    // Network operator (ISP / hosting provider) behind the IP — a datacenter or
+    // VPN ISP is a useful review signal. Best-effort external lookup that leaves
+    // geo.isp unset on any failure; stored under geo so it flows to the review
+    // card and notifications alongside the other IP-derived fields.
+    const isp = util.lookupIsp(ip)
+    if (isp) {
+        geo.isp = isp.isp
+        geo.org = isp.org
+        geo.asn = isp.asn
+    }
 
     // Rate limit per IP.
     const perHour = parseInt($os.getenv("SLACK_RATE_PER_HOUR") || "5", 10)
@@ -102,13 +162,13 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         if (existing) {
             const st = existing.getString("status")
             if (st === "approved") {
-                return e.json(200, { ok: true, msg: "You've already been invited — check your email." })
+                return e.json(200, { ok: true, msg: "You've already been invited — check your email for an invitation, or email admin@indyhackers.org if you need assistance." })
             }
             if (st === "pending") {
                 return e.json(200, {
                     ok: true,
                     pending: true,
-                    msg: "Your request is already in the queue — hang tight for approval.",
+                    msg: "Your request is already in the queue — hang tight for approval. You can email admin@indyhackers.org if you need assistance.",
                 })
             }
             // rejected → fall through and let them try again
@@ -117,199 +177,229 @@ routerAdd("POST", "/api/slack/invite", (e) => {
         // no existing record; continue
     }
 
-    // reCAPTCHA (only enforced when a secret is configured).
+    // reCAPTCHA v3 (only verified when a secret is configured). Unlike v2,
+    // v3 returns a risk `score` instead of a pass/fail checkbox: an invalid or
+    // expired token (or the wrong action) is a hard reject, but a valid token
+    // with a low score doesn't fail outright — it just loses the auto-approve
+    // fast path and falls to the human review queue below. When no secret is
+    // configured the check is skipped and NOTHING auto-approves: every request
+    // queues for review (captchaOk stays false; see the autoApprove gate below).
     const secret = $os.getenv("RECAPTCHA_SECRET")
     let captchaOk = false
+    let captchaScore = null
+    let captchaMinScore = null
     if (secret) {
         if (!captchaResponse) {
-            throw new BadRequestError("Please complete the captcha.")
+            throw new BadRequestError("Captcha check failed. Please try again.")
         }
-        const verify = $http.send({
-            url: "https://www.google.com/recaptcha/api/siteverify",
-            method: "POST",
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body:
-                "secret=" + encodeURIComponent(secret) +
-                "&response=" + encodeURIComponent(captchaResponse) +
-                "&remoteip=" + encodeURIComponent(ip),
-            timeout: 15,
-        })
-        captchaOk = !!(verify.json && verify.json.success)
-        if (!captchaOk) {
-            throw new BadRequestError("Captcha verification failed. Please try again.")
+        // A transport failure (network/timeout, Google unreachable) must not
+        // hard-fail the request and must not auto-approve — leave result null so
+        // captchaOk stays false and the request drops to the review queue.
+        let result = null
+        try {
+            const verify = $http.send({
+                url: "https://www.google.com/recaptcha/api/siteverify",
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body:
+                    "secret=" + encodeURIComponent(secret) +
+                    "&response=" + encodeURIComponent(captchaResponse) +
+                    "&remoteip=" + encodeURIComponent(ip),
+                timeout: 15,
+            })
+            result = verify.json || {}
+        } catch (err) {
+            console.error("[slack] reCAPTCHA verify request failed: " + err)
+        }
+        if (result) {
+            // A definitive answer that the token is invalid/expired or was minted
+            // for a different action → hard reject (a forged/stale token is a bad
+            // request). A missing answer (transport error above) instead falls
+            // through with captchaOk = false → review queue, never auto-approved.
+            if (!result.success || (result.action && result.action !== "slack_invite")) {
+                throw new BadRequestError("Captcha verification failed. Please try again.")
+            }
+            // v3 always returns a score; v2 tokens (no score) still pass here so a
+            // key swap doesn't hard-break. Low score → not "ok" → review queue.
+            const rawMin = parseFloat($os.getenv("RECAPTCHA_MIN_SCORE"))
+            captchaMinScore = isNaN(rawMin) ? 0.5 : rawMin
+            captchaScore = typeof result.score === "number" ? result.score : null
+            captchaOk = captchaScore === null || captchaScore >= captchaMinScore
         }
     }
 
     // Risk signals → auto-approve decision. Auto-approve only low-risk requests;
     // everything else queues for a human. Auto-approval can be disabled via env.
     const autoApproveEnabled = String($os.getenv("SLACK_AUTOAPPROVE") || "").toLowerCase() !== "off"
+    // Location + timezone-consistency signals feeding the auto-approve decision.
+    const inIndiana =
+        country === "US" &&
+        (geo.region_code === "IN" || String(geo.region).toLowerCase() === "indiana")
+    const browserSameIndy = util.sameTimezoneAsIndy(browserTimezone)
+    const tzKnown = !!(browserTimezone && geo.timezone)
+    // Two Eastern zones count as matching (e.g. browser America/New_York vs IP
+    // America/Indiana/Indianapolis) — the JSVM can't compare UTC offsets, so we
+    // lean on the Eastern classification rather than exact-string equality.
+    const bothEastern = browserSameIndy === true && geo.same_tz_as_indy === true
+    const tzMatch = tzKnown && (browserTimezone === geo.timezone || bothEastern)
+
     const signals = {
         country: country || "unknown",
-        is_us: country === "US",
+        in_indiana: inIndiana,
         disposable: false,
         captcha_ok: secret ? captchaOk : "not_configured",
+        captcha_score: secret ? captchaScore : null,
+        captcha_min_score: secret ? captchaMinScore : null,
+        browser_timezone: browserTimezone,
+        browser_same_tz_as_indy: browserSameIndy,
+        // Browser zone disagreeing with the IP zone is a classic VPN/proxy tell.
+        tz_mismatch: tzKnown && !tzMatch,
+        geo,
     }
+    // Auto-approve only low-risk Indiana requests whose browser & IP zones agree
+    // AND that passed a configured reCAPTCHA. Without a working captcha — secret
+    // unset, verification unreachable, or a below-threshold score — we never
+    // auto-invite; the request drops to the human review queue instead.
     const autoApprove =
-        autoApproveEnabled && country === "US" && (!secret || captchaOk)
+        autoApproveEnabled && inIndiana && tzMatch && !!secret && captchaOk
+
+    // For an auto-approvable request, attempt the Slack invite up front so the
+    // outcome decides the row's initial state. If Slack can't deliver it (not
+    // configured, HTTP error, or the email is already invited / in the
+    // workspace) we don't fake a success — the request falls back into the
+    // review queue as "pending" with the reason recorded, so a board member can
+    // take a look. A non-auto request just queues as normal, no invite attempt.
+    let status = autoApprove ? "approved" : "pending"
+    let invitedAt = ""
+    let inviteError = ""
+    if (autoApprove) {
+        const { ok, outcome } = util.slackInviteOutcome(email)
+        if (ok) {
+            invitedAt = new Date().toISOString()
+        } else {
+            status = "pending"
+            inviteError = util.inviteErrorMessage(outcome)
+        }
+    }
 
     const collection = $app.findCollectionByNameOrId("slack_invites")
     const record = new Record(collection)
     record.set("email", email)
-    record.set("status", autoApprove ? "approved" : "pending")
-    record.set("auto", autoApprove)
+    record.set("first_name", firstName)
+    record.set("last_name", lastName)
+    record.set("indiana_connection", indianaConnection)
+    record.set("city_region", cityRegion)
+    record.set("linkedin", linkedin)
+    record.set("github", github)
+    record.set("coc_agreed", cocAgreed)
+    record.set("status", status)
+    // `auto` marks a row that was auto-approved AND delivered without a human. An
+    // eligible request whose invite failed and fell back to the queue is not
+    // auto-approved, so it records auto=false.
+    record.set("auto", status === "approved")
+    record.set("invited_at", invitedAt)
+    record.set("error", inviteError)
     record.set("ip", ip)
     record.set("country", country)
     record.set("user_agent", userAgent)
     record.set("signals", signals)
     $app.save(record)
 
-    if (autoApprove) {
+    if (status === "approved") {
         return e.json(200, { ok: true, msg: "Invite sent — check your email!" })
     }
     return e.json(200, {
         ok: true,
         pending: true,
-        msg: "Thanks! Your request is in. A board member will approve it shortly and you'll get an email invite.",
+        msg: "Thanks! Your request is in. Someone on staff will approve it shortly and you'll receive an email invite from Slack.",
     })
 })
 
 // ---------------------------------------------------------------------------
 // Invite delivery — single path, fired whenever a row becomes "approved".
+// The sendSlackInvite / notifyBoard helpers live in slack_util.js and are
+// require()'d inside each handler (see the scope note at the top of this file).
 // ---------------------------------------------------------------------------
 
-// Sends the Slack invite for an approved record and stamps invited_at (or
-// records the error). Guarded by invited_at so it never double-sends.
-function sendSlackInvite(record) {
-    if (record.getString("status") !== "approved" || record.getString("invited_at")) {
-        return
-    }
-
-    const token = $os.getenv("SLACK_API_TOKEN")
-    const org = $os.getenv("SLACK_SUBDOMAIN")
-    if (!token || !org) {
-        console.error("[slack] SLACK_API_TOKEN / SLACK_SUBDOMAIN not configured")
-        record.set("error", "Slack not configured (missing token/subdomain)")
-        $app.save(record)
-        return
-    }
-
-    const email = record.getString("email")
-    const res = $http.send({
-        url: "https://" + org + ".slack.com/api/users.admin.invite",
-        method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: "Bearer " + token,
-        },
-        body: "email=" + encodeURIComponent(email) + "&resend=true",
-        timeout: 15,
-    })
-
-    let outcome = "unknown"
-    if (res.statusCode !== 200) {
-        outcome = "http_" + res.statusCode
-        console.error("[slack] invite HTTP " + res.statusCode + ": " + res.raw)
-    } else {
-        const data = res.json || {}
-        if (data.ok || data.error === "already_invited" || data.error === "already_in_team") {
-            outcome = data.ok ? "sent" : data.error
-        } else {
-            outcome = data.error || "unknown_error"
-            console.error("[slack] invite error for " + email + ": " + outcome)
-        }
-    }
-
-    if (outcome === "sent" || outcome === "already_invited" || outcome === "already_in_team") {
-        record.set("invited_at", new Date().toISOString())
-        record.set("error", "")
-    } else {
-        record.set("error", outcome)
-    }
-    $app.save(record)
-}
-
-// Notifies the board about a pending request (email + optional Slack webhook),
-// reusing the same best-effort pattern as new-job notifications.
-function notifyBoard(record) {
-    const email = record.getString("email")
-    const country = record.getString("country") || "unknown"
-
-    try {
-        const settings = $app.settings()
-        const recipient =
-            $os.getenv("SLACK_REVIEW_EMAIL") ||
-            $os.getenv("JOB_NOTIFY_EMAIL") ||
-            settings.meta.senderAddress
-        if (recipient) {
-            const esc = (v) =>
-                String(v == null ? "" : v)
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;")
-                    .replace(/'/g, "&#39;")
-            const message = new MailerMessage({
-                from: { address: settings.meta.senderAddress, name: settings.meta.senderName },
-                to: [{ address: recipient }],
-                subject: "Slack invite request pending: " + email,
-                html:
-                    "<h2>A new Slack invite request needs review</h2>" +
-                    "<ul>" +
-                    "<li>Email: " + esc(email) + "</li>" +
-                    "<li>Country: " + esc(country) + "</li>" +
-                    "<li>IP: " + esc(record.getString("ip")) + "</li>" +
-                    "</ul>" +
-                    "<p>Approve or reject it on the Slack invites admin screen.</p>",
-            })
-            $app.newMailClient().send(message)
-            console.log("[slack] pending-request email sent to " + recipient)
-        }
-    } catch (err) {
-        console.error("[slack] pending-request email failed: " + err)
-    }
-
-    try {
-        const webhook = $os.getenv("SLACK_WEBHOOK_URL")
-        if (webhook) {
-            const slackEsc = (v) =>
-                String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-            const text =
-                ":envelope_with_arrow: *New Slack invite request pending review*\n" +
-                "Email: " + slackEsc(email) + "\n" +
-                "Country: " + slackEsc(country) + "\n" +
-                "Approve or reject it on the admin screen."
-            const res = $http.send({
-                url: webhook,
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text }),
-                timeout: 15,
-            })
-            if (res.statusCode < 200 || res.statusCode >= 300) {
-                console.error("[slack] webhook returned " + res.statusCode + ": " + res.raw)
-            }
-        }
-    } catch (err) {
-        console.error("[slack] pending-request webhook failed: " + err)
-    }
-}
-
 onRecordAfterCreateSuccess((e) => {
+    const util = require(`${__hooks}/slack_util.js`)
     const status = e.record.getString("status")
+    // The invite (if any) was already attempted synchronously in the POST handler
+    // before this record was saved, so here we only notify the board.
     if (status === "approved") {
-        sendSlackInvite(e.record)
+        // Auto-approved and delivered — notify the board, framed as auto-approved.
+        util.notifyBoard(e.record, true)
     } else if (status === "pending") {
-        notifyBoard(e.record)
+        // Either a normal review request or an auto-eligible one whose invite
+        // failed and fell back to the queue — both get pending-review framing.
+        util.notifyBoard(e.record, false)
     }
     e.next()
 }, "slack_invites")
 
-onRecordAfterUpdateSuccess((e) => {
+// Manual approve/reject, handled on the API update request so we have both the
+// gate (attempt the Slack invite BEFORE committing) and the acting admin
+// (e.auth, which only the request event carries). When a board member flips a
+// row to "approved" we resolve the Slack side first and only let the status
+// change persist (e.next()) once we know what happened, so an approval is never
+// recorded without the invite being resolved:
+//
+//   • sent            → mark invited_at, commit, ping the board "approved".
+//   • already_in_team → the applicant is already an active member, so there's no
+//                       invite to send. We still let the approval stand (clears
+//                       the queue) and, after commit, email them that their
+//                       account exists + how to reset a forgotten password, and
+//                       ping the board that no new invite went out.
+//   • user_disabled   → a deactivated account means the member was removed/
+//                       banned. We must NOT reactivate them and must NOT email
+//                       them: throw so the approval is aborted (row stays
+//                       pending) and the board sees why, then they can reject it.
+//   • any other error → throw as well, surfacing the reason; row stays pending.
+//
+// Rejections skip the invite entirely and just ping the board. Every ping and
+// the applicant email are best-effort and wrapped so they can't turn a committed
+// update into an error response.
+onRecordUpdateRequest((e) => {
+    const util = require(`${__hooks}/slack_util.js`)
     const was = e.record.original().getString("status")
     const now = e.record.getString("status")
-    // Send the invite the moment a board member flips a row to approved.
-    if (was !== "approved" && now === "approved") {
-        sendSlackInvite(e.record)
+
+    // Delivery outcome for the post-commit board ping; only set on a fresh
+    // pending→approved transition.
+    let deliveryKind = null
+    if (was !== "approved" && now === "approved" && !e.record.getString("invited_at")) {
+        const { ok, outcome } = util.slackInviteOutcome(e.record.getString("email"))
+        if (ok) {
+            e.record.set("invited_at", new Date().toISOString())
+            e.record.set("error", "")
+            deliveryKind = "invited"
+        } else if (outcome === "already_in_team") {
+            // Already a member — nothing to send, but the approval still resolves
+            // the request. Mark it handled; the "you're already in" email goes
+            // out below, only after the commit succeeds.
+            e.record.set("invited_at", new Date().toISOString())
+            e.record.set("error", "")
+            deliveryKind = "already_member"
+        } else {
+            // user_disabled (banned) and every other non-deliverable outcome abort
+            // the approval before e.next(): nothing is written, status stays
+            // "pending", and the board sees the specific reason. A banned account
+            // is deliberately left here — never reactivated, never emailed.
+            throw new BadRequestError(util.inviteErrorMessage(outcome))
+        }
     }
+
     e.next()
+
+    // Post-commit, best-effort side effects (the update is already durable).
+    if (deliveryKind === "already_member") {
+        util.notifyAlreadyMember(e.record)
+    }
+    if (was !== now && (now === "approved" || now === "rejected")) {
+        try {
+            util.notifyInviteDecision(e.record, now, e.auth, deliveryKind)
+        } catch (err) {
+            console.error("[slack] decision webhook failed: " + err)
+        }
+    }
 }, "slack_invites")

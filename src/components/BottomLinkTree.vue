@@ -2,7 +2,11 @@
   <footer class="ih-footer">
     <div class="ih-container ih-footer__inner">
       <p class="ih-footer__copy">&copy; {{ year }} Indy Hackers — made with love by volunteers</p>
-      <RouterLink to="/code-of-conduct" class="ih-footer__coc">Code of Conduct</RouterLink>
+      <nav class="ih-footer__links">
+        <RouterLink to="/code-of-conduct" class="ih-footer__link">Code of Conduct</RouterLink>
+        <RouterLink to="/terms" class="ih-footer__link">Terms of Service</RouterLink>
+        <RouterLink to="/privacy" class="ih-footer__link">Privacy Policy</RouterLink>
+      </nav>
     </div>
   </footer>
 </template>
@@ -39,14 +43,21 @@ export default {
   font-weight: normal;
 }
 
-.ih-footer__coc {
+.ih-footer__links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ih-footer__link {
   font-size: 0.8rem;
   color: var(--text-muted);
   text-decoration: none;
   font-weight: normal;
 }
 
-.ih-footer__coc:hover {
+.ih-footer__link:hover {
   color: var(--link-hover);
 }
 

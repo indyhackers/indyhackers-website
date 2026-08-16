@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import ManageJobView from '../jobs/ManageJobView.vue'
+import ManageJobView from './ManageJobView.vue'
 
 const mockJob = {
   id: 'job1',
@@ -11,7 +11,9 @@ const mockJob = {
   description: '<p>Great opportunity</p>',
   how_to_apply: '<p>Email hr@acme.com</p>',
   approved: true,
-  filled: false
+  filled: false,
+  // ~50 days ago → expiry ~10 days out, so the expiry note + Extend button show.
+  approved_at: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000).toISOString()
 }
 
 function createMockPocketBase(send) {
@@ -112,6 +114,27 @@ describe('ManageJobView', () => {
     confirmSpy.mockRestore()
   })
 
+  it('shows the expiry date and extends the posting for 60 days', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ ...mockJob })
+      .mockResolvedValueOnce({ ...mockJob, approved_at: new Date().toISOString() })
+    const wrapper = mountView(createMockPocketBase(send))
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('This posting is live until')
+
+    const extendBtn = wrapper.findAll('button').find((b) => b.text().includes('Extend for 60 days'))
+    expect(extendBtn).toBeTruthy()
+    await extendBtn.trigger('click')
+    await flushPromises()
+
+    expect(send).toHaveBeenLastCalledWith(
+      '/api/jobs/manage/tok123',
+      expect.objectContaining({ method: 'PATCH', body: { extend: true } })
+    )
+  })
+
   it('does not take down the job if confirmation is cancelled', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const send = vi.fn().mockResolvedValue({ ...mockJob })
@@ -122,7 +145,6 @@ describe('ManageJobView', () => {
     await takedownBtn.trigger('click')
     await flushPromises()
 
-    // only the initial GET happened — no PATCH
     expect(send).toHaveBeenCalledTimes(1)
     confirmSpy.mockRestore()
   })

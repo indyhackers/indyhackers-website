@@ -337,46 +337,67 @@ onRecordAfterCreateSuccess((e) => {
     e.next()
 }, "slack_invites")
 
-// Manual approval. This runs BEFORE the update is committed: when a board member
-// flips a row to "approved" we attempt the Slack invite first, and only let the
-// status change persist (calling e.next()) if the invite actually went out. If
-// Slack fails — not configured, HTTP error, or the email is already invited / in
-// the workspace — we throw, which aborts the transaction: the row stays
-// "pending" and the admin UI shows the specific reason. This is deliberately the
-// only place a hand-approval turns into an invite (the after-create hook above
-// handles auto-approval), so an approval can never be recorded without a
-// successful send.
-onRecordUpdate((e) => {
-    const util = require(`${__hooks}/slack_util.js`)
-    const was = e.record.original().getString("status")
-    const now = e.record.getString("status")
-    if (was !== "approved" && now === "approved" && !e.record.getString("invited_at")) {
-        const { ok, outcome } = util.slackInviteOutcome(e.record.getString("email"))
-        if (!ok) {
-            // Abort before e.next(): nothing is written, so status stays "pending".
-            throw new BadRequestError(util.inviteErrorMessage(outcome))
-        }
-        e.record.set("invited_at", new Date().toISOString())
-        e.record.set("error", "")
-    }
-    e.next()
-}, "slack_invites")
-
-// Board decision → Slack webhook ping recording WHO approved/rejected. This runs
-// on the API update request (not the model hook above) because only the request
-// event carries the acting admin as e.auth. We fire only after e.next() commits
-// the update: a manual approval whose Slack invite fails makes the model hook
-// throw, e.next() rejects, and no misleading "approved" ping goes out. The ping
-// itself is best-effort and wrapped so it can never turn a committed update into
-// an error response.
+// Manual approve/reject, handled on the API update request so we have both the
+// gate (attempt the Slack invite BEFORE committing) and the acting admin
+// (e.auth, which only the request event carries). When a board member flips a
+// row to "approved" we resolve the Slack side first and only let the status
+// change persist (e.next()) once we know what happened, so an approval is never
+// recorded without the invite being resolved:
+//
+//   • sent            → mark invited_at, commit, ping the board "approved".
+//   • already_in_team → the applicant is already an active member, so there's no
+//                       invite to send. We still let the approval stand (clears
+//                       the queue) and, after commit, email them that their
+//                       account exists + how to reset a forgotten password, and
+//                       ping the board that no new invite went out.
+//   • user_disabled   → a deactivated account means the member was removed/
+//                       banned. We must NOT reactivate them and must NOT email
+//                       them: throw so the approval is aborted (row stays
+//                       pending) and the board sees why, then they can reject it.
+//   • any other error → throw as well, surfacing the reason; row stays pending.
+//
+// Rejections skip the invite entirely and just ping the board. Every ping and
+// the applicant email are best-effort and wrapped so they can't turn a committed
+// update into an error response.
 onRecordUpdateRequest((e) => {
     const util = require(`${__hooks}/slack_util.js`)
     const was = e.record.original().getString("status")
-    e.next()
     const now = e.record.getString("status")
+
+    // Delivery outcome for the post-commit board ping; only set on a fresh
+    // pending→approved transition.
+    let deliveryKind = null
+    if (was !== "approved" && now === "approved" && !e.record.getString("invited_at")) {
+        const { ok, outcome } = util.slackInviteOutcome(e.record.getString("email"))
+        if (ok) {
+            e.record.set("invited_at", new Date().toISOString())
+            e.record.set("error", "")
+            deliveryKind = "invited"
+        } else if (outcome === "already_in_team") {
+            // Already a member — nothing to send, but the approval still resolves
+            // the request. Mark it handled; the "you're already in" email goes
+            // out below, only after the commit succeeds.
+            e.record.set("invited_at", new Date().toISOString())
+            e.record.set("error", "")
+            deliveryKind = "already_member"
+        } else {
+            // user_disabled (banned) and every other non-deliverable outcome abort
+            // the approval before e.next(): nothing is written, status stays
+            // "pending", and the board sees the specific reason. A banned account
+            // is deliberately left here — never reactivated, never emailed.
+            throw new BadRequestError(util.inviteErrorMessage(outcome))
+        }
+    }
+
+    e.next()
+
+    // Post-commit, best-effort side effects (the update is already durable).
+    if (deliveryKind === "already_member") {
+        util.notifyAlreadyMember(e.record)
+    }
     if (was !== now && (now === "approved" || now === "rejected")) {
         try {
-            util.notifyInviteDecision(e.record, now, e.auth)
+            util.notifyInviteDecision(e.record, now, e.auth, deliveryKind)
         } catch (err) {
             console.error("[slack] decision webhook failed: " + err)
         }

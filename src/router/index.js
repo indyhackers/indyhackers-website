@@ -63,7 +63,7 @@ export const routes = [
       meta: {
         title: 'About',
         description:
-          "Learn about IndyHackers — Indiana's tech community since 2017: our meetups, our mission, and how to get involved."
+          "Learn about IndyHackers — Indiana's tech community since 2008: our meetups, our mission, and how to get involved."
       }
     },
     {

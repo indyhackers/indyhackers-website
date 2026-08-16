@@ -1,6 +1,6 @@
 services:
   indyhackers-redux:
-    image: indyhackers-${TARGETARCH:-amd64}:${VERSION}
+    image: indyhackers-${TARGETARCH:-amd64}:${VERSION:-dev}
     build:
       context: .
       args:
@@ -9,6 +9,11 @@ services:
         PB_VERSION: 0.39.4
         PB_ENV: development
     container_name: pocketbase
+    # Hooks read config via $os.getenv (GOOGLE_API_KEY, SLACK_*, SITE_URL, ...).
+    # Compose only uses .env for ${VAR} interpolation in this file, so the values
+    # have to be passed into the container explicitly.
+    env_file:
+      - .env
     environment:
       NODE_ENV: development
     restart: unless-stopped

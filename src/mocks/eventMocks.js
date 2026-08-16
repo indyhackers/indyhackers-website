@@ -146,7 +146,13 @@ const EVENT_DEFS = [
     title: 'IndyPy: Python in Production',
     description: 'Talks on deploying Python services: FastAPI microservices, async patterns, and observability with OpenTelemetry.',
     location: 'Formstack, 8604 Allisonville Rd, Indianapolis, IN 46250',
-    topics: ['top_python', 'top_web']
+    topics: ['top_python', 'top_web'],
+    // A user-owned, published event: the dev admin owns it, so it shows up
+    // editable under /events/mine.
+    source: 'user',
+    owner: 'devadmin',
+    submitted_by: 'devadmin',
+    locked: true
   },
   {
     id: 'evt_devops',
@@ -166,7 +172,13 @@ const EVENT_DEFS = [
     title: 'Indy Data Engineering Night',
     description: 'Postgres at scale, dbt pipelines, and analytics engineering war stories.',
     location: 'Resultant, 201 N Illinois St, Indianapolis, IN 46204',
-    topics: ['top_data']
+    topics: ['top_data'],
+    // A user submission awaiting board approval: hidden from the public
+    // calendar, shown as "Pending review" under /events/mine and in the admin
+    // approvals queue.
+    source: 'user',
+    submitted_by: 'devadmin',
+    approved: false
   }
 ]
 
@@ -186,6 +198,13 @@ const eventRecords = EVENT_DEFS.map((e) => {
     ends_at: e.end ? iso(e.date, e.end) : '',
     all_day: false,
     status: 'confirmed',
+    // Ownership / moderation fields (added by migration 031). Default to a
+    // vetted, published Google event unless the def overrides.
+    source: e.source || 'google',
+    approved: e.approved !== undefined ? e.approved : true,
+    owner: e.owner || '',
+    submitted_by: e.submitted_by || '',
+    locked: e.locked || false,
     topics,
     raw: {},
     synced_at: iso(e.date, '00:00'),
@@ -199,10 +218,33 @@ const eventRecords = EVENT_DEFS.map((e) => {
   return record
 })
 
+// A pending ownership claim so the /admin/events "Ownership claims" section has
+// something to grant/deny in dev. Expanded so the admin table shows names.
+const ownershipRequests = [
+  {
+    id: 'oreq_llm',
+    collectionId: 'event_ownership_requests',
+    collectionName: 'event_ownership_requests',
+    event: 'evt_llm',
+    requested_by: 'user_planner',
+    status: 'pending',
+    note: "I run the AI & ML Indy group and would like to keep this event's details current.",
+    created: '2026-06-15T14:00:00Z',
+    expand: {
+      event: eventRecords.find((e) => e.id === 'evt_llm'),
+      requested_by: { id: 'user_planner', name: 'Pat Planner', email: 'pat@example.com' }
+    }
+  }
+]
+
 // Keyed exactly like mocks.json entries: { collection, items }.
 export const eventMocks = {
   topics: { collection: { name: 'topics' }, items: topicRecords },
   event_series: { collection: { name: 'event_series' }, items: [meetupSeries] },
   events: { collection: { name: 'events' }, items: eventRecords },
-  subscriptions: { collection: { name: 'subscriptions' }, items: [] }
+  subscriptions: { collection: { name: 'subscriptions' }, items: [] },
+  event_ownership_requests: {
+    collection: { name: 'event_ownership_requests' },
+    items: ownershipRequests
+  }
 }

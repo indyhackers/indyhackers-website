@@ -75,7 +75,19 @@ export const createApp = ViteSSG(
         const list = Array.isArray(roles) ? roles : [roles]
         return list.some((r) => (typeof r === 'object' ? r?.name : r) === 'admin')
       }
+      // Routes that need a signed-in user but not the admin role (event
+      // submission and the "my events" dashboard).
+      const requiresAuth = (path) => path === '/events/submit' || path === '/events/mine'
+
       router.beforeEach(async (to) => {
+        // Signed-in-only routes: any valid session is enough.
+        if (requiresAuth(to.path)) {
+          if (!pocketbase.authStore.isValid) {
+            return { name: 'Login', query: { redirect: to.fullPath } }
+          }
+          return true
+        }
+
         if (!to.path.startsWith('/admin')) return true
 
         // Not signed in at all → login (preserving the destination).

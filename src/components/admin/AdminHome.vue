@@ -36,6 +36,11 @@ const tools = [
     desc: 'Review and publish jobs submitted to the board.'
   },
   {
+    to: '/admin/events',
+    title: 'Events',
+    desc: 'Approve submitted events, grant ownership claims, and edit the calendar.'
+  },
+  {
     // Direct link to PocketBase's own admin console. Sign in there with a real
     // superuser account (created via `pocketbase superuser create` or the
     // INITIAL_ADMIN_* seed) — the app no longer mints superuser tokens.

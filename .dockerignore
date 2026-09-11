@@ -1,0 +1,20 @@
+# Build the image from source only — deps are installed and the app is built
+# fresh inside the image. Keeping the context small speeds up the build and
+# avoids copying local/dev artifacts (and secrets) into it.
+.git
+node_modules
+dist
+dist-ssr
+.vite-ssg-temp
+
+# Local database + test/tooling output
+pb/data
+coverage
+test-results
+playwright-report
+
+# Env files and logs — never bake secrets into the image
+.env
+.env.*
+!.env.example
+*.log

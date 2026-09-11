@@ -15,6 +15,7 @@ node_modules
 .DS_Store
 dist
 dist-ssr
+.vite-ssg-temp
 coverage
 *.local
 .env

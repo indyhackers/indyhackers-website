@@ -6,7 +6,7 @@
       <div class="about-hero__columns">
         <div class="about-hero__story">
           <p>
-            In 2017, a few Ruby developers in Indianapolis started meeting for coffee.
+            In 2008, a few Ruby developers in Indianapolis started meeting for coffee.
             No agenda, no sponsors, just people who liked building things and wanted to
             know who else was doing the same.
           </p>

@@ -8,19 +8,14 @@
 </template>
 
 <script>
-import { BCard, BForm, BFormGroup, BFormInput, BButton } from 'bootstrap-vue-next'
+import { BCard } from 'bootstrap-vue-next'
 
 export default {
-  components: { BCard, BForm, BFormGroup, BFormInput, BButton },
+  components: { BCard },
   props: {
     title: {
       type: String,
       required: true
-    }
-  },
-  methods: {
-    handleSubmit() {
-      // Handle form submission
     }
   }
 }
@@ -28,15 +23,10 @@ export default {
 
 <style>
 .auth-layout {
-  justify-content: center;
-  width: 40vw;
+  width: 100%;
+  max-width: 28rem;
   margin: 0 auto;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  transition:
-    background-color 0.3s,
-    color 0.3s;
+  padding: 2rem 1rem;
 }
 
 .auth-card {

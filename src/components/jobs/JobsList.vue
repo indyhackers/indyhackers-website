@@ -8,7 +8,7 @@
         while published.
       </p>
       <div class="mt-3 mb-2">
-        <create-job-modal />
+        <router-link to="/jobs/new" class="ih-btn-primary">Add New Job</router-link>
       </div>
       <div v-for="job in jobs" :key="job.id" class="mb-3 mt-3">
         <b-card :title="job.title" class="job-card" @click="viewJob(job)"
@@ -24,7 +24,6 @@
 
 <script>
 import { defineComponent } from 'vue'
-import CreateJobModal from './CreateJobModal.vue'
 
 export default defineComponent({
   name: 'JobBoard',
@@ -33,7 +32,6 @@ export default defineComponent({
       jobs: []
     }
   },
-  components: [CreateJobModal],
   methods: {
     async fetchJobs() {
       try {
@@ -41,7 +39,7 @@ export default defineComponent({
         const jobs = await this.pocketbase.collection('jobs').getList(
           1, 100,{
             sort: '-approved_at',
-            filter: `approved = true && approved_at != "" && approved_at >= "${cutoff}"`
+            filter: `approved = true && filled != true && approved_at != "" && approved_at >= "${cutoff}"`
         })
         this.jobs = jobs.items
       } catch (error) {

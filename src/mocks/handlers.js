@@ -6,21 +6,184 @@ import { eventMocks } from './eventMocks'
 // Resolve a collection from the events mock data first, then mocks.json.
 const collectionData = (name) => eventMocks[name] || mocks[name]
 
+// The PocketBase SDK switches to multipart as soon as a payload carries a File
+// (event cover images), so the generic record handlers can't assume JSON.
+// Uploaded files become a blob: URL, which is enough for the dev UI to render
+// the cover it just "saved".
+const readRecordBody = async (request) => {
+  const type = request.headers.get('content-type') || ''
+  if (!type.includes('multipart/form-data')) {
+    return JSON.parse(await request.text())
+  }
+  const form = await request.formData()
+  const body = {}
+  for (const [key, value] of form.entries()) {
+    if (typeof value !== 'string') {
+      body[key] = URL.createObjectURL(value)
+      continue
+    }
+    // Repeated keys are how multipart encodes an array (e.g. topics).
+    if (key in body) body[key] = [].concat(body[key], value)
+    else body[key] = value
+  }
+  return body
+}
+
 // In-memory Slack invite queue for dev (seeded with a couple of pending rows).
 const mockDisposable = ['mailinator.com', 'guerrillamail.com', '10minutemail.com', 'yopmail.com']
 const mockSlackInvites = [
-  { id: 'inv1', email: 'newdev@gmail.com', status: 'pending', country: 'US', ip: '73.12.44.8', created: '2026-06-15T01:10:00Z', first_name: 'Jordan', last_name: 'Lee', indiana_connection: 'Grew up in Bloomington, now building a startup in Indy.', city_region: 'Indianapolis, IN', linkedin: 'https://linkedin.com/in/jordanlee', github: 'https://github.com/jlee', coc_agreed: true, signals: { country: 'US', in_indiana: true, disposable: false, captcha_ok: true, captcha_score: 0.9, captcha_min_score: 0.5, browser_timezone: 'America/New_York', browser_same_tz_as_indy: true, tz_mismatch: false, geo: { city: 'Indianapolis', region: 'Indiana', region_code: 'IN', continent: 'NA', postal: '46204', metro_code: '527', metro_name: 'Indianapolis, IN', timezone: 'America/Indiana/Indianapolis', same_tz_as_indy: true, lat: '39.7684', lon: '-86.1581', isp: 'Comcast Cable Communications', org: 'Comcast Cable Communications', asn: 'AS7922' } } },
-  { id: 'inv2', email: 'visitor@example.org', status: 'pending', country: 'CA', ip: '24.55.1.9', created: '2026-06-15T01:35:00Z', first_name: 'Sam', last_name: 'Rivera', indiana_connection: 'Relocating to Fort Wayne next month for a new role.', city_region: 'Fort Wayne, IN', linkedin: '', github: 'github.com/srivera', coc_agreed: true, signals: { country: 'CA', in_indiana: false, disposable: false, captcha_ok: false, captcha_score: 0.3, captcha_min_score: 0.5, browser_timezone: 'America/New_York', browser_same_tz_as_indy: true, tz_mismatch: true, geo: { city: 'Vancouver', region: 'British Columbia', region_code: 'BC', continent: 'NA', postal: 'V6B', timezone: 'America/Vancouver', same_tz_as_indy: false, lat: '49.2827', lon: '-123.1207', isp: 'DigitalOcean, LLC', org: 'DigitalOcean, LLC', asn: 'AS14061' } } },
+  {
+    id: 'inv1',
+    email: 'newdev@gmail.com',
+    status: 'pending',
+    country: 'US',
+    ip: '73.12.44.8',
+    created: '2026-06-15T01:10:00Z',
+    first_name: 'Jordan',
+    last_name: 'Lee',
+    indiana_connection: 'Grew up in Bloomington, now building a startup in Indy.',
+    city_region: 'Indianapolis, IN',
+    linkedin: 'https://linkedin.com/in/jordanlee',
+    github: 'https://github.com/jlee',
+    coc_agreed: true,
+    signals: {
+      country: 'US',
+      in_indiana: true,
+      disposable: false,
+      captcha_ok: true,
+      captcha_score: 0.9,
+      captcha_min_score: 0.5,
+      browser_timezone: 'America/New_York',
+      browser_same_tz_as_indy: true,
+      tz_mismatch: false,
+      geo: {
+        city: 'Indianapolis',
+        region: 'Indiana',
+        region_code: 'IN',
+        continent: 'NA',
+        postal: '46204',
+        metro_code: '527',
+        metro_name: 'Indianapolis, IN',
+        timezone: 'America/Indiana/Indianapolis',
+        same_tz_as_indy: true,
+        lat: '39.7684',
+        lon: '-86.1581',
+        isp: 'Comcast Cable Communications',
+        org: 'Comcast Cable Communications',
+        asn: 'AS7922'
+      }
+    }
+  },
+  {
+    id: 'inv2',
+    email: 'visitor@example.org',
+    status: 'pending',
+    country: 'CA',
+    ip: '24.55.1.9',
+    created: '2026-06-15T01:35:00Z',
+    first_name: 'Sam',
+    last_name: 'Rivera',
+    indiana_connection: 'Relocating to Fort Wayne next month for a new role.',
+    city_region: 'Fort Wayne, IN',
+    linkedin: '',
+    github: 'github.com/srivera',
+    coc_agreed: true,
+    signals: {
+      country: 'CA',
+      in_indiana: false,
+      disposable: false,
+      captcha_ok: false,
+      captcha_score: 0.3,
+      captcha_min_score: 0.5,
+      browser_timezone: 'America/New_York',
+      browser_same_tz_as_indy: true,
+      tz_mismatch: true,
+      geo: {
+        city: 'Vancouver',
+        region: 'British Columbia',
+        region_code: 'BC',
+        continent: 'NA',
+        postal: 'V6B',
+        timezone: 'America/Vancouver',
+        same_tz_as_indy: false,
+        lat: '49.2827',
+        lon: '-123.1207',
+        isp: 'DigitalOcean, LLC',
+        org: 'DigitalOcean, LLC',
+        asn: 'AS14061'
+      }
+    }
+  },
   // Auto-eligible request whose Slack invite failed and fell back to the queue —
   // exercises the card's auto-invite error banner. `error` is what the backend
   // stores when slackInviteOutcome() comes back not-ok.
-  { id: 'inv3', email: 'already.member@gmail.com', status: 'pending', auto: false, error: 'That email is already a member of the Slack workspace — no invite was sent.', country: 'US', ip: '99.8.7.6', created: '2026-06-15T02:05:00Z', first_name: 'Casey', last_name: 'Nguyen', indiana_connection: 'Longtime Indy resident, work downtown.', city_region: 'Indianapolis, IN', linkedin: '', github: '', coc_agreed: true, signals: { country: 'US', in_indiana: true, disposable: false, captcha_ok: true, captcha_score: 0.8, captcha_min_score: 0.5, browser_timezone: 'America/Indiana/Indianapolis', browser_same_tz_as_indy: true, tz_mismatch: false, geo: { city: 'Indianapolis', region: 'Indiana', region_code: 'IN', continent: 'NA', postal: '46202', timezone: 'America/Indiana/Indianapolis', same_tz_as_indy: true, lat: '39.7684', lon: '-86.1581' } } }
+  {
+    id: 'inv3',
+    email: 'already.member@gmail.com',
+    status: 'pending',
+    auto: false,
+    error: 'That email is already a member of the Slack workspace — no invite was sent.',
+    country: 'US',
+    ip: '99.8.7.6',
+    created: '2026-06-15T02:05:00Z',
+    first_name: 'Casey',
+    last_name: 'Nguyen',
+    indiana_connection: 'Longtime Indy resident, work downtown.',
+    city_region: 'Indianapolis, IN',
+    linkedin: '',
+    github: '',
+    coc_agreed: true,
+    signals: {
+      country: 'US',
+      in_indiana: true,
+      disposable: false,
+      captcha_ok: true,
+      captcha_score: 0.8,
+      captcha_min_score: 0.5,
+      browser_timezone: 'America/Indiana/Indianapolis',
+      browser_same_tz_as_indy: true,
+      tz_mismatch: false,
+      geo: {
+        city: 'Indianapolis',
+        region: 'Indiana',
+        region_code: 'IN',
+        continent: 'NA',
+        postal: '46202',
+        timezone: 'America/Indiana/Indianapolis',
+        same_tz_as_indy: true,
+        lat: '39.7684',
+        lon: '-86.1581'
+      }
+    }
+  }
 ]
 
 // Pending (unapproved) jobs for the job-approval admin screen in dev.
 const mockPendingJobs = [
-  { id: 'job-p1', collectionId: 'jobs', collectionName: 'jobs', title: 'Senior Rails Engineer', company: 'Acme Co', salary_min: 120, salary_max: 160, approved: false, created: '2026-06-15T00:30:00Z', description: '<p>Build things with Rails.</p>' },
-  { id: 'job-p2', collectionId: 'jobs', collectionName: 'jobs', title: 'Frontend Developer (Vue)', company: 'Startup XYZ', salary_min: 90, salary_max: 120, approved: false, created: '2026-06-15T01:05:00Z', description: '<p>Make great UIs.</p>' }
+  {
+    id: 'job-p1',
+    collectionId: 'jobs',
+    collectionName: 'jobs',
+    title: 'Senior Rails Engineer',
+    company: 'Acme Co',
+    salary_min: 120,
+    salary_max: 160,
+    approved: false,
+    created: '2026-06-15T00:30:00Z',
+    description: '<p>Build things with Rails.</p>'
+  },
+  {
+    id: 'job-p2',
+    collectionId: 'jobs',
+    collectionName: 'jobs',
+    title: 'Frontend Developer (Vue)',
+    company: 'Startup XYZ',
+    salary_min: 90,
+    salary_max: 120,
+    approved: false,
+    created: '2026-06-15T01:05:00Z',
+    description: '<p>Make great UIs.</p>'
+  }
 ]
 
 // In-memory job used by the self-service manage endpoints during local dev.
@@ -40,6 +203,14 @@ let manageJob = {
 }
 
 export const handlers = [
+  // Event cover images. PocketBase serves uploads from /api/files/...; in dev
+  // there is no file store, so point the one seeded cover (and any image
+  // "uploaded" through the event form) at a real asset so the grid shows a
+  // photo card next to the generated ones.
+  http.get('/api/files/events/:id/:filename', () => {
+    return HttpResponse.redirect('/images/meetups.png', 302)
+  }),
+
   // Slack join page + approval queue. No site key in dev, so the form skips
   // reCAPTCHA. With no Cloudflare country header in dev, requests aren't
   // auto-approved — they land in the pending queue, so you can exercise the
@@ -58,7 +229,10 @@ export const handlers = [
       return HttpResponse.json({ message: 'Please enter a valid email address.' }, { status: 400 })
     }
     if (mockDisposable.some((d) => email.endsWith('@' + d))) {
-      return HttpResponse.json({ message: 'Please use a non-disposable email address.' }, { status: 400 })
+      return HttpResponse.json(
+        { message: 'Please use a non-disposable email address.' },
+        { status: 400 }
+      )
     }
     mockSlackInvites.unshift({
       id: 'inv' + (mockSlackInvites.length + 1),
@@ -85,7 +259,13 @@ export const handlers = [
   // mocked here so the screen works without a backend.
   http.get('/api/collections/slack_invites/records', () => {
     const items = mockSlackInvites.filter((i) => i.status === 'pending')
-    return HttpResponse.json({ page: 1, perPage: 100, totalItems: items.length, totalPages: 1, items })
+    return HttpResponse.json({
+      page: 1,
+      perPage: 100,
+      totalItems: items.length,
+      totalPages: 1,
+      items
+    })
   }),
   http.patch('/api/collections/slack_invites/records/:id', async ({ params, request }) => {
     const patch = await request.json().catch(() => ({}))
@@ -118,7 +298,12 @@ export const handlers = [
     // must be a real JWT with a future `exp` or the session won't stick.
     const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
     const payload = btoa(
-      JSON.stringify({ id: 'devadmin', type: 'auth', collectionId: '_pb_users_auth_', exp: 4102444800 })
+      JSON.stringify({
+        id: 'devadmin',
+        type: 'auth',
+        collectionId: '_pb_users_auth_',
+        exp: 4102444800
+      })
     )
     return HttpResponse.json({
       token: `${header}.${payload}.dev-signature`,
@@ -141,18 +326,26 @@ export const handlers = [
     let items = all
     if (/approved\s*=\s*false/.test(filter)) items = all.filter((j) => !j.approved)
     else if (/approved\s*=\s*true/.test(filter)) items = all.filter((j) => j.approved)
-    return HttpResponse.json({ page: 1, perPage: 100, totalItems: items.length, totalPages: 1, items })
+    return HttpResponse.json({
+      page: 1,
+      perPage: 100,
+      totalItems: items.length,
+      totalPages: 1,
+      items
+    })
   }),
   http.get('/api/collections/jobs/records/:id', ({ params }) => {
     const base = (mocks['jobs'] && mocks['jobs'].items) || []
-    const rec = mockPendingJobs.find((j) => j.id === params.id) || base.find((j) => j.id === params.id)
+    const rec =
+      mockPendingJobs.find((j) => j.id === params.id) || base.find((j) => j.id === params.id)
     if (!rec) return HttpResponse.json({ message: 'Not found' }, { status: 404 })
     return HttpResponse.json(rec)
   }),
   http.patch('/api/collections/jobs/records/:id', async ({ params, request }) => {
     const patch = await request.json().catch(() => ({}))
     const base = (mocks['jobs'] && mocks['jobs'].items) || []
-    const rec = mockPendingJobs.find((j) => j.id === params.id) || base.find((j) => j.id === params.id)
+    const rec =
+      mockPendingJobs.find((j) => j.id === params.id) || base.find((j) => j.id === params.id)
     if (!rec) return HttpResponse.json({ message: 'Not found' }, { status: 404 })
     Object.assign(rec, patch)
     return HttpResponse.json(rec)
@@ -202,8 +395,7 @@ export const handlers = [
   http.post('/api/collections/:collection/records', async ({ params, request }) => {
     const { collection } = params
 
-    let body = await request.text()
-    let newRecord = JSON.parse(body)
+    let newRecord = await readRecordBody(request)
 
     collectionData(collection).items.push(newRecord)
     return HttpResponse.json(newRecord)
@@ -211,8 +403,7 @@ export const handlers = [
   http.patch('/api/collections/:collection/records/:id', async ({ params, request }) => {
     const { collection, id } = params
 
-    let body = await request.text()
-    let recordUpdate = JSON.parse(body)
+    let recordUpdate = await readRecordBody(request)
 
     let recordToUpdate = collectionData(collection).items.find((el) => el.id === id)
     //merge fields of recordUpdate and recordToUpdate

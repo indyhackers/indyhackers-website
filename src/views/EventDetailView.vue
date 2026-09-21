@@ -10,6 +10,13 @@
 
       <div v-else-if="event" class="event-detail__grid">
         <article class="event-detail__main">
+          <img
+            v-if="event.image"
+            class="event-detail__cover"
+            :src="event.image"
+            :alt="`Cover image for ${event.title}`"
+          />
+
           <div v-if="event.topics.length" class="event-detail__topics">
             <TopicBadge v-for="topic in event.topics" :key="topic.id" :topic="topic" />
           </div>
@@ -27,15 +34,14 @@
             </div>
           </dl>
 
-          <div
-            v-if="event.description"
-            class="event-detail__desc"
-            v-html="sanitized"
-          ></div>
+          <EventLocationMap
+            class="event-detail__map"
+            :lat="event.lat"
+            :lng="event.lng"
+            :location="event.location"
+          />
 
-          <div v-if="event.url" class="event-detail__cal-link">
-            <a :href="event.url" target="_blank" rel="noopener">View on Google Calendar</a>
-          </div>
+          <div v-if="event.description" class="event-detail__desc" v-html="sanitized"></div>
         </article>
 
         <aside class="event-detail__aside">
@@ -43,16 +49,14 @@
             <template v-if="event.series">
               <h2 class="event-detail__card-title">Reminders</h2>
               <p class="event-detail__card-sub">
-                This is a recurring event. Subscribe to get an email before each occurrence.
+                {{ scheduleSentence }}
+                Subscribe to get an email before each occurrence.
               </p>
               <ReminderToggle :series="event.series" />
             </template>
             <template v-else>
               <h2 class="event-detail__card-title">One-off event</h2>
-              <p class="event-detail__card-sub">
-                Reminders are available for recurring events. Add this one to your calendar from the
-                Google Calendar link.
-              </p>
+              <p class="event-detail__card-sub">Reminders are available for recurring events.</p>
             </template>
           </div>
 
@@ -96,6 +100,9 @@ import { useRoute } from 'vue-router'
 import DOMPurify from 'dompurify'
 import TopicBadge from '@/components/events/TopicBadge.vue'
 import ReminderToggle from '@/components/events/ReminderToggle.vue'
+import EventLocationMap from '@/components/events/EventLocationMap.vue'
+import { hasCoordinates } from '@/composables/useEvents'
+import { recurrenceLabel } from '@/recurrence'
 
 const route = useRoute()
 const pocketbase = inject('pocketbase')
@@ -131,6 +138,15 @@ async function claim() {
   }
 }
 
+// Cover images need the client's baseURL; a failure here just means no cover.
+function fileUrl(record, filename, queryParams) {
+  try {
+    return pocketbase.files.getURL(record, filename, queryParams) || ''
+  } catch {
+    return ''
+  }
+}
+
 function normalize(record) {
   const expand = record.expand || {}
   const series = expand.event_series || null
@@ -143,8 +159,15 @@ function normalize(record) {
     start: record.starts_at,
     end: record.ends_at || null,
     isAllDay: !!record.all_day,
+    image: record.image ? fileUrl(record, record.image, { thumb: '1280x720f' }) : '',
+    // Geocoded server-side (geocode.pb.js). hasCoordinates rejects the 0,0 that
+    // PocketBase reports for an unset number field.
+    lat: hasCoordinates(record) ? record.lat : null,
+    lng: hasCoordinates(record) ? record.lng : null,
     owner: record.owner || '',
-    series: series ? { id: series.id, title: series.title } : null,
+    series: series
+      ? { id: series.id, title: series.title, recurrence: series.recurrence || null }
+      : null,
     topics: (expand.topics || []).map((t) => ({
       id: t.id,
       name: t.name,
@@ -154,6 +177,19 @@ function normalize(record) {
     }))
   }
 }
+
+// "Every 3rd Wednesday", when the series' recurrence rule has been synced.
+const scheduleLabel = computed(() =>
+  event.value?.series ? recurrenceLabel(event.value.series.recurrence, event.value.start) : ''
+)
+
+// "This event repeats every 2nd Wednesday." — only the leading "Every" drops
+// its capital; the weekday keeps its own.
+const scheduleSentence = computed(() => {
+  const label = scheduleLabel.value
+  if (!label) return 'This is a recurring event.'
+  return `This event repeats ${label.charAt(0).toLowerCase()}${label.slice(1)}.`
+})
 
 const whenLabel = computed(() => {
   if (!event.value) return ''
@@ -203,6 +239,15 @@ onMounted(load)
 <style scoped>
 .event-detail {
   padding: 2.5rem 0 4rem;
+}
+
+.event-detail__cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  margin-bottom: 1.5rem;
 }
 
 .event-detail__back {
@@ -273,6 +318,11 @@ onMounted(load)
   color: var(--text-primary);
 }
 
+.event-detail__map {
+  display: block;
+  margin: 1.5rem 0;
+}
+
 .event-detail__desc {
   margin-top: 1.5rem;
   color: var(--text-secondary);
@@ -283,16 +333,6 @@ onMounted(load)
 .event-detail__desc:deep(a) {
   color: var(--accent-deep);
   text-decoration: underline;
-}
-
-.event-detail__cal-link {
-  margin-top: 1.5rem;
-}
-
-.event-detail__cal-link a {
-  color: var(--accent-cool);
-  font-weight: 600;
-  font-size: 0.875rem;
 }
 
 .event-detail__card {

@@ -1,45 +1,45 @@
 <template>
   <section class="calendar-hero">
-    <div class="ih-container">
-      <h1>Event Calendar</h1>
-      <p class="calendar-hero__sub">Meetups, workshops, and community events across Indiana tech.</p>
+    <div class="ih-container calendar-hero__inner">
+      <div>
+        <h1 class="calendar-hero__title">Indy Tech Events</h1>
+        <p class="calendar-hero__sub">Meetups, workshops, and community events across Indiana.</p>
+      </div>
+
+      <RouterLink class="ih-btn-primary calendar-hero__cta" to="/events/submit">
+        Submit an Event
+      </RouterLink>
     </div>
   </section>
 
   <section class="calendar-page">
     <div class="ih-container calendar-page__layout">
-      <!-- Sidebar -->
-      <aside class="calendar-page__sidebar">
-        <TopicFilters :topics="topics" :selected-slug="selectedSlug" @select="selectTopic" />
-
-        <div class="calendar-actions">
-          <RouterLink class="ih-btn-primary" to="/events/submit">Submit an Event</RouterLink>
-          <a
-            class="ih-btn-outline"
-            target="_blank"
-            href="https://docs.google.com/forms/d/e/1FAIpQLSdlfIqF42uU8iyoYyqKDFPEYRsNCOCFYpFJwMTvdVOkK3otSg/viewform?usp=sf_link"
-          >Recommend an Event</a>
-          <a
-            class="ih-btn-outline"
-            href="webcal://calendar.google.com/calendar/ical/ig7e0j6v8ub9q6kga256n77048%40group.calendar.google.com/public/basic.ics"
-          >Subscribe to Calendar</a>
-        </div>
-      </aside>
-
-      <!-- Main -->
       <div class="calendar-page__main">
         <div class="calendar-page__controls">
-          <div class="tabs">
-            <button
-              class="tabs__btn"
-              :class="{ 'tabs__btn--active': view === 'list' }"
-              @click="view = 'list'"
-            >List</button>
-            <button
-              class="tabs__btn"
-              :class="{ 'tabs__btn--active': view === 'calendar' }"
-              @click="view = 'calendar'"
-            >Calendar</button>
+          <div class="calendar-page__controls-group">
+            <div class="tabs">
+              <button
+                class="tabs__btn"
+                :class="{ 'tabs__btn--active': view === 'map' }"
+                @click="view = 'map'"
+              >
+                Map
+              </button>
+              <button
+                class="tabs__btn"
+                :class="{ 'tabs__btn--active': view === 'calendar' }"
+                @click="view = 'calendar'"
+              >
+                Calendar
+              </button>
+            </div>
+
+            <!-- Filters both views: the map legend and the month grid read from
+                 the same filtered list. -->
+            <label class="calendar-recurring">
+              <input v-model="showRecurring" type="checkbox" class="calendar-recurring__box" />
+              Show recurring events
+            </label>
           </div>
 
           <input
@@ -52,7 +52,9 @@
         </div>
 
         <p v-if="loading" class="calendar-page__state">Loading events…</p>
-        <p v-else-if="error" class="calendar-page__state calendar-page__state--error">{{ error }}</p>
+        <p v-else-if="error" class="calendar-page__state calendar-page__state--error">
+          {{ error }}
+        </p>
 
         <template v-else>
           <CalendarGrid
@@ -64,8 +66,18 @@
             @next="changeMonth(1)"
             @today="goToday"
           />
-          <EventList v-else :groups="listGroups" />
+          <EventMap v-else :events="visibleEvents" />
         </template>
+
+        <!-- Subscribing pulls the whole calendar into your own, so it belongs
+             with the month view rather than the map. -->
+        <p v-if="view === 'calendar'" class="calendar-subscribe">
+          <a
+            class="calendar-subscribe__link"
+            href="webcal://calendar.google.com/calendar/ical/ig7e0j6v8ub9q6kga256n77048%40group.calendar.google.com/public/basic.ics"
+            >Subscribe to this calendar</a
+          >
+        </p>
       </div>
     </div>
   </section>
@@ -73,40 +85,51 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import TopicFilters from './events/TopicFilters.vue'
 import CalendarGrid from './events/CalendarGrid.vue'
-import EventList from './events/EventList.vue'
+import EventMap from './events/EventMap.vue'
 import {
   useEvents,
   filterEvents,
-  upcomingByDay,
+  upcomingEvents,
+  collapseSeries,
   buildMonthGrid
 } from '@/composables/useEvents'
 
-const { events, topics, loading, error, fetchAll } = useEvents()
+const { events, loading, error, fetchAll } = useEvents()
 
-const view = ref('list')
-const selectedSlug = ref(null)
+// The map is the landing view: it answers "what's on near me" at a glance, and
+// its legend already lists every upcoming event. The month grid stays a click
+// away for anyone looking at a particular date.
+const view = ref('map')
 const query = ref('')
+// On by default, so the calendar shows everything until someone narrows it.
+const showRecurring = ref(true)
 const month = ref(startOfMonth(new Date()))
 
 function startOfMonth(date) {
   return new Date(date.getFullYear(), date.getMonth(), 1)
 }
 
-const filtered = computed(() =>
-  filterEvents(events.value, { topicSlug: selectedSlug.value, query: query.value })
-)
+const filtered = computed(() => {
+  const matched = filterEvents(events.value, { query: query.value })
+  // Applied to the shared base so the map and the month grid can't disagree
+  // about what is on show.
+  return showRecurring.value ? matched : matched.filter((event) => !event.seriesId)
+})
 
-const listGroups = computed(() => upcomingByDay(filtered.value))
+// One entry per recurring series rather than one per occurrence. The month grid
+// below keeps every occurrence, since a calendar should mark each date the
+// event actually happens.
+const visibleEvents = computed(() => collapseSeries(upcomingEvents(filtered.value)))
 const grid = computed(() => buildMonthGrid(month.value, filtered.value))
 
-function selectTopic(slug) {
-  selectedSlug.value = slug
-}
-
 function changeMonth(delta) {
-  month.value = new Date(month.value.getFullYear(), month.value.getMonth() + delta, 1)
+  const next = new Date(month.value.getFullYear(), month.value.getMonth() + delta, 1)
+  // The sync only covers the current month onward, so earlier months would
+  // always render empty. CalendarGrid disables the arrow too; this is the
+  // invariant behind it.
+  if (next < startOfMonth(new Date())) return
+  month.value = next
 }
 
 function goToday() {
@@ -121,9 +144,27 @@ onMounted(fetchAll)
   padding: 3rem 0 1.5rem;
 }
 
-.calendar-hero h1 {
-  font-size: clamp(2rem, 4vw, 3rem);
-  margin-bottom: 1rem;
+.calendar-hero__inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.calendar-hero__cta {
+  flex-shrink: 0;
+}
+
+/* An h1 for document structure — search engines and screen readers both expect
+   the page's one top-level heading here — but sized like the h2 it replaced, so
+   the hero stays visually subordinate to the map below it. Matches the global
+   h2 metrics rather than the much larger default h1. */
+.calendar-hero__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.5rem;
 }
 
 .calendar-hero__sub {
@@ -136,23 +177,24 @@ onMounted(fetchAll)
   padding: 0 0 4rem;
 }
 
+/* Single column since the topic filters went: the map wants the full width,
+   and the actions read better as a footer row than a stub of a sidebar. */
 .calendar-page__layout {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 2rem;
-  align-items: start;
+  display: block;
 }
 
-.calendar-page__sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+.calendar-subscribe {
+  margin: 1rem 0 0;
+  text-align: right;
 }
 
-.calendar-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.calendar-subscribe__link {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.calendar-subscribe__link:hover {
+  color: var(--text-primary);
 }
 
 .calendar-page__controls {
@@ -162,6 +204,30 @@ onMounted(fetchAll)
   gap: 1rem;
   margin-bottom: 1.25rem;
   flex-wrap: wrap;
+}
+
+.calendar-page__controls-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.calendar-recurring {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.calendar-recurring__box {
+  width: 0.9375rem;
+  height: 0.9375rem;
+  accent-color: var(--accent-brand);
+  cursor: pointer;
 }
 
 .tabs {
@@ -214,12 +280,8 @@ onMounted(fetchAll)
 }
 
 @media (max-width: 768px) {
-  .calendar-page__layout {
-    grid-template-columns: 1fr;
-  }
-
-  .calendar-page__sidebar {
-    order: 2;
+  .calendar-subscribe {
+    text-align: left;
   }
 }
 </style>

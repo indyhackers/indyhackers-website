@@ -50,7 +50,11 @@ function matchTerms(topic) {
 }
 
 function topicsForEvent(record, topics) {
-  const text = [record.getString('title'), record.getString('description'), record.getString('location')]
+  const text = [
+    record.getString('title'),
+    record.getString('description'),
+    record.getString('location')
+  ]
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
@@ -61,9 +65,24 @@ function topicsForEvent(record, topics) {
 
 // --- Google Calendar fetch ---------------------------------------------------
 
+// The range the sync is responsible for.
+//
+// It starts at the first of the current month, not at `now`: the month grid
+// shows a whole month at a time, and anchoring to the current instant left
+// every day before today empty. The end stays `windowDays` ahead of now.
+//
+// fetchItems and pruneMissingEvents share this so they cannot drift — a feed
+// wider than the prune window would strand deleted events, and a narrower one
+// would delete events the feed never had a chance to return.
+function syncWindow(cfg, now) {
+  return {
+    timeMin: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
+    timeMax: new Date(now.getTime() + cfg.windowDays * 24 * 60 * 60 * 1000).toISOString()
+  }
+}
+
 function fetchItems(cfg, now) {
-  const timeMin = now.toISOString()
-  const timeMax = new Date(now.getTime() + cfg.windowDays * 24 * 60 * 60 * 1000).toISOString()
+  const { timeMin, timeMax } = syncWindow(cfg, now)
 
   const items = []
   let pageToken = ''
@@ -120,27 +139,82 @@ function parseTimes(item) {
   return null
 }
 
-function findOrCreateSeries(item, result) {
+// The instance items we sync carry no RRULE — `singleEvents=true` expands a
+// recurring event and the rule stays on the master. Fetch the master once per
+// series to read it. A failure here is not fatal: the series simply keeps no
+// recurrence and the UI falls back to a plain "Recurring" badge.
+function fetchRecurrence(cfg, recurringId) {
+  const url =
+    'https://www.googleapis.com/calendar/v3/calendars/' +
+    encodeURIComponent(cfg.calendarId) +
+    '/events/' +
+    encodeURIComponent(recurringId) +
+    '?key=' +
+    encodeURIComponent(cfg.apiKey)
+
+  try {
+    const res = $http.send({ url: url, method: 'GET', timeout: 30 })
+    if (res.statusCode !== 200) {
+      console.log(
+        '[calendar_sync] recurrence lookup for ' + recurringId + ' returned ' + res.statusCode
+      )
+      return null
+    }
+    const recurrence = (res.json || {}).recurrence
+    return Array.isArray(recurrence) && recurrence.length ? recurrence : null
+  } catch (err) {
+    console.log('[calendar_sync] recurrence lookup for ' + recurringId + ' failed: ' + err)
+    return null
+  }
+}
+
+function findOrCreateSeries(cfg, item, result) {
   const recurringId = item.recurringEventId
   if (!recurringId) return ''
 
   const collection = $app.findCollectionByNameOrId('event_series')
   let series
   try {
-    series = $app.findFirstRecordByFilter('event_series', 'google_series_id = {:gid}', { gid: recurringId })
+    series = $app.findFirstRecordByFilter('event_series', 'google_series_id = {:gid}', {
+      gid: recurringId
+    })
   } catch (_) {
     series = new Record(collection)
     series.set('google_series_id', recurringId)
     series.set('title', item.summary || '')
+    const recurrence = fetchRecurrence(cfg, recurringId)
+    if (recurrence) series.set('recurrence', recurrence)
     $app.save(series)
     result.series += 1
     return series.id
   }
+
+  let dirty = false
   if (!series.getString('title') && item.summary) {
     series.set('title', item.summary)
-    $app.save(series)
+    dirty = true
   }
+  // Backfill rows that predate the recurrence field, and retry series whose
+  // earlier lookup failed. One extra request per series per sync until it
+  // sticks; series that already have a rule cost nothing.
+  if (!seriesHasRecurrence(series)) {
+    const recurrence = fetchRecurrence(cfg, recurringId)
+    if (recurrence) {
+      series.set('recurrence', recurrence)
+      dirty = true
+    }
+  }
+  if (dirty) $app.save(series)
   return series.id
+}
+
+// The JSON field reads back as an array, or as its raw string on some driver
+// paths; treat anything non-empty as present.
+function seriesHasRecurrence(series) {
+  const value = series.get('recurrence')
+  if (Array.isArray(value)) return value.length > 0
+  if (typeof value === 'string') return value !== '' && value !== 'null' && value !== '[]'
+  return !!value
 }
 
 function deleteByGoogleId(gid) {
@@ -161,7 +235,7 @@ function deleteByGoogleId(gid) {
   return removed
 }
 
-function processItem(item, topics, eventsCollection, result) {
+function processItem(cfg, item, topics, eventsCollection, result) {
   if (item.status === 'cancelled') {
     result.deleted += deleteByGoogleId(item.id)
     return
@@ -170,7 +244,7 @@ function processItem(item, topics, eventsCollection, result) {
   const times = parseTimes(item)
   if (!times) return
 
-  const seriesId = findOrCreateSeries(item, result)
+  const seriesId = findOrCreateSeries(cfg, item, result)
 
   let record
   let wasNew = false
@@ -215,6 +289,188 @@ function processItem(item, topics, eventsCollection, result) {
   else result.updated += 1
 }
 
+// --- Geocoding backfill ------------------------------------------------------
+
+// How many addresses one run may resolve. Bounded so a large first-time backlog
+// is spread over several hourly runs rather than making one of them enormous —
+// which matters most with the Nominatim provider, capped at one request per
+// second.
+const GEOCODE_BACKFILL_DEFAULT = 50
+
+// Events whose address still has no coordinates, soonest first.
+//
+// processItem() only geocodes rows the sync itself writes, which leaves two
+// permanent gaps: `locked` rows (claimed or edited in-app) are skipped by the
+// sync entirely, and user-submitted events never appear in the Google feed at
+// all. Neither would ever pick up coordinates without someone re-saving it by
+// hand, so the sync sweeps for them directly.
+//
+// Scoped to upcoming events, since those are the only ones the map plots.
+// Addresses that came back as a definitive miss are not retried: needsGeocode()
+// is false once the attempt is recorded, and the map lists them under "Not on
+// the map" so the address can be corrected — which re-arms this on its own.
+// `retryMisses` also re-asks for addresses that previously came back with no
+// match. Those are cached deliberately (so a bad address isn't re-queried every
+// hour), but a miss is only as good as the geocoder that produced it — after
+// switching providers or enabling a Google key, they deserve another look.
+function pendingGeocodes(limit, retryMisses) {
+  const geo = require(`${__hooks}/geocode_util.js`)
+
+  // Cheap filter in SQL; the address-vs-resolved-address comparison is done in
+  // JS so it stays in one place (geocode_util.needsGeocode).
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+
+  let candidates = []
+  try {
+    candidates = $app.findRecordsByFilter(
+      'events',
+      "location != '' && starts_at >= {:from}",
+      'starts_at',
+      // Over-fetch so rows already resolved don't crowd out unresolved ones.
+      limit * 10,
+      0,
+      { from: startOfToday.toISOString() }
+    )
+  } catch (err) {
+    console.log('[calendar_sync] geocode backfill query failed: ' + err)
+    return []
+  }
+
+  return candidates
+    .filter((record) => {
+      if (geo.needsGeocode(record)) return true
+      // A resolved address with no point is a remembered miss. lat is never
+      // legitimately 0 here — null island is rejected as invalid.
+      return retryMisses && !record.get('lat')
+    })
+    .slice(0, limit)
+}
+
+// `limitOverride` lets the `backfill-geocodes` console command drain a large
+// backlog in one go instead of waiting out the per-run cap.
+function backfillGeocodes(result, limitOverride, retryMisses) {
+  const geo = require(`${__hooks}/geocode_util.js`)
+
+  const configured = parseInt(limitOverride || $os.getenv('GEOCODE_BACKFILL_LIMIT'), 10)
+  const limit = configured > 0 ? configured : GEOCODE_BACKFILL_DEFAULT
+
+  const pending = pendingGeocodes(limit, retryMisses)
+  if (!pending.length) return
+
+  pending.forEach((record) => {
+    const beforeAddress = record.getString('geocoded_address')
+    const beforeLat = record.get('lat')
+
+    // Re-asking a remembered miss leaves the resolved address identical, so it
+    // can't act as the "did anything happen?" signal on its own. Clearing it
+    // first turns it into one: applyGeocode writes it back on any settled
+    // outcome and leaves it empty when it couldn't reach the provider.
+    if (retryMisses) record.set('geocoded_address', '')
+
+    try {
+      geo.applyGeocode(record)
+    } catch (err) {
+      console.log('[calendar_sync] geocode failed for ' + record.id + ': ' + err)
+      record.set('geocoded_address', beforeAddress)
+      return
+    }
+
+    // Couldn't reach the provider: put the cache key back and leave the row for
+    // a later run, rather than saving and having the record hook spend a second
+    // request on the same address.
+    if (record.getString('geocoded_address') === '') {
+      record.set('geocoded_address', beforeAddress)
+      return
+    }
+
+    // Nothing actually moved — a miss that is still a miss. Skip the write.
+    const changed =
+      record.getString('geocoded_address') !== beforeAddress || record.get('lat') !== beforeLat
+    if (!changed) return
+
+    try {
+      $app.save(record)
+      result.geocoded += 1
+    } catch (err) {
+      console.log('[calendar_sync] could not save coordinates for ' + record.id + ': ' + err)
+    }
+  })
+
+  if (pending.length === limit) {
+    console.log('[calendar_sync] geocode backfill hit its ' + limit + '-per-run cap; more remain')
+  }
+}
+
+// --- Reconciliation ----------------------------------------------------------
+
+// Delete synced rows the calendar no longer has.
+//
+// processItem's `status === 'cancelled'` branch only fires for events Google
+// actively reports as cancelled — and it never does here. With
+// `singleEvents=true` and `showDeleted` unset (its default is false), a deleted
+// event is omitted from the feed entirely rather than returned as cancelled. So
+// without this pass, anything removed from the Google Calendar lingers in the
+// database forever and keeps showing on the site.
+//
+// Scoped tightly, because this is the one part of the sync that destroys data:
+//
+//   - `source = 'google'`  — never touches events submitted through the app,
+//                            which were never in the feed to begin with.
+//   - `locked = false`     — a claimed or edited row is database-authoritative,
+//                            the same rule processItem and deleteByGoogleId use.
+//   - inside the window    — an event outside syncWindow() was never a candidate
+//                            for this feed, so its absence means nothing. Note
+//                            timeMin filters Google on *end* time, so an event
+//                            already under way can have a starts_at below the
+//                            window and is left alone.
+//
+// `CALENDAR_PRUNE=off` disables it.
+function pruneMissingEvents(cfg, now, seenIds, feedSize, result) {
+  if ($os.getenv('CALENDAR_PRUNE') === 'off') {
+    console.log('[calendar_sync] CALENDAR_PRUNE=off — skipping reconciliation')
+    return
+  }
+
+  // An empty feed is indistinguishable from a wrong calendar id, a revoked key,
+  // or an API hiccup that answered 200 with nothing. Declining to prune costs a
+  // stale row; pruning on a bad response would empty the calendar.
+  if (!feedSize) {
+    console.log('[calendar_sync] feed returned no events — skipping reconciliation')
+    return
+  }
+
+  const { timeMin, timeMax } = syncWindow(cfg, now)
+
+  let candidates = []
+  try {
+    candidates = $app.findRecordsByFilter(
+      'events',
+      "source = 'google' && locked = false && starts_at >= {:from} && starts_at <= {:to}",
+      'starts_at',
+      0,
+      0,
+      { from: timeMin, to: timeMax }
+    )
+  } catch (err) {
+    console.log('[calendar_sync] reconciliation query failed: ' + err)
+    return
+  }
+
+  candidates.forEach((record) => {
+    const gid = record.getString('google_event_id')
+    // A synced row with no Google id can't be matched against the feed, so it
+    // is never a prune candidate.
+    if (!gid || seenIds[gid]) return
+    try {
+      $app.delete(record)
+      result.pruned += 1
+    } catch (err) {
+      console.log('[calendar_sync] could not remove stale event ' + record.id + ': ' + err)
+    }
+  })
+}
+
 // --- Entry point -------------------------------------------------------------
 
 function syncCalendar() {
@@ -223,11 +479,31 @@ function syncCalendar() {
   if (!cfg.calendarId) throw new Error('GOOGLE_CALENDAR_ID is not set')
 
   const now = new Date()
-  const result = { created: 0, updated: 0, deleted: 0, skipped: 0, series: 0 }
+  const result = {
+    created: 0,
+    updated: 0,
+    deleted: 0,
+    pruned: 0,
+    skipped: 0,
+    series: 0,
+    geocoded: 0
+  }
   const topics = $app.findAllRecords('topics')
   const eventsCollection = $app.findCollectionByNameOrId('events')
 
-  fetchItems(cfg, now).forEach((item) => processItem(item, topics, eventsCollection, result))
+  const items = fetchItems(cfg, now)
+  // The ids the calendar currently holds, used to spot rows it no longer has.
+  const seenIds = {}
+  items.forEach((item) => {
+    if (item.status !== 'cancelled') seenIds[item.id] = true
+    processItem(cfg, item, topics, eventsCollection, result)
+  })
+
+  pruneMissingEvents(cfg, now, seenIds, items.length, result)
+
+  // Runs after the feed so freshly created events are included, and outside the
+  // per-item path so it also reaches locked and user-submitted events.
+  backfillGeocodes(result)
 
   const summary =
     result.created +
@@ -235,13 +511,26 @@ function syncCalendar() {
     result.updated +
     ' updated, ' +
     result.deleted +
-    ' removed, ' +
+    ' cancelled, ' +
+    result.pruned +
+    ' pruned, ' +
     result.skipped +
     ' skipped (locked), ' +
     result.series +
-    ' new series'
+    ' new series, ' +
+    result.geocoded +
+    ' geocoded'
   console.log('[calendar_sync] ' + summary)
   return result
 }
 
-module.exports = { syncCalendar }
+// Resolve addresses that still have no coordinates, without touching the
+// Google feed. Backs the `backfill-geocodes` console command.
+function geocodePendingEvents(limitOverride, retryMisses) {
+  const result = { geocoded: 0 }
+  backfillGeocodes(result, limitOverride, retryMisses)
+  console.log('[calendar_sync] geocode backfill: ' + result.geocoded + ' geocoded')
+  return result
+}
+
+module.exports = { syncCalendar, geocodePendingEvents, pruneMissingEvents }

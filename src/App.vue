@@ -75,7 +75,7 @@ export default {
   mounted() {
     // Givebutter floating donate widget
     const widget = document.createElement('givebutter-widget')
-    widget.setAttribute('id', 'pdVAqB')
+    widget.setAttribute('id', 'gOKqKJ')
     document.body.appendChild(widget)
 
     const script = document.createElement('script')

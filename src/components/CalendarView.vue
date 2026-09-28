@@ -20,17 +20,17 @@
             <div class="tabs">
               <button
                 class="tabs__btn"
-                :class="{ 'tabs__btn--active': view === 'map' }"
-                @click="view = 'map'"
-              >
-                Map
-              </button>
-              <button
-                class="tabs__btn"
                 :class="{ 'tabs__btn--active': view === 'calendar' }"
                 @click="view = 'calendar'"
               >
                 Calendar
+              </button>
+              <button
+                class="tabs__btn"
+                :class="{ 'tabs__btn--active': view === 'map' }"
+                @click="view = 'map'"
+              >
+                Map
               </button>
             </div>
 
@@ -97,10 +97,10 @@ import {
 
 const { events, loading, error, fetchAll } = useEvents()
 
-// The map is the landing view: it answers "what's on near me" at a glance, and
-// its legend already lists every upcoming event. The month grid stays a click
-// away for anyone looking at a particular date.
-const view = ref('map')
+// The month grid is the landing view: it answers "what's on when" at a glance.
+// The map stays a click away for anyone asking "what's near me" — and the home
+// page already carries a map of the recurring series.
+const view = ref('calendar')
 const query = ref('')
 // On by default, so the calendar shows everything until someone narrows it.
 const showRecurring = ref(true)

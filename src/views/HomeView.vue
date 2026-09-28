@@ -50,23 +50,49 @@
     </div>
   </section>
 
-  <!-- Upcoming Events -->
+  <!-- Upcoming Events (one-off only; recurring series live on the map below) -->
   <section class="events-section ih-full-bleed">
     <div class="ih-container">
-      <EventsView :limit="3" />
+      <EventsView
+        :events="events"
+        :loading="loading"
+        :error="error"
+        :limit="3"
+        @retry="fetchAll"
+      />
     </div>
   </section>
 
+  <!-- Recurring Events. Hidden until there's something to put on the map, so a
+       loading or failed fetch only shows its state once, in the list above. -->
+  <section v-if="recurringEvents.length" class="recurring-section">
+    <div class="ih-container">
+      <div class="recurring-section__header">
+        <h2>Recurring Events</h2>
+        <p class="recurring-section__sub">Regular meetups around Indy. Pick a pin to see details.</p>
+      </div>
+      <EventMap :events="recurringEvents" />
+    </div>
+  </section>
 </template>
-<script>
-import EventsView from '../components/EventsView.vue'
 
-export default {
-  name: 'HomeView',
-  components: {
-    EventsView
-  },
-}
+<script setup>
+import { computed, onMounted } from 'vue'
+import EventsView from '../components/EventsView.vue'
+import EventMap from '../components/events/EventMap.vue'
+import { useEvents, upcomingEvents, collapseSeries } from '@/composables/useEvents'
+
+// One fetch shared by both sections, split on whether an event belongs to a
+// series.
+const { events, loading, error, fetchAll } = useEvents()
+
+// One pin entry per series, at its next occurrence; the map labels each with
+// its cadence ("Every Tuesday at 6pm") rather than a date.
+const recurringEvents = computed(() =>
+  collapseSeries(upcomingEvents(events.value.filter((event) => event.seriesId)))
+)
+
+onMounted(fetchAll)
 </script>
 
 <style scoped>
@@ -154,6 +180,20 @@ export default {
   background: var(--surface-2);
   border-top: 1px solid color-mix(in srgb, var(--border) 10%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--border) 10%, transparent);
+}
+
+/* Recurring Events */
+.recurring-section {
+  padding: 4rem 0 5rem;
+}
+
+.recurring-section__header {
+  margin-bottom: 2rem;
+}
+
+.recurring-section__sub {
+  color: var(--text-secondary);
+  margin: 0;
 }
 
 @media (max-width: 768px) {

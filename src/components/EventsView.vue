@@ -14,7 +14,7 @@
     <b-alert v-else-if="error" variant="danger" show class="my-4">
       <h5>Unable to load events</h5>
       <p>{{ error }}</p>
-      <button class="ih-btn-outline" @click="fetchAll">Retry</button>
+      <button class="ih-btn-outline" @click="emit('retry')">Retry</button>
     </b-alert>
 
     <!-- No Events State -->
@@ -56,26 +56,32 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useHead } from '@unhead/vue'
 import { BAlert, BSpinner } from 'bootstrap-vue-next'
-import { useEvents } from '@/composables/useEvents'
 import { jsonLd, stripHtml, SITE_NAME, SITE_URL } from '@/seo'
 import EventListItem from '@/components/EventListItem.vue'
 
+// The parent owns the fetch so the home page can split one request between this
+// list and the recurring-events map.
 const props = defineProps({
+  events: { type: Array, required: true },
+  loading: { type: Boolean, default: false },
+  error: { type: String, default: null },
   limit: {
     type: Number,
     default: 5
   }
 })
 
-const { events, loading, error, fetchAll } = useEvents()
+const emit = defineEmits(['retry'])
 
 // The synced `events` collection holds past and future events; this widget only
 // shows upcoming ones (the old Google-Calendar path filtered with timeMin=now).
+// Recurring series are left out: they have their own map section on the home
+// page, and a weekly meetup would otherwise crowd one-off events off the list.
 const upcoming = computed(() =>
-  events.value.filter((e) => new Date(e.start) >= new Date())
+  props.events.filter((e) => !e.seriesId && new Date(e.start) >= new Date())
 )
 
 // Local pagination (previously provided by useCalendar): show `limit` at first,
@@ -120,10 +126,6 @@ useHead(
     script: eventsSchema.value.length ? [jsonLd(eventsSchema.value, 'ld-events')] : []
   }))
 )
-
-onMounted(() => {
-  fetchAll()
-})
 </script>
 
 <style scoped>

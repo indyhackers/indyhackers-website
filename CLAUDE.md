@@ -22,6 +22,11 @@ npm run test:e2e:headed  # Playwright with visible browser windows
 ```
 
 Run a single Vitest file: `npx vitest run src/components/jobs/JobListing.test.js`
+
+Vitest picks up frontend tests as `src/**/*.test.js` and PocketBase hook tests as
+`pb/hooks/**/*.spec.js` (those load the hook's CommonJS source directly — see
+`pb/hooks/__tests__/jobs_util.spec.js`).
+
 Run a single e2e test: `npm run test:e2e -- --project=chromium e2e/some.spec.js`
 
 CI runs `vitest` and `playwright` jobs on pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md#testing).
@@ -61,7 +66,9 @@ Mock data lives in `src/mocks/mocks.json`. To update it: edit data in PocketBase
 
 - `src/components/` — Vue components organized by feature (`jobs/`, `sponsors/`, `about/`)
 - `src/views/` — Route-level page components
-- `src/composables/` — Vue composables (`useEvents`, `useNewsletter`)
+- `src/composables/` — Vue composables (`useEvents`, `useNewsletter`) plus the
+  pure event helpers (`upcomingEvents`, `collapseSeries`, `groupByVenue`,
+  `buildMonthGrid`) the calendar views share
 - `src/mocks/` — MSW handlers and shared mock data
 - `src/stores/` — Pinia stores
 - `pb/hooks/` — PocketBase server-side JS hooks (`.pb.js` files; `.pb.js.dev` suffix = dev-only, stripped in production)
@@ -87,6 +94,10 @@ Mock data lives in `src/mocks/mocks.json`. To update it: edit data in PocketBase
 - `VITE_USE_MSW` — `true` enables MSW. Set only by `npm run dev:mock` and Playwright; unset everywhere else.
 - Events come from the PocketBase `events` collection (synced from Google
   Calendar by `pb/hooks/calendar_sync.js`), not a browser-side Google API key.
+  The calendar's map view keeps that property: tiles come from OpenStreetMap
+  via Leaflet (no key), and addresses are geocoded server-side by
+  `pb/hooks/geocode.pb.js` and cached on the event row. No Google key is ever
+  exposed to the browser.
 - Copy `.env.example` to `.env`. PocketBase does **not** read `.env` itself —
   `docker-compose.yaml` loads it via `env_file`, and hooks read values with
   `$os.getenv`. Running the bare binary requires `set -a; source .env; set +a` first.

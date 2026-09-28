@@ -3,9 +3,7 @@ import { test, expect } from '@playwright/test'
 test.describe('Smoke', () => {
   test('home page loads', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText(
-      "Indiana's tech community"
-    )
+    await expect(page.getByRole('heading', { level: 1 })).toContainText("Indiana's tech community")
   })
 
   test('login page loads', async ({ page }) => {
@@ -28,10 +26,23 @@ test.describe('Smoke', () => {
 
   test('calendar page loads', async ({ page }) => {
     await page.goto('/calendar')
-    await expect(page.getByRole('heading', { level: 1, name: 'Event Calendar' })).toBeVisible()
+    // level 1: the page's one top-level heading, styled down rather than demoted.
+    await expect(page.getByRole('heading', { level: 1, name: 'Indy Tech Events' })).toBeVisible()
     await expect(page.getByRole('searchbox', { name: 'Search events' })).toBeVisible()
-    // Topic filters come from MSW (static seed data) — not tied to upcoming event dates.
-    await expect(page.getByRole('button', { name: 'Python' })).toBeVisible()
+
+    // Map / Calendar tabs, with Map the landing view. Date independent: the tabs
+    // render whether or not the seed has upcoming events.
+    await expect(page.getByRole('button', { name: 'Map', exact: true })).toHaveClass(
+      /tabs__btn--active/
+    )
+    await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Grid', exact: true })).toHaveCount(0)
+
+    // The topic filter sidebar is gone; its calls to action are not.
+    await expect(page.getByRole('link', { name: 'Submit an Event' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Calendar', exact: true }).click()
+    await expect(page.locator('.cal')).toBeVisible()
   })
 
   test('slack page loads', async ({ page }) => {

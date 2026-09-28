@@ -28,6 +28,7 @@
     "bootstrap-vue-next": "^0.24.2",
     "dompurify": "^3.4.13",
     "jquery": "^3.7.1",
+    "leaflet": "^1.9.4",
     "pinia": "^2.1.7",
     "pocketbase": "^0.27.0",
     "shards-ui": "^1.1.2",

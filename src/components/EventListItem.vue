@@ -32,15 +32,7 @@
         v-html="sanitizeHtml(event.description)"
       ></div>
 
-      <a
-        v-if="event.link"
-        :href="event.link"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="event-row__link"
-      >
-        View in Calendar →
-      </a>
+      <RouterLink :to="`/event/${event.id}`" class="event-row__link">View details →</RouterLink>
     </div>
   </article>
 </template>

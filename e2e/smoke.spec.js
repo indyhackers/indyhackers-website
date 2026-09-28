@@ -30,19 +30,20 @@ test.describe('Smoke', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Indy Tech Events' })).toBeVisible()
     await expect(page.getByRole('searchbox', { name: 'Search events' })).toBeVisible()
 
-    // Map / Calendar tabs, with Map the landing view. Date independent: the tabs
-    // render whether or not the seed has upcoming events.
-    await expect(page.getByRole('button', { name: 'Map', exact: true })).toHaveClass(
+    // Calendar / Map tabs, with Calendar the landing view. Date independent: the
+    // tabs render whether or not the seed has upcoming events.
+    await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toHaveClass(
       /tabs__btn--active/
     )
-    await expect(page.getByRole('button', { name: 'Calendar', exact: true })).toBeVisible()
+    await expect(page.locator('.cal')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Map', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Grid', exact: true })).toHaveCount(0)
 
     // The topic filter sidebar is gone; its calls to action are not.
     await expect(page.getByRole('link', { name: 'Submit an Event' })).toBeVisible()
 
-    await page.getByRole('button', { name: 'Calendar', exact: true }).click()
-    await expect(page.locator('.cal')).toBeVisible()
+    await page.getByRole('button', { name: 'Map', exact: true }).click()
+    await expect(page.locator('.cal')).toHaveCount(0)
   })
 
   test('slack page loads', async ({ page }) => {

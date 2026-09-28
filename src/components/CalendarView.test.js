@@ -27,6 +27,12 @@ function mountCalendarView(props = {}) {
 
 const tabButton = (wrapper, label) => wrapper.findAll('button').find((b) => b.text() === label)
 
+// The page lands on the month grid; map tests switch over first.
+async function openMap(wrapper) {
+  await tabButton(wrapper, 'Map').trigger('click')
+  await flushPromises()
+}
+
 describe('CalendarView', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -47,19 +53,20 @@ describe('CalendarView', () => {
     expect(text).toContain('Indy .NET User Group')
   })
 
-  it('lands on the map view', async () => {
+  it('lands on the month calendar', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
 
-    expect(wrapper.find('.event-map__canvas').exists()).toBe(true)
-    expect(tabButton(wrapper, 'Map').classes()).toContain('tabs__btn--active')
+    expect(wrapper.find('.cal').exists()).toBe(true)
+    expect(wrapper.find('.event-map__canvas').exists()).toBe(false)
+    expect(tabButton(wrapper, 'Calendar').classes()).toContain('tabs__btn--active')
   })
 
-  it('offers only Map and Calendar tabs', async () => {
+  it('offers only Calendar and Map tabs, in that order', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
 
-    expect(wrapper.findAll('.tabs__btn').map((b) => b.text())).toEqual(['Map', 'Calendar'])
+    expect(wrapper.findAll('.tabs__btn').map((b) => b.text())).toEqual(['Calendar', 'Map'])
   })
 
   it('no longer shows the topic filter sidebar', async () => {
@@ -101,17 +108,16 @@ describe('CalendarView', () => {
     const wrapper = mountCalendarView()
     await flushPromises()
 
-    // Not on the map, which is where the page lands.
-    expect(wrapper.find('.calendar-subscribe').exists()).toBe(false)
-
-    await tabButton(wrapper, 'Calendar').trigger('click')
-    await flushPromises()
-
+    // On the month view, which is where the page lands.
     const link = wrapper.find('.calendar-subscribe__link')
     expect(link.exists()).toBe(true)
     expect(link.text()).toBe('Subscribe to this calendar')
     // A webcal: URL is what hands the feed to a calendar app.
     expect(link.attributes('href')).toMatch(/^webcal:\/\//)
+
+    // Not on the map.
+    await openMap(wrapper)
+    expect(wrapper.find('.calendar-subscribe').exists()).toBe(false)
   })
 
   describe('show recurring events', () => {
@@ -130,14 +136,14 @@ describe('CalendarView', () => {
       await flushPromises()
       expect(checkbox(wrapper).exists()).toBe(true)
 
-      await tabButton(wrapper, 'Calendar').trigger('click')
-      await flushPromises()
+      await openMap(wrapper)
       expect(checkbox(wrapper).exists()).toBe(true)
     })
 
     it('drops recurring events from the map, keeping one-offs', async () => {
       const wrapper = mountCalendarView()
       await flushPromises()
+      await openMap(wrapper)
 
       const titles = () => wrapper.findAll('.event-map__legend-title').map((t) => t.text())
       expect(titles()).toContain('Hackers Coffee')
@@ -155,8 +161,6 @@ describe('CalendarView', () => {
     it('drops recurring events from the month grid too', async () => {
       const wrapper = mountCalendarView()
       await flushPromises()
-      await tabButton(wrapper, 'Calendar').trigger('click')
-      await flushPromises()
 
       const chips = () => wrapper.findAll('.cal__chip').map((c) => c.text())
       expect(chips().some((c) => c.includes('Hackers Coffee'))).toBe(true)
@@ -171,6 +175,7 @@ describe('CalendarView', () => {
     it('brings them back when re-checked', async () => {
       const wrapper = mountCalendarView()
       await flushPromises()
+      await openMap(wrapper)
 
       await checkbox(wrapper).setValue(false)
       await flushPromises()
@@ -185,6 +190,7 @@ describe('CalendarView', () => {
   it('filters the map by search query', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
+    await openMap(wrapper)
 
     await wrapper.find('input[type="search"]').setValue('IndyPy')
     await flushPromises()
@@ -197,6 +203,7 @@ describe('CalendarView', () => {
   it('collapses a recurring series to one legend entry, labelled with its cadence', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
+    await openMap(wrapper)
 
     // The seed has two upcoming "Hackers Coffee" occurrences (Jun 17 and 24)
     // and two "IndyHackers Monthly Meetup" ones (Jun 10 past, Jul 8 upcoming).
@@ -213,6 +220,7 @@ describe('CalendarView', () => {
   it('lists events whose address could not be geocoded under the map', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
+    await openMap(wrapper)
 
     // evt_security is seeded without coordinates.
     expect(wrapper.find('.event-map__unmapped').text()).toContain('Indy Security & Privacy Forum')
@@ -220,9 +228,6 @@ describe('CalendarView', () => {
 
   it('keeps every occurrence on the month grid', async () => {
     const wrapper = mountCalendarView()
-    await flushPromises()
-
-    await tabButton(wrapper, 'Calendar').trigger('click')
     await flushPromises()
 
     // June 2026 holds both weekly coffee occurrences (the 17th and 24th),
@@ -236,8 +241,6 @@ describe('CalendarView', () => {
   it('shows every event on a day, with no hidden "+N more"', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
-    await tabButton(wrapper, 'Calendar').trigger('click')
-    await flushPromises()
 
     // Nothing is truncated behind a counter a reader cannot open.
     expect(wrapper.text()).not.toContain('more')
@@ -246,8 +249,6 @@ describe('CalendarView', () => {
 
   it('will not navigate back past the current month', async () => {
     const wrapper = mountCalendarView()
-    await flushPromises()
-    await tabButton(wrapper, 'Calendar').trigger('click')
     await flushPromises()
 
     // June 2026 is "now" under the fake timer.
@@ -265,8 +266,6 @@ describe('CalendarView', () => {
   it('navigates forward and back again, re-enabling the arrow', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
-    await tabButton(wrapper, 'Calendar').trigger('click')
-    await flushPromises()
 
     await wrapper.find('[aria-label="Next month"]').trigger('click')
     await flushPromises()
@@ -280,9 +279,13 @@ describe('CalendarView', () => {
     expect(wrapper.find('.cal__title').text()).toMatch(/June 2026/)
   })
 
-  it('switches to the month calendar', async () => {
+  it('switches to the map and back to the month calendar', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
+
+    await openMap(wrapper)
+    expect(wrapper.find('.event-map__canvas').exists()).toBe(true)
+    expect(wrapper.find('.cal').exists()).toBe(false)
 
     await tabButton(wrapper, 'Calendar').trigger('click')
     await flushPromises()

@@ -108,7 +108,11 @@ const eventsSchema = computed(() =>
         organizer: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL }
       }
       if (e.end) node.endDate = e.end
-      if (e.description) node.description = stripHtml(e.description)
+      // Google flags Events without a description, so fall back to one built
+      // from the event itself when it's empty (or only markup, e.g. "<p></p>").
+      node.description =
+        stripHtml(e.description) ||
+        `${e.title}${e.location ? ` at ${e.location}` : ''} — an Indianapolis tech event listed on ${SITE_NAME}.`
       if (e.link) node.url = e.link
       if (e.location) {
         node.eventAttendanceMode = 'https://schema.org/OfflineEventAttendanceMode'

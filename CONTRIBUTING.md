@@ -7,7 +7,7 @@ Thanks for helping improve the site. This is a living document—update it when 
 1. Clone the repo.
     - No push access? Fork it on GitHub, then clone your fork.
 2. Follow [README.md](README.md) for install, env setup, and local dev.
-3. **Backend work** (hooks, migrations, roles, admin): see [README — Backend development (PocketBase)](README.md#backend-development-pocketbase). Default `npm run dev` uses MSW mocks — no PocketBase container needed for frontend-only changes.
+3. **Local dev needs PocketBase running** — `npm run dev` proxies to it on `:8090` and will not work without it. Start it with `docker-compose up -d` and seed an empty database with `apply-mocks`: see [README — Backend development (PocketBase)](README.md#backend-development-pocketbase). This applies to frontend-only changes too.
 4. Branch from `dev` (ideally linked to a GitHub issue)
 5. Work locally until satisfied (don't forget tests!)
 6. Open a PR against `dev`
@@ -27,7 +27,7 @@ We use two complementary tools: **Vitest** for fast unit and component tests, **
 
 Commands: [README.md — Vitest](README.md#run-tests-with-vitest) and [Playwright](README.md#run-end-to-end-tests-with-playwright). CI on pull requests: [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) runs Vitest and Playwright (Chromium smoke tests).
 
-Vitest and Playwright currently use MSW — no Docker or PocketBase container is required to run tests locally or in CI. Containerized PocketBase integration tests are tracked in [#87](https://github.com/indyhackers/indyhackers-website/issues/87).
+Vitest and Playwright use MSW — no Docker or PocketBase container is required to run tests locally or in CI, even though normal development does need one. MSW is now scoped to tests only (`VITE_USE_MSW=true`); it does not intercept anything during `npm run dev`. Containerized PocketBase integration tests are tracked in [#87](https://github.com/indyhackers/indyhackers-website/issues/87).
 
 ### Vitest — default for most tests
 
@@ -43,8 +43,9 @@ Pure functions, single components, and anything you can mock with MSW or a Pocke
 - **Where:** `e2e/*.spec.js` (different tool, different suffix—[`vitest.config.js`](vitest.config.js) excludes `e2e/**`).
 - **Use for:** app shell loads, Vue Router resolves URLs, MSW service worker intercepts API calls in a real browser, critical public pages render.
 - **Do not use for:** logic already covered by Vitest, single-component CRUD, styling details, OAuth flows, or auth success/failure flows (until MSW auth handlers exist).
-- **Local:** `npm run test:e2e` — Playwright starts the Vite dev server automatically; MSW is active; no PocketBase container needed.
+- **Local:** `npm run test:e2e` — Playwright starts its own Vite server (`npm run dev:mock`) on port **5174** with MSW active; no PocketBase container needed. The separate port keeps it from reusing a real-backend dev server on 5173.
 - **CI:** `playwright` job on pull requests — Chromium only, same dev server + MSW setup as local.
+- **Reproducing a failure by hand:** `npm run dev:mock -- --port 5174`, then browse to `http://localhost:5174`.
 - **Debug:** `npm run test:e2e:ui` (interactive) or `npm run test:e2e:headed` (visible browser).
 
 The smoke suite ([`e2e/smoke.spec.js`](e2e/smoke.spec.js)) covers a curated set of public routes — that file is the source of truth. At the time of writing: home, login, signup, jobs, calendar, and slack. Keep e2e small; a flaky or duplicated e2e test is worse than none.

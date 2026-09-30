@@ -9,6 +9,17 @@
       </p>
 
       <div
+        v-if="message"
+        :key="messageKey"
+        ref="messageEl"
+        class="slack-admin__message"
+        role="status"
+        aria-live="polite"
+      >
+        {{ message }}
+      </div>
+
+      <div
         v-if="autoApprove !== null"
         class="slack-admin__mode"
         :class="autoApprove ? 'slack-admin__mode--on' : 'slack-admin__mode--off'"
@@ -162,14 +173,12 @@
           </div>
         </li>
       </ul>
-
-      <div v-if="message" class="slack-admin__message">{{ message }}</div>
     </div>
   </section>
 </template>
 
 <script setup>
-import { ref, inject, onMounted } from 'vue'
+import { ref, inject, onMounted, watch, nextTick } from 'vue'
 import AdminBar from './AdminBar.vue'
 
 const pocketbase = inject('pocketbase')
@@ -180,6 +189,21 @@ const authError = ref(false)
 const busyId = ref(null)
 const message = ref('')
 const autoApprove = ref(null) // null until /api/slack/config resolves
+
+// The feedback banner lives at the top of the page; when a new message appears
+// (after an approve/reject) scroll it into view and replay a brief highlight, so
+// a reviewer acting on a card far down the queue can't miss the result. The
+// changing :key remounts the element, which re-triggers its CSS attention
+// animation even when one message immediately replaces another.
+const messageEl = ref(null)
+const messageKey = ref(0)
+watch(message, async (val) => {
+  if (!val) return
+  messageKey.value++
+  await nextTick()
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  messageEl.value?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' })
+})
 
 const formatDate = (d) => {
   if (!d) return '—'
@@ -525,10 +549,34 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+/* Action feedback (approve/reject result). Sits at the top of the page as a
+   banner so it's actually seen — it used to render at the bottom where it was
+   routinely missed. */
 .slack-admin__message {
-  margin-top: 1.5rem;
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent-deep) 40%, transparent);
+  background: color-mix(in srgb, var(--accent-deep) 10%, transparent);
+  border-radius: var(--radius-md);
   font-family: var(--font-mono);
   font-size: 0.875rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  animation: slack-admin__message-flash 0.9s ease-out;
+}
+
+/* Brief highlight when the banner (re)appears, to draw the eye to the result. */
+@keyframes slack-admin__message-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-deep) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent-deep) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slack-admin__message {
+    animation: none;
+  }
 }
 </style>

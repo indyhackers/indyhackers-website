@@ -1,252 +1,184 @@
-<template>
-  <div class="content clearfix">
-    <div class="ih-container coc-body">
-      <h1>Indy Hackers Community Code of Conduct</h1>
+# Indy Hackers Community Code of Conduct
 
-      <h2>Our Mission</h2>
-      <p>
-        IndyHackers strives to help tech people in Indiana grow by fostering community connections
-        and celebrating individual successes.
-      </p>
-      <p>
-        Whether you're a student, founder, software engineer, designer, product manager, IT
-        professional, recruiter, hobbyist, or simply curious about technology, you're welcome here.
-      </p>
-      <p>
-        Participation in the Indy Hackers Slack workspace, events, meetups, online communities, and
-        other programs is conditioned on following this Code of Conduct.
-      </p>
-      <br />
+## Our Mission
 
-      <h2>Our Values</h2>
-      <p>We strive to build a community that is:</p>
-      <ul>
-        <li>Welcoming and inclusive</li>
-        <li>Respectful and professional</li>
-        <li>Curious and collaborative</li>
-        <li>Generous with knowledge</li>
-        <li>Supportive of people at all stages of their careers</li>
-        <li>Focused on strengthening the Indiana tech ecosystem</li>
-      </ul>
-      <p>Everyone contributes to creating this environment.</p>
-      <br />
+IndyHackers strives to help tech people in Indiana grow by fostering community connections and celebrating individual successes.
 
-      <h2>Expected Behavior</h2>
-      <p>Participants are expected to:</p>
-      <ul>
-        <li>Treat everyone with respect, professionalism, and kindness</li>
-        <li>Assume good intentions while remaining open to feedback</li>
-        <li>
-          Welcome people from different backgrounds, identities, experiences, skill levels, and
-          viewpoints
-        </li>
-        <li>Engage in constructive discussions, even when disagreeing</li>
-        <li>Share knowledge generously and help others learn</li>
-        <li>Respect personal boundaries</li>
-        <li>
-          Be mindful that not everyone attends events or participates online for the same reasons
-        </li>
-        <li>Follow directions from event organizers, volunteers, moderators, and board members</li>
-      </ul>
-      <br />
+Whether you're a student, founder, software engineer, designer, product manager, IT professional, recruiter, hobbyist, or simply curious about technology, you're welcome here.
 
-      <h2>Unacceptable Behavior</h2>
-      <p>
-        The following conduct is not permitted in any Indy Hackers space, including Slack, events,
-        social gatherings, or online communications associated with Indy Hackers.
-      </p>
+Participation in the Indy Hackers Slack workspace, events, meetups, online communities, and other programs is conditioned on following this Code of Conduct.
 
-      <h3>Harassment</h3>
-      <p>Harassment includes, but is not limited to:</p>
-      <ul>
-        <li>Offensive comments about protected characteristics or personal identity</li>
-        <li>Intimidation or threats</li>
-        <li>Stalking or unwanted following</li>
-        <li>Bullying or repeated personal attacks</li>
-        <li>Unwelcome sexual attention</li>
-        <li>Deliberate misgendering</li>
-        <li>Sustained disruption of conversations, presentations, or events</li>
-        <li>Inappropriate physical contact</li>
-        <li>Deliberately excluding or targeting others</li>
-        <li>Sharing someone's personal information without permission</li>
-      </ul>
+## Our Values
 
-      <h3>Discrimination and Hate Speech</h3>
-      <p>
-        We do not tolerate discrimination or hateful conduct based on characteristics including:
-      </p>
-      <ul>
-        <li>Race</li>
-        <li>Color</li>
-        <li>National origin</li>
-        <li>Ethnicity</li>
-        <li>Religion</li>
-        <li>Sex</li>
-        <li>Gender identity or expression</li>
-        <li>Sexual orientation</li>
-        <li>Age</li>
-        <li>Disability</li>
-        <li>Veteran status</li>
-        <li>Any other characteristic protected by law</li>
-      </ul>
+We strive to build a community that is:
 
-      <h3>Inappropriate Content</h3>
-      <p>Do not post or share:</p>
-      <ul>
-        <li>Pornographic or sexually explicit content</li>
-        <li>Graphic violence</li>
-        <li>Illegal content</li>
-        <li>Malware or malicious software</li>
-        <li>Content intended to harass or intimidate others</li>
-        <li>Spam or repetitive promotional messages</li>
-      </ul>
+- Welcoming and inclusive
+- Respectful and professional
+- Curious and collaborative
+- Generous with knowledge
+- Supportive of people at all stages of their careers
+- Focused on strengthening the Indiana tech ecosystem
 
-      <h3>Professional Conduct</h3>
-      <p>Indy Hackers is a professional community. Participants should not:</p>
-      <ul>
-        <li>Repeatedly solicit participants after being told "no"</li>
-        <li>Aggressively recruit or pressure attendees</li>
-        <li>Hijack discussions for self-promotion</li>
-        <li>Use the community primarily for advertising</li>
-        <li>Misrepresent themselves or their company</li>
-        <li>Impersonate another individual</li>
-      </ul>
-      <p>
-        Reasonable promotion, recruiting, showcasing projects, and discussing companies is welcome
-        when done respectfully and in the appropriate channels.
-      </p>
-      <br />
+Everyone contributes to creating this environment.
 
-      <h2>Slack Community Guidelines</h2>
-      <p>To help keep Slack useful for everyone:</p>
-      <ul>
-        <li>Post in the appropriate channels</li>
-        <li>Keep discussions relevant to the channel topic</li>
-        <li>Search before asking duplicate questions when practical</li>
-        <li>Avoid excessive tagging or direct messaging people you do not know</li>
-        <li>Respect moderators' requests regarding channel organization</li>
-        <li>Do not use automated tools or bots to spam participants</li>
-        <li>Do not scrape, harvest, or collect participant information without permission</li>
-        <li>Do not share private Slack conversations without the consent of everyone involved</li>
-      </ul>
-      <br />
+## Expected Behavior
 
-      <h2>Events</h2>
-      <p>Whether attending an in-person or virtual event:</p>
-      <ul>
-        <li>Be respectful of speakers, attendees, and venue staff</li>
-        <li>Silence devices when appropriate</li>
-        <li>Avoid disrupting presentations</li>
-        <li>Ask questions respectfully</li>
-        <li>Respect venue rules and follow staff instructions</li>
-        <li>Consume alcohol responsibly where served</li>
-        <li>
-          Obtain permission before photographing or recording individuals in close-up or where they
-          are the focus of the image
-        </li>
-        <li>Support each other in maintaining a safe environment</li>
-      </ul>
-      <br />
+Participants are expected to:
 
-      <h2>Recruiting and Job Posts</h2>
-      <p>
-        We welcome job postings and recruiting activity that benefits the Indiana tech community.
-        Recruiters and employers should:
-      </p>
-      <ul>
-        <li>Be transparent about the employer or client they represent</li>
-        <li>Accurately describe opportunities</li>
-        <li>Avoid repetitive posting</li>
-        <li>Respect participants who decline opportunities</li>
-        <li>Include compensation information whenever possible</li>
-      </ul>
-      <br />
+- Treat everyone with respect, professionalism, and kindness
+- Assume good intentions while remaining open to feedback
+- Welcome people from different backgrounds, identities, experiences, skill levels, and viewpoints
+- Engage in constructive discussions, even when disagreeing
+- Share knowledge generously and help others learn
+- Respect personal boundaries
+- Be mindful that not everyone attends events or participates online for the same reasons
+- Follow directions from event organizers, volunteers, moderators, and board members
 
-      <h2>Privacy</h2>
-      <p>Participants should respect one another's privacy. Please do not:</p>
-      <ul>
-        <li>Share another person's contact information without permission</li>
-        <li>Publish private conversations without consent</li>
-        <li>Record presentations or conversations where recording has been prohibited</li>
-        <li>
-          Use information learned through the community for harassment or unwanted solicitation
-        </li>
-      </ul>
-      <br />
+## Unacceptable Behavior
 
-      <h2>Reporting Concerns</h2>
-      <p>
-        If you experience or witness behavior that violates this Code of Conduct, please contact an
-        Indy Hackers board member or moderator as soon as possible or email
-        <a href="mailto:help@indyhackers.org">help@indyhackers.org</a>. You can also contact any of
-        the <a href="/about#the-board">current board members directly</a>.
-      </p>
-      <p>
-        Reports will be reviewed promptly and as confidentially as reasonably possible. Retaliation
-        against anyone who reports a concern or participates in an investigation is prohibited.
-      </p>
-      <p>
-        If there is an immediate threat to someone's safety, contact emergency services before
-        contacting Indy Hackers.
-      </p>
-      <br />
+The following conduct is not permitted in any Indy Hackers space, including Slack, events, social gatherings, or online communications associated with Indy Hackers.
 
-      <h2>Enforcement</h2>
-      <p>
-        The Board and designated moderators may take any action they determine is appropriate to
-        protect the community. Depending on the circumstances, actions may include:
-      </p>
-      <ul>
-        <li>Private conversation or coaching</li>
-        <li>Verbal or written warning</li>
-        <li>Removal of content</li>
-        <li>Temporary muting or suspension from Slack</li>
-        <li>Removal from an event without refund</li>
-        <li>Temporary suspension from community activities</li>
-        <li>Permanent removal from the Slack workspace and future Indy Hackers events</li>
-      </ul>
-      <p>
-        Serious or repeated violations may result in immediate removal without prior warning. Board
-        decisions regarding enforcement are final.
-      </p>
-      <br />
+### Harassment
 
-      <h2>Scope</h2>
-      <p>This Code of Conduct applies to:</p>
-      <ul>
-        <li>Indy Hackers Slack</li>
-        <li>Meetups</li>
-        <li>Conferences</li>
-        <li>Workshops</li>
-        <li>Social events</li>
-        <li>Virtual events</li>
-        <li>Board meetings involving community participants</li>
-        <li>Official Indy Hackers social media spaces</li>
-        <li>Any event or communication representing Indy Hackers</li>
-      </ul>
-      <p>
-        This Code also applies to behavior outside official community spaces when that behavior is
-        directed at community participants and reasonably impacts the safety or participation of the
-        Indy Hackers community.
-      </p>
-      <br />
+Harassment includes, but is not limited to:
 
-      <h2>A Shared Responsibility</h2>
-      <p>Creating a welcoming technology community is everyone's responsibility.</p>
-      <p>
-        By participating in Indy Hackers, you agree to follow this Code of Conduct, treat others
-        with respect, and help us build a community where everyone can learn, contribute, and
-        connect.
-      </p>
-    </div>
-  </div>
-</template>
+- Offensive comments about protected characteristics or personal identity
+- Intimidation or threats
+- Stalking or unwanted following
+- Bullying or repeated personal attacks
+- Unwelcome sexual attention
+- Deliberate misgendering
+- Sustained disruption of conversations, presentations, or events
+- Inappropriate physical contact
+- Deliberately excluding or targeting others
+- Sharing someone's personal information without permission
 
-<script setup></script>
+### Discrimination and Hate Speech
 
-<style scoped>
-.coc-body {
-  padding-top: 4rem;
-  padding-bottom: 4rem;
-}
-</style>
+We do not tolerate discrimination or hateful conduct based on characteristics including:
+
+- Race
+- Color
+- National origin
+- Ethnicity
+- Religion
+- Sex
+- Gender identity or expression
+- Sexual orientation
+- Age
+- Disability
+- Veteran status
+- Any other characteristic protected by law
+
+### Inappropriate Content
+
+Do not post or share:
+
+- Pornographic or sexually explicit content
+- Graphic violence
+- Illegal content
+- Malware or malicious software
+- Content intended to harass or intimidate others
+- Spam or repetitive promotional messages
+
+### Professional Conduct
+
+Indy Hackers is a professional community. Participants should not:
+
+- Repeatedly solicit participants after being told "no"
+- Aggressively recruit or pressure attendees
+- Hijack discussions for self-promotion
+- Use the community primarily for advertising
+- Misrepresent themselves or their company
+- Impersonate another individual
+
+Reasonable promotion, recruiting, showcasing projects, and discussing companies is welcome when done respectfully and in the appropriate channels.
+
+## Slack Community Guidelines
+
+To help keep Slack useful for everyone:
+
+- Post in the appropriate channels
+- Keep discussions relevant to the channel topic
+- Search before asking duplicate questions when practical
+- Avoid excessive tagging or direct messaging people you do not know
+- Respect moderators' requests regarding channel organization
+- Do not use automated tools or bots to spam participants
+- Do not scrape, harvest, or collect participant information without permission
+- Do not share private Slack conversations without the consent of everyone involved
+
+## Events
+
+Whether attending an in-person or virtual event:
+
+- Be respectful of speakers, attendees, and venue staff
+- Silence devices when appropriate
+- Avoid disrupting presentations
+- Ask questions respectfully
+- Respect venue rules and follow staff instructions
+- Consume alcohol responsibly where served
+- Obtain permission before photographing or recording individuals in close-up or where they are the focus of the image
+- Support each other in maintaining a safe environment
+
+## Recruiting and Job Posts
+
+We welcome job postings and recruiting activity that benefits the Indiana tech community. Recruiters and employers should:
+
+- Be transparent about the employer or client they represent
+- Accurately describe opportunities
+- Avoid repetitive posting
+- Respect participants who decline opportunities
+- Include compensation information whenever possible
+
+## Privacy
+
+Participants should respect one another's privacy. Please do not:
+
+- Share another person's contact information without permission
+- Publish private conversations without consent
+- Record presentations or conversations where recording has been prohibited
+- Use information learned through the community for harassment or unwanted solicitation
+
+## Reporting Concerns
+
+If you experience or witness behavior that violates this Code of Conduct, please contact an Indy Hackers board member or moderator as soon as possible or email [help@indyhackers.org](mailto:help@indyhackers.org). You can also contact any of the [current board members directly](/about#the-board).
+
+Reports will be reviewed promptly and as confidentially as reasonably possible. Retaliation against anyone who reports a concern or participates in an investigation is prohibited.
+
+If there is an immediate threat to someone's safety, contact emergency services before contacting Indy Hackers.
+
+## Enforcement
+
+The Board and designated moderators may take any action they determine is appropriate to protect the community. Depending on the circumstances, actions may include:
+
+- Private conversation or coaching
+- Verbal or written warning
+- Removal of content
+- Temporary muting or suspension from Slack
+- Removal from an event without refund
+- Temporary suspension from community activities
+- Permanent removal from the Slack workspace and future Indy Hackers events
+
+Serious or repeated violations may result in immediate removal without prior warning. Board decisions regarding enforcement are final.
+
+## Scope
+
+This Code of Conduct applies to:
+
+- Indy Hackers Slack
+- Meetups
+- Conferences
+- Workshops
+- Social events
+- Virtual events
+- Board meetings involving community participants
+- Official Indy Hackers social media spaces
+- Any event or communication representing Indy Hackers
+
+This Code also applies to behavior outside official community spaces when that behavior is directed at community participants and reasonably impacts the safety or participation of the Indy Hackers community.
+
+## A Shared Responsibility
+
+Creating a welcoming technology community is everyone's responsibility.
+
+By participating in Indy Hackers, you agree to follow this Code of Conduct, treat others with respect, and help us build a community where everyone can learn, contribute, and connect.

@@ -1,5 +1,7 @@
 # Indy Hackers Community Code of Conduct
 
+Last updated: September 1, 2026
+
 ## Our Mission
 
 IndyHackers strives to help tech people in Indiana grow by fostering community connections and celebrating individual successes.

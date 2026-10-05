@@ -1,55 +1,40 @@
-import { ref, computed } from 'vue'
+function decodeHtml(html) {
+  const txt = document.createElement('textarea')
+  txt.innerHTML = html
+  return txt.value
+}
+
+import { ref, computed, inject } from 'vue'
 
 export function useNewsletter({ initialCount = 3, loadMoreCount } = {}) {
+  const pocketbase = inject('pocketbase')
   const batchSize = loadMoreCount ?? initialCount
   const posts = ref([])
   const loading = ref(false)
   const error = ref(null)
 
-  const RSS_FEED_URL = 'https://buttondown.com/indyhackers/rss'
+  const fetchNewsletters = async (page = 1, perPage = 100) => {
+    if (!pocketbase) {
+      throw new Error('PocketBase client not injected')
+    }
+    const result = await pocketbase.collection('newsletters').getList(page, perPage, {
+      sort: '-published_at'
+    })
+    return result.items
+  }
 
   const fetchNewsletter = async () => {
     loading.value = true
     error.value = null
 
     try {
-      const response = await fetch(RSS_FEED_URL)
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch newsletter: ${response.status} ${response.statusText}`)
-      }
-
-      const xmlText = await response.text()
-      const parser = new DOMParser()
-      const xmlDoc = parser.parseFromString(xmlText, 'text/xml')
-
-      // Check for parsing errors
-      const parseError = xmlDoc.querySelector('parsererror')
-      if (parseError) {
-        throw new Error('Failed to parse RSS feed')
-      }
-
-      // Extract items from RSS feed
-      const items = xmlDoc.querySelectorAll('item')
-      posts.value = Array.from(items).map((item) => {
-        // Helper function to get text content safely
-        const getTextContent = (tagName) => {
-          const element = item.querySelector(tagName)
-          return element ? element.textContent : ''
-        }
-
-        // Extract description/content HTML
-        const description = getTextContent('description')
-
-        // Extract and parse pubDate
-        const pubDateStr = getTextContent('pubDate')
-        const pubDate = pubDateStr ? new Date(pubDateStr) : null
+      const newsletters = await fetchNewsletters()
+      posts.value = newsletters.map((newsletter) => {
+        const pubDate = newsletter.published_at ? new Date(newsletter.published_at) : null
 
         return {
-          title: getTextContent('title'),
-          link: getTextContent('link'),
-          description: description,
-          pubDate: pubDate,
+          ...newsletter,
+          pubDate,
           pubDateFormatted: pubDate
             ? pubDate.toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -57,7 +42,10 @@ export function useNewsletter({ initialCount = 3, loadMoreCount } = {}) {
                 day: 'numeric'
               })
             : '',
-          guid: getTextContent('guid')
+          guid: newsletter.slug || newsletter.id,
+          description: typeof document !== 'undefined'
+            ? decodeHtml(newsletter.excerpt || newsletter.description || '')
+            : (newsletter.excerpt || newsletter.description || '')
         }
       })
     } catch (err) {

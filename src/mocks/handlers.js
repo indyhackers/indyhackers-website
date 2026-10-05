@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw'
+import { http, HttpResponse, passthrough } from 'msw'
 
 import * as mocks from './mocks.json'
 import { eventMocks } from './eventMocks'
@@ -180,6 +180,9 @@ export const handlers = [
   }),
   http.get('/api/collections/:collection/records', ({ params }) => {
     const { collection } = params
+    if (collection === 'newsletters') {
+      return passthrough()
+    }
     const items = collectionData(collection).items
 
     const paginated = {
@@ -193,6 +196,9 @@ export const handlers = [
   }),
   http.get('/api/collections/:collection/records/:id', ({ params }) => {
     const { collection, id } = params
+    if (collection === 'newsletters') {
+      return passthrough()
+    }
     const record = collectionData(collection).items.find((el) => el.id === id)
     if (!record) {
       return HttpResponse.json({ code: 404, message: 'Not found' }, { status: 404 })

@@ -1,4 +1,5 @@
 <template>
+  <div class="newsletter-page">
   <section class="newsletter-hero">
     <div class="ih-container">
       <h1>Hacks &amp; Happenings</h1>
@@ -86,6 +87,7 @@
       </template>
     </div>
   </section>
+  </div>
 </template>
 
 <script setup>
@@ -93,7 +95,7 @@ import { ref, onMounted } from 'vue'
 import { useNewsletter } from '@/composables/useNewsletter'
 import DOMPurify from 'dompurify'
 
-const { posts, visiblePosts, hasMore, loadMore, loading, error, fetchNewsletter } = useNewsletter({ initialCount: 1, loadMoreCount: 10 })
+const { posts, visiblePosts, hasMore, loadMore, loading, error, fetchNewsletter } = useNewsletter({ initialCount: 5, loadMoreCount: 10 })
 
 const email = ref('')
 const submitting = ref(false)

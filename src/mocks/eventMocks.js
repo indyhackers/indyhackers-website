@@ -1,7 +1,8 @@
 // Dev-mode mock data for the events feature. MSW serves these for the
-// `events`, `topics`, `event_series`, and `subscriptions` collections so the
-// calendar works without a live PocketBase. Mirrors what the Google->PocketBase
-// sync hook would produce in production (events pre-tagged with topics).
+// `events`, `topics`, `event_series`, `subscriptions`, and `newsletters`
+// collections so the UI works without a live PocketBase. Mirrors what the
+// Google->PocketBase sync hook would produce in production (events pre-tagged
+// with topics).
 
 // --- Topics (subset of pb/migrations/024_seed_topics.js) ---------------------
 
@@ -204,5 +205,6 @@ export const eventMocks = {
   topics: { collection: { name: 'topics' }, items: topicRecords },
   event_series: { collection: { name: 'event_series' }, items: [meetupSeries] },
   events: { collection: { name: 'events' }, items: eventRecords },
-  subscriptions: { collection: { name: 'subscriptions' }, items: [] }
+  subscriptions: { collection: { name: 'subscriptions' }, items: [] },
+  newsletters: { collection: { name: 'newsletters' }, items: [] }
 }

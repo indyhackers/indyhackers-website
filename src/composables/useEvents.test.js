@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   buildMonthGrid,
   upcomingEvents,
+  upcomingByDay,
   collapseSeries,
   groupByVenue,
   markerLabel,
@@ -65,6 +66,35 @@ describe('useEvents helpers', () => {
 
   it('upcomingEvents drops past events and sorts chronologically', () => {
     expect(upcomingEvents(sample).map((e) => e.id)).toEqual(['c', 'a', 'b'])
+  })
+
+  describe('upcomingByDay', () => {
+    it('groups upcoming events by day, in order', () => {
+      const groups = upcomingByDay(sample)
+      expect(groups.map((g) => g.key)).toEqual([
+        dateKey('2026-06-16T10:00:00-04:00'),
+        dateKey('2026-06-18T18:00:00-04:00')
+      ])
+      expect(groups[0].events.map((e) => e.id)).toEqual(['c', 'a'])
+      expect(groups[0].label).toBe('Tuesday, June 16')
+    })
+
+    it('drops days already past', () => {
+      const past = { id: 'p', title: 'Old', start: '2026-06-10T18:00:00-04:00', topics: [] }
+      expect(upcomingByDay([past, ...sample]).flatMap((g) => g.events.map((e) => e.id))).toEqual([
+        'c',
+        'a',
+        'b'
+      ])
+    })
+
+    it('keeps every occurrence of a recurring series', () => {
+      const weekly = [
+        { id: 'w1', seriesId: 's', start: '2026-06-15T18:00:00-04:00', topics: [] },
+        { id: 'w2', seriesId: 's', start: '2026-06-22T18:00:00-04:00', topics: [] }
+      ]
+      expect(upcomingByDay(weekly)).toHaveLength(2)
+    })
   })
 
   describe('collapseSeries', () => {

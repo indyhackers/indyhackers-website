@@ -32,25 +32,50 @@
             v-for="date in week"
             :key="date.toISOString()"
             class="cal__cell"
-            :class="{ 'cal__cell--out': !inMonth(date) }"
+            :class="{
+              'cal__cell--out': !inMonth(date),
+              'cal__cell--selected': isSelected(date)
+            }"
           >
-            <div class="cal__daynum-wrap">
+            <!-- Mobile: the whole cell is a button showing the day number and a
+                 dot per event; tapping it lists that day under the grid, since
+                 the columns are too narrow to carry titles. -->
+            <button
+              type="button"
+              class="cal__daybtn"
+              :aria-pressed="isSelected(date)"
+              :aria-label="dayButtonLabel(date)"
+              @click="selectDay(date)"
+            >
+              <span class="cal__daynum-wrap">
+                <span
+                  class="cal__daynum"
+                  :class="{
+                    'cal__daynum--today': isToday(date),
+                    'cal__daynum--out': !inMonth(date)
+                  }"
+                >
+                  {{ date.getDate() }}
+                </span>
+              </span>
+              <span class="cal__dots">
+                <span
+                  v-for="event in dayEvents(date)"
+                  :key="event.id"
+                  class="cal__dot"
+                  :style="{ backgroundColor: dotColor(event) }"
+                />
+              </span>
+            </button>
+
+            <!-- Desktop: day number above the chips. -->
+            <div class="cal__daynum-wrap cal__daynum-wrap--desktop">
               <span
                 class="cal__daynum"
                 :class="{ 'cal__daynum--today': isToday(date), 'cal__daynum--out': !inMonth(date) }"
               >
                 {{ date.getDate() }}
               </span>
-            </div>
-
-            <!-- Mobile: colored dots -->
-            <div class="cal__dots">
-              <span
-                v-for="event in dayEvents(date)"
-                :key="event.id"
-                class="cal__dot"
-                :style="{ backgroundColor: dotColor(event) }"
-              />
             </div>
 
             <!-- Desktop: titled chips. Every event is listed — the cells are
@@ -77,6 +102,25 @@
           </div>
         </template>
       </div>
+
+      <!-- Mobile: the selected day's events, readable in full. -->
+      <section class="cal__agenda" aria-live="polite">
+        <h3 class="cal__agenda-title">{{ agendaLabel }}</h3>
+        <p v-if="!agendaEvents.length" class="cal__agenda-empty">No events on this day.</p>
+        <router-link
+          v-for="event in agendaEvents"
+          :key="event.id"
+          :to="`/event/${event.id}`"
+          class="cal__agenda-item"
+        >
+          <span class="cal__agenda-dot" :style="{ backgroundColor: dotColor(event) }" />
+          <span class="cal__agenda-body">
+            <span class="cal__agenda-time">{{ agendaTime(event) }}</span>
+            <span class="cal__agenda-name">{{ event.title }}</span>
+            <span v-if="event.location" class="cal__agenda-location">{{ event.location }}</span>
+          </span>
+        </router-link>
+      </section>
     </div>
 
     <!-- Hover/focus detail for a chip. Purely informational: the chip itself is
@@ -99,7 +143,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { dateKey } from '@/composables/useEvents'
 import { eventScheduleLabel } from '@/recurrence'
 
@@ -160,6 +204,72 @@ const maxDayEvents = computed(() => {
 // Handed to CSS rather than computed as a height here, so the stylesheet keeps
 // ownership of the chip metrics.
 const gridStyle = computed(() => ({ '--cal-max-events': String(maxDayEvents.value) }))
+
+// --- Selected day (mobile) ---------------------------------------------------
+
+// The day a reader tapped, or null for the default below. Cleared when the
+// month changes, so the default applies afresh to the new month.
+const selected = ref(null)
+
+watch(
+  () => props.month.getTime(),
+  () => {
+    selected.value = null
+  }
+)
+
+// Today when it's in view; otherwise the month's first day with events, so
+// paging forward shows something straight away; otherwise the 1st.
+const defaultDate = computed(() => {
+  if (isCurrentMonth.value) {
+    const now = new Date()
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  }
+  const monthDays = props.weeks.flat().filter(inMonth)
+  return monthDays.find((date) => dayEvents(date).length) || monthDays[0] || props.month
+})
+
+const activeDate = computed(() => selected.value || defaultDate.value)
+
+function selectDay(date) {
+  selected.value = date
+}
+
+function isSelected(date) {
+  return dateKey(date) === dateKey(activeDate.value)
+}
+
+const agendaEvents = computed(() => dayEvents(activeDate.value))
+
+const agendaLabel = computed(() =>
+  activeDate.value.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  })
+)
+
+// "June 16, 2 events" — the visible content is just a number and some dots.
+function dayButtonLabel(date) {
+  const day = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+  const count = dayEvents(date).length
+  if (!count) return `${day}, no events`
+  return `${day}, ${count} event${count === 1 ? '' : 's'}`
+}
+
+// "6:00 PM – 8:00 PM", or "All day".
+function agendaTime(event) {
+  if (event.isAllDay) return 'All day'
+  const start = new Date(event.start)
+  if (Number.isNaN(start.getTime())) return ''
+  const time = (d) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  let range = time(start)
+  if (event.end) {
+    const end = new Date(event.end)
+    if (!Number.isNaN(end.getTime())) range += ` – ${time(end)}`
+  }
+  return range
+}
 
 // --- Hover detail ------------------------------------------------------------
 
@@ -431,6 +541,85 @@ function chipTime(event) {
   color: color-mix(in srgb, var(--text-primary) 30%, transparent);
 }
 
+/* Mobile only; desktop swaps it for the plain day number and chips. */
+.cal__daybtn {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.cal__daynum-wrap--desktop {
+  display: none;
+}
+
+.cal__agenda {
+  padding: 0.875rem 1rem 1rem;
+}
+
+.cal__agenda-title {
+  margin: 0 0 0.625rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.cal__agenda-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.cal__agenda-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.625rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 10%, transparent);
+  text-decoration: none;
+}
+
+.cal__agenda-dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-full);
+  transform: translateY(-0.0625rem);
+}
+
+.cal__agenda-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.cal__agenda-time {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.cal__agenda-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.cal__agenda-location {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
 .cal__dots {
   display: flex;
   flex-wrap: wrap;
@@ -492,8 +681,13 @@ function chipTime(event) {
 }
 
 @media (min-width: 640px) {
-  .cal__dots {
+  .cal__daybtn,
+  .cal__agenda {
     display: none;
+  }
+
+  .cal__daynum-wrap--desktop {
+    display: flex;
   }
 
   .cal__chips {
@@ -619,6 +813,16 @@ function chipTime(event) {
 
   .cal__cell {
     min-height: 4.5rem;
+    padding: 0;
+  }
+
+  .cal__daybtn {
+    min-height: 4.5rem;
+    padding: 0.375rem;
+  }
+
+  .cal__cell--selected {
+    background: color-mix(in srgb, var(--accent-brand) 25%, transparent);
   }
 }
 </style>

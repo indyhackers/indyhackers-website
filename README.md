@@ -30,25 +30,28 @@ read by the PocketBase container in production; see the comments there.
 npm run dev
 ```
 
-By default, `npm run dev` uses [MSW](https://mswjs.io/) to mock PocketBase API calls — no backend container required. See [Backend development (PocketBase)](#backend-development-pocketbase) when you need a real PocketBase instance (hooks, migrations, roles, Slack, admin screens).
+By default, `npm run dev` uses [MSW](https://mswjs.io/) to mock PocketBase API calls. Newsletter records are an exception: MSW passes those requests to PocketBase, so start the backend as described below to load newsletter issues. Other pages can still use their mocks without a backend.
 
 ### Backend development (PocketBase)
 
-Use real PocketBase when working on server-side hooks, schema migrations, collection rules, Slack invites, roles, or the admin UI. The Vite dev server with MSW never talks to PocketBase — it intercepts all `/api` calls with mocks.
+Use real PocketBase when working on server-side hooks, schema migrations, collection rules, Slack invites, roles, or the admin UI. The default Vite dev server uses MSW for most API calls; newsletter record requests pass through to PocketBase.
 
 #### Option A — docker-compose (recommended)
 
-Use this when you want parity with the project's Docker setup (dev hooks, volumes, same image as deploy). You may need to replace `docker-compose` with `docker compose`.
+Use this when you want parity with the project's Docker setup (dev hooks, volumes, same image as deploy). From the repository root, start PocketBase in the background:
 
 ```sh
-npm run build                              # populates ./dist → PocketBase public dir
-VERSION=dev docker-compose up --build
+docker compose up -d --build --wait
 ```
 
+- Compose builds the current development image and waits until PocketBase is healthy; the image tag is always `dev`, independent of `VERSION` in `.env`.
+- Then run `npm run dev` in the same terminal and open `http://localhost:5173`. Keep the PocketBase container running for newsletter records.
+- Check status any time with `docker compose ps`; PocketBase should show `healthy`.
+- Stop PocketBase with `docker compose down`. Its database remains in `pb/data`.
 - Admin UI: `http://localhost:8090/_/` (**trailing slash required** — `/_` without it will not work)
 - Port `8090`; mounts `pb/hooks`, `pb/migrations`, and `pb/data` (data persists in `./pb/data`)
-- **Linux / amd64:** use the command above (`TARGETARCH` defaults to `amd64` in `docker-compose.yaml`)
-- **Apple Silicon:** `task run-dev` / `task build-dev` work but hardcode `TARGETARCH=arm64` in `Taskfile.yml` — on Linux, use the `docker-compose` command above instead
+- **Linux / amd64:** `TARGETARCH` defaults to `amd64` in `docker-compose.yaml`
+- **Apple Silicon:** `task run-dev` / `task build-dev` work but hardcode `TARGETARCH=arm64` in `Taskfile.yml` — on Linux, use the commands above instead
 
 #### Option B — bare PocketBase binary (alternative, no Docker, untested)
 
@@ -68,7 +71,7 @@ Admin UI: `http://127.0.0.1:8090/_/`
 
 #### Option C — Vite hot reload against real PocketBase
 
-For full-stack work with hot-reloading frontend pointed at real data:
+For full-stack work where every API call goes to real PocketBase data (rather than using MSW for most collections):
 
 1. Start PocketBase (Option A or B above)
 2. Set `VITE_USE_MSW=false` in `.env` (or run `npm run dev:backend`)

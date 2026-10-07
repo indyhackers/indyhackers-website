@@ -85,6 +85,12 @@
           or the <a href="https://www.indyhackers.org/newsletter/archive">older archive</a>.
         </p>
       </template>
+
+      <div v-else class="newsletter-empty">
+        No recent issues are available here. Browse the
+        <a href="https://buttondown.email/indyhackers/archive/">full archive</a>
+        or the <a href="https://www.indyhackers.org/newsletter/archive">older archive</a>.
+      </div>
     </div>
   </section>
   </div>
@@ -231,6 +237,10 @@ onMounted(() => {
   border-radius: var(--radius-md);
   padding: 1rem;
   color: var(--danger);
+}
+
+.newsletter-empty {
+  color: var(--text-secondary);
 }
 
 /* Featured issue */

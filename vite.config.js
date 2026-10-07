@@ -17,7 +17,9 @@ export default defineConfig({
     strictPort: true,
     // Allow access via the temporary Cloudflare quick tunnel
     allowedHosts: ['.trycloudflare.com'],
-    // When VITE_USE_MSW=false, API and admin routes proxy to local PocketBase
+    // API and admin routes proxy to the local PocketBase container. This is the
+    // default dev path; it is inert under VITE_USE_MSW=true, where the service
+    // worker intercepts /api before a request ever reaches the proxy.
     proxy: {
       '/api': { target: 'http://localhost:8090', changeOrigin: true },
       '/_': { target: 'http://localhost:8090', changeOrigin: true }

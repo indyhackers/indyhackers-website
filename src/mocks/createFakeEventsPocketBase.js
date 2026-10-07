@@ -18,6 +18,16 @@ export function createFakeEventsPocketBase() {
   }
   return {
     authStore: { isValid: false, record: null },
+    // Mirrors FileService.getURL's shape so components can build cover-image
+    // URLs without a live client.
+    files: {
+      getURL: (record, filename, queryParams) => {
+        if (!record || !filename) return ''
+        const base = `http://localhost/api/files/${record.collectionId}/${record.id}/${filename}`
+        const thumb = queryParams && queryParams.thumb
+        return thumb ? `${base}?thumb=${thumb}` : base
+      }
+    },
     collection(name) {
       return {
         getFullList: async () => data[name] || [],

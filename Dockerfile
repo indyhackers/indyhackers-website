@@ -50,4 +50,11 @@ EXPOSE 8090
 COPY --from=downloader /pocketbase /usr/local/bin/pocketbase
 COPY --from=vue-builder /app/ui/dist /pb_public
 
-ENTRYPOINT ["/usr/local/bin/pocketbase", "serve", "--http=0.0.0.0:8090", "--dir=/pb_data", "--publicDir=/pb_public", "--hooksDir=/pb_hooks"]
+# Applies migrations, seeds fixtures when NODE_ENV=development, then serves.
+# Note this passes --migrationsDir, which the previous bare `pocketbase serve`
+# ENTRYPOINT did not: without it PocketBase looks for migrations next to the
+# binary (/usr/local/bin/pb_migrations) and silently starts with no collections.
+COPY pb/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

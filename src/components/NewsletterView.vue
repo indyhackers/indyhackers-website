@@ -1,98 +1,97 @@
 <template>
   <div class="newsletter-page">
-  <section class="newsletter-hero">
-    <div class="ih-container">
-      <h1>Hacks &amp; Happenings</h1>
-      <p class="newsletter-hero__sub">
-        An every-so-often collection of projects and blog posts by local developers and
-        developer-centric events, delivered straight to your inbox.
-      </p>
+    <section class="newsletter-hero">
+      <div class="ih-container">
+        <h1>Hacks &amp; Happenings</h1>
+        <p class="newsletter-hero__sub">
+          An every-so-often collection of projects and blog posts by local developers and
+          developer-centric events, delivered straight to your inbox.
+        </p>
 
-      <div v-if="subscribed" class="signup-success">
-        You're in. Check your inbox to confirm.
-      </div>
-      <form v-else class="signup-form" @submit.prevent="subscribe">
-        <input
-          v-model="email"
-          type="email"
-          required
-          placeholder="you@example.com"
-          class="signup-form__input"
-          aria-label="Email address"
-          :disabled="submitting"
-        />
-        <button type="submit" class="ih-btn-primary signup-form__btn" :disabled="submitting">
-          {{ submitting ? 'Subscribing...' : 'Subscribe' }}
-        </button>
-      </form>
-      <div v-if="subscribeError" class="signup-error">{{ subscribeError }}</div>
-    </div>
-  </section>
-
-  <section class="newsletter-content ih-full-bleed">
-    <div class="ih-container">
-      <!-- Loading -->
-      <div v-if="loading" class="newsletter-loading">
-        <div class="spinner-border" role="status">
-          <span class="visually-hidden">Loading...</span>
+        <div v-if="subscribed" class="signup-success">
+          You're in. Check your inbox to confirm.
         </div>
+        <form v-else class="signup-form" @submit.prevent="subscribe">
+          <input
+            v-model="email"
+            type="email"
+            required
+            placeholder="you@example.com"
+            class="signup-form__input"
+            aria-label="Email address"
+            :disabled="submitting"
+          />
+          <button type="submit" class="ih-btn-primary signup-form__btn" :disabled="submitting">
+            {{ submitting ? 'Subscribing...' : 'Subscribe' }}
+          </button>
+        </form>
+        <div v-if="subscribeError" class="signup-error">{{ subscribeError }}</div>
       </div>
+    </section>
 
-      <!-- Error -->
-      <div v-else-if="error" class="newsletter-error">{{ error }}</div>
-
-      <!-- Latest issue — featured -->
-      <template v-else-if="posts.length > 0">
-        <article class="featured-issue">
-          <p class="featured-issue__label">Latest Issue</p>
-          <h2 class="featured-issue__title">
-            <a :href="visiblePosts[0].link" target="_blank" rel="noopener noreferrer">
-              {{ visiblePosts[0].title }}
-            </a>
-          </h2>
-          <p class="featured-issue__date">{{ visiblePosts[0].pubDateFormatted }}</p>
-          <div
-            class="featured-issue__excerpt"
-            v-html="sanitizeHtml(visiblePosts[0].description)"
-          ></div>
-          <a
-            :href="visiblePosts[0].link"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="featured-issue__read"
-          >
-            Read the full issue →
-          </a>
-        </article>
-
-        <!-- Older issues -->
-        <div v-if="visiblePosts.length > 1" class="older-issues">
-          <h3 class="older-issues__heading">Previous Issues</h3>
-          <div v-for="post in visiblePosts.slice(1)" :key="post.guid" class="older-issue">
-            <a :href="post.link" target="_blank" rel="noopener noreferrer" class="older-issue__title">
-              {{ post.title }}
-            </a>
-            <span class="older-issue__date">{{ post.pubDateFormatted }}</span>
+    <section class="newsletter-content ih-full-bleed">
+      <div class="ih-container">
+        <div v-if="loading" class="newsletter-loading">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
           </div>
         </div>
 
-        <div v-if="hasMore" class="newsletter-load-more">
-          <button class="ih-btn-outline" @click="loadMore">Older Issues</button>
-        </div>
+        <div v-else-if="error" class="newsletter-error">{{ error }}</div>
 
-        <p class="newsletter-archive">
-          Browse the <a href="https://buttondown.email/indyhackers/archive/">full archive</a>
+        <template v-else-if="posts.length > 0">
+          <article class="featured-issue">
+            <p class="featured-issue__label">Latest Issue</p>
+            <h2 class="featured-issue__title">
+              <RouterLink
+                :to="{ name: 'newsletter-issue', params: { slug: visiblePosts[0].slug || visiblePosts[0].id } }"
+              >
+                {{ visiblePosts[0].title }}
+              </RouterLink>
+            </h2>
+            <p class="featured-issue__date">{{ visiblePosts[0].pubDateFormatted }}</p>
+            <div
+              class="featured-issue__excerpt"
+              v-html="sanitizeHtml(visiblePosts[0].description)"
+            ></div>
+            <RouterLink
+              :to="{ name: 'newsletter-issue', params: { slug: visiblePosts[0].slug || visiblePosts[0].id } }"
+              class="featured-issue__read"
+            >
+              Read the full issue →
+            </RouterLink>
+          </article>
+
+          <div v-if="visiblePosts.length > 1" class="older-issues">
+            <h3 class="older-issues__heading">Previous Issues</h3>
+            <div v-for="post in visiblePosts.slice(1)" :key="post.guid" class="older-issue">
+              <RouterLink
+                :to="{ name: 'newsletter-issue', params: { slug: post.slug || post.id } }"
+                class="older-issue__title"
+              >
+                {{ post.title }}
+              </RouterLink>
+              <span class="older-issue__date">{{ post.pubDateFormatted }}</span>
+            </div>
+          </div>
+
+          <div v-if="hasMore" class="newsletter-load-more">
+            <button class="ih-btn-outline" @click="loadMore">Older Issues</button>
+          </div>
+
+          <p class="newsletter-archive">
+            Browse the <a href="https://buttondown.email/indyhackers/archive/">full archive</a>
+            or the <a href="https://www.indyhackers.org/newsletter/archive">older archive</a>.
+          </p>
+        </template>
+
+        <div v-else class="newsletter-empty">
+          No recent issues are available here. Browse the
+          <a href="https://buttondown.email/indyhackers/archive/">full archive</a>
           or the <a href="https://www.indyhackers.org/newsletter/archive">older archive</a>.
-        </p>
-      </template>
-
-      <div v-else class="newsletter-empty">
-        No recent issues are available here. Browse the
-        <a href="https://buttondown.email/indyhackers/archive/">full archive</a>
-        or the <a href="https://www.indyhackers.org/newsletter/archive">older archive</a>.
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
   </div>
 </template>
 
@@ -101,7 +100,10 @@ import { ref, onMounted } from 'vue'
 import { useNewsletter } from '@/composables/useNewsletter'
 import DOMPurify from 'dompurify'
 
-const { posts, visiblePosts, hasMore, loadMore, loading, error, fetchNewsletter } = useNewsletter({ initialCount: 5, loadMoreCount: 10 })
+const { posts, visiblePosts, hasMore, loadMore, loading, error, fetchNewsletter } = useNewsletter({
+  initialCount: 5,
+  loadMoreCount: 10
+})
 
 const email = ref('')
 const submitting = ref(false)

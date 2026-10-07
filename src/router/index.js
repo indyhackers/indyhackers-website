@@ -150,6 +150,15 @@ export const routes = [
       }
     },
     {
+      path: '/newsletter/:slug',
+      name: 'newsletter-issue',
+      component: () => import('@/views/NewsletterIssueView.vue'),
+      meta: {
+        title: 'Newsletter Issue — Hacks & Happenings',
+        description: 'Read an issue of Hacks & Happenings from IndyHackers.'
+      }
+    },
+    {
       path: '/recommend-event',
       name: 'RecommendEvent',
       component: () => import('../components/EventRecommendationForm.vue'),

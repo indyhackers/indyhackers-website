@@ -11,6 +11,11 @@ import 'bootstrap-vue-next/dist/bootstrap-vue-next.css'
 import App from './App.vue'
 import { routes, scrollBehavior } from './router'
 import { SITE_URL } from './seo'
+import {
+  enforceSessionTimeout,
+  hasAdminRole,
+  trackAuthenticationSession
+} from './utils/authSession'
 
 // Routes worth prerendering to static HTML: public, content-bearing pages whose
 // value is indexability. Excludes auth/admin, the query-driven single-job view,
@@ -67,23 +72,28 @@ export const createApp = ViteSSG(
     app.use(createBootstrap())
 
     if (isClient) {
+      trackAuthenticationSession(pocketbase)
+
       // Gate everything under /admin: must be signed in as a user with the
       // admin role, otherwise bounce to /login (preserving where they were
       // headed). Client-only — the prerender pass never visits /admin routes.
-      const hasAdminRole = (record) => {
-        const roles = record?.expand?.roles ?? record?.roles ?? []
-        const list = Array.isArray(roles) ? roles : [roles]
-        return list.some((r) => (typeof r === 'object' ? r?.name : r) === 'admin')
-      }
       // Routes that need a signed-in user but not the admin role (event
       // submission and the "my events" dashboard).
       const requiresAuth = (path) => path === '/events/submit' || path === '/events/mine'
 
       router.beforeEach(async (to) => {
+        const sessionExpired = enforceSessionTimeout(pocketbase)
+
         // Signed-in-only routes: any valid session is enough.
         if (requiresAuth(to.path)) {
           if (!pocketbase.authStore.isValid) {
-            return { name: 'Login', query: { redirect: to.fullPath } }
+            return {
+              name: 'Login',
+              query: {
+                ...(sessionExpired ? { expired: '1' } : {}),
+                redirect: to.fullPath
+              }
+            }
           }
           return true
         }
@@ -92,23 +102,44 @@ export const createApp = ViteSSG(
 
         // Not signed in at all → login (preserving the destination).
         if (!pocketbase.authStore.isValid) {
-          return { name: 'Login', query: { redirect: to.fullPath } }
+          return {
+            name: 'Login',
+            query: {
+              ...(sessionExpired ? { expired: '1' } : {}),
+              redirect: to.fullPath
+            }
+          }
         }
         if (hasAdminRole(pocketbase.authStore.record)) return true
 
         // Signed in but the auth record didn't carry roles (e.g. older session)
         // — verify once against the server before deciding.
+        const userId = pocketbase.authStore.record?.id
+        if (!userId) return { name: 'NotAuthorized' }
         try {
-          const me = await pocketbase
-            .collection('users')
-            .getOne(pocketbase.authStore.record.id, { expand: 'roles' })
-          if (hasAdminRole(me)) return true
-        } catch {
+          const user = await pocketbase.collection('users').getOne(userId, { expand: 'roles' })
+          if (
+            pocketbase.authStore.isValid &&
+            pocketbase.authStore.record?.id === userId &&
+            hasAdminRole(user)
+          ) {
+            return true
+          }
+        } catch (error) {
+          console.error('Could not verify admin role for protected route:', error)
           // fall through
         }
         // Signed in but not an admin → not authorized.
         return { name: 'NotAuthorized' }
       })
+
+      const checkSessionTimeout = async () => {
+        if (!enforceSessionTimeout(pocketbase)) return
+        await router.replace({ name: 'Login', query: { expired: '1' } })
+      }
+      checkSessionTimeout()
+      window.setInterval(checkSessionTimeout, 60_000)
+      window.addEventListener('focus', checkSessionTimeout)
 
       // Popper and Bootstrap's JS bundle both touch `document` at import time,
       // so they can only load in the browser.

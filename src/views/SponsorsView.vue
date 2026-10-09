@@ -110,40 +110,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-
-const sponsors = ref([
-  {
-    id: 1,
-    name: 'PureInsights',
-    link: 'https://mypureinsights.com/?utm_campaign=indy_hackers',
-    logo: '/images/sponsors/pureinsights.png'
-  },
-  {
-    id: 2,
-    name: 'MadeLabs',
-    link: 'https://www.madelabs.io/?utm_campaign=indy_hackers',
-    logo: '/images/sponsors/madelabs.png'
-  },
-  {
-    id: 3,
-    name: 'Java House',
-    link: 'https://www.javahouse.com/?utm_campaign=indy_hackers',
-    logo: '/images/sponsors/java_house.png'
-  },
-  {
-    id: 4,
-    name: 'E-gineering',
-    link: 'https://www.e-gineering.com/?utm_campaign=indy_hackers',
-    logo: '/images/sponsors/egineering-logo.png'
-  },
-  {
-    id: 5,
-    name: 'Panfactum',
-    link: 'https://panfactum.com/?utm_campaign=indy_hackers',
-    logo: '/images/sponsors/panfactum-logo.png'
-  }
-])
+import { sponsors } from '@/data/sponsors'
 
 const handleImageError = (e) => {
   e.target.style.display = 'none'

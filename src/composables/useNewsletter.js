@@ -1,13 +1,14 @@
-function decodeHtml(html) {
-  const txt = document.createElement('textarea')
-  txt.innerHTML = html
-  return txt.value
-}
-
-import { ref, computed, inject } from 'vue'
+import { ref, computed, inject, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import {
+  buildNewsletterExcerpt,
+  generateNewsletterExcerpt,
+  generateNewsletterExcerptHtml
+} from '@/utils/newsletterExcerpt'
 
 export function useNewsletter({ initialCount = 3, loadMoreCount } = {}) {
   const pocketbase = inject('pocketbase')
+  const route = useRoute()
   const batchSize = loadMoreCount ?? initialCount
   const posts = ref([])
   const loading = ref(false)
@@ -31,6 +32,14 @@ export function useNewsletter({ initialCount = 3, loadMoreCount } = {}) {
       const newsletters = await fetchNewsletters()
       posts.value = newsletters.map((newsletter) => {
         const pubDate = newsletter.published_at ? new Date(newsletter.published_at) : null
+        const featuredExcerptSource =
+          newsletter.excerpt ||
+          newsletter.description ||
+          (newsletter.link ? buildNewsletterExcerpt(newsletter.content || '') : newsletter.content)
+        const excerptSource = newsletter.link
+          ? newsletter.content
+          : newsletter.excerpt || newsletter.description || newsletter.content
+        const excerpt = generateNewsletterExcerpt(excerptSource || '')
 
         return {
           ...newsletter,
@@ -43,9 +52,12 @@ export function useNewsletter({ initialCount = 3, loadMoreCount } = {}) {
               })
             : '',
           guid: newsletter.slug || newsletter.id,
-          description: typeof document !== 'undefined'
-            ? decodeHtml(newsletter.excerpt || newsletter.description || '')
-            : (newsletter.excerpt || newsletter.description || '')
+          description: excerpt,
+          excerptHtml: generateNewsletterExcerptHtml(excerptSource || ''),
+          featuredExcerptHtml: generateNewsletterExcerptHtml(
+            featuredExcerptSource || '',
+            Number.POSITIVE_INFINITY
+          )
         }
       })
     } catch (err) {
@@ -56,12 +68,31 @@ export function useNewsletter({ initialCount = 3, loadMoreCount } = {}) {
     }
   }
 
-  const visibleCount = ref(initialCount)
-  const visiblePosts = computed(() => posts.value.slice(0, visibleCount.value))
-  const hasMore = computed(() => visibleCount.value < posts.value.length)
+  const additionalCount = ref(0)
+  const archivePage = computed(() => {
+    const page = Number.parseInt(String(route.params.page || '1'), 10)
+    return Number.isInteger(page) && page > 0 ? page : 1
+  })
+  const initialVisibleCount = computed(() => (archivePage.value === 1 ? initialCount : batchSize))
+  const archiveOffset = computed(() =>
+    archivePage.value === 1 ? 0 : initialCount + (archivePage.value - 2) * batchSize
+  )
+  watch(archivePage, () => {
+    additionalCount.value = 0
+  })
+  const visiblePosts = computed(() =>
+    posts.value.slice(
+      archiveOffset.value,
+      archiveOffset.value + initialVisibleCount.value + additionalCount.value
+    )
+  )
+  const hasMore = computed(
+    () => archiveOffset.value + visiblePosts.value.length < posts.value.length
+  )
+  const nextPage = computed(() => archivePage.value + 1)
 
   function loadMore() {
-    visibleCount.value += batchSize
+    additionalCount.value += batchSize
   }
 
   return {
@@ -69,6 +100,8 @@ export function useNewsletter({ initialCount = 3, loadMoreCount } = {}) {
     visiblePosts,
     hasMore,
     loadMore,
+    archivePage,
+    nextPage,
     loading,
     error,
     fetchNewsletter

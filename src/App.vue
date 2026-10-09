@@ -4,7 +4,7 @@
     <main>
       <RouterView class="content" />
     </main>
-    <BottomLinkTree class="bottom" />
+    <BottomLinkTree v-if="!isNewsletterIssue" class="bottom" />
   </div>
 </template>
 
@@ -65,6 +65,9 @@ export default {
     }
   },
   computed: {
+    isNewsletterIssue() {
+      return this.$route.path.startsWith('/newsletter/')
+    },
     isLoggedIn() {
       return this.pocketbase.authStore.isValid
     },
@@ -72,7 +75,14 @@ export default {
       return this.pocketbase.authStore.model
     }
   },
+  watch: {
+    '$route.path'(path) {
+      document.body.classList.toggle('newsletter-issue-page', path.startsWith('/newsletter/'))
+    }
+  },
   mounted() {
+    document.body.classList.toggle('newsletter-issue-page', this.isNewsletterIssue)
+
     // Givebutter floating donate widget
     const widget = document.createElement('givebutter-widget')
     widget.setAttribute('id', 'gOKqKJ')
@@ -82,7 +92,7 @@ export default {
     script.src = 'https://widgets.givebutter.com/latest.umd.cjs?acct=H4rBBvimtKt1fpCm&p=other'
     script.async = true
     document.head.appendChild(script)
-  },
+  }
 }
 </script>
 
@@ -97,6 +107,10 @@ body {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 400;
   background-color: var(--surface-1);
+}
+
+body.newsletter-issue-page givebutter-widget {
+  display: none !important;
 }
 
 #app {
@@ -115,4 +129,3 @@ main {
   z-index: 1;
 }
 </style>
-

@@ -13,6 +13,10 @@
         <button type="submit" class="ih-btn-primary login-submit">Login</button>
       </b-form>
 
+      <b-alert :model-value="sessionExpired" variant="warning" class="mt-3">
+        Your session expired. Please log in again.
+      </b-alert>
+
       <b-alert :model-value="!!errorMessage" variant="danger" class="mt-3">
         {{ errorMessage }}
       </b-alert>
@@ -90,7 +94,9 @@
                 <template v-else>
                   <IFaOpenid />
                 </template>
-                <span class="oauth-icon-btn__label">{{ provider.displayName || provider.name }}</span>
+                <span class="oauth-icon-btn__label">{{
+                  provider.displayName || provider.name
+                }}</span>
               </b-button>
               <b-tooltip :target="'btn-' + provider.name" triggers="hover">
                 {{ provider.displayName }}
@@ -100,7 +106,9 @@
         </div>
       </div>
 
-      <router-link class="signup-link" to="/signup">Don't have an account? Sign up here</router-link>
+      <router-link class="signup-link" to="/signup"
+        >Don't have an account? Sign up here</router-link
+      >
     </AuthPageLayout>
   </div>
 </template>
@@ -129,6 +137,7 @@ export default {
     const pocketbase = inject('pocketbase')
     const router = inject('router')
     const emitter = inject('emitter')
+    const sessionExpired = ref(router?.currentRoute?.value?.query?.expired === '1')
 
     onMounted(async () => {
       try {
@@ -141,6 +150,7 @@ export default {
 
     const login = async () => {
       errorMessage.value = ''
+      sessionExpired.value = false
       try {
         await pocketbase
           .collection('users')
@@ -158,6 +168,7 @@ export default {
 
     const loginWithOAuth = async (provider) => {
       errorMessage.value = ''
+      sessionExpired.value = false
       try {
         const redirectUrl = `${window.location.origin}/api/oauth2-redirect`
 
@@ -200,6 +211,7 @@ export default {
       password,
       oauthProviders,
       errorMessage,
+      sessionExpired,
       login,
       loginWithOAuth
     }

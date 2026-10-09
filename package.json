@@ -44,6 +44,7 @@
     "@iconify-json/mdi": "^1.2.3",
     "@playwright/test": "^1.55.1",
     "@rushstack/eslint-patch": "^1.8.0",
+    "@types/leaflet": "^1.9.22",
     "@vitejs/plugin-vue": "^5.0.5",
     "@vue/eslint-config-prettier": "^9.0.0",
     "@vue/test-utils": "^2.4.6",

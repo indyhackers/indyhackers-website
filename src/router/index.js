@@ -118,6 +118,12 @@ export const routes = [
       meta: { noindex: true }
     },
     {
+      path: '/admin/newsletter/new',
+      name: 'NewsletterCreate',
+      component: () => import('../components/admin/NewsletterCreate.vue'),
+      meta: { noindex: true }
+    },
+    {
       path: '/not-authorized',
       name: 'NotAuthorized',
       component: () => import('../components/NotAuthorized.vue'),
@@ -154,6 +160,19 @@ export const routes = [
         description:
           'Hacks & Happenings: an occasional roundup of local developer projects, blog posts, and Indianapolis tech events, delivered to your inbox.'
       }
+    },
+    {
+      path: '/newsletter/page/:page',
+      name: 'newsletter-page',
+      component: () => import('../components/NewsletterView.vue'),
+      meta: {
+        title: 'Newsletter Archive — Hacks & Happenings',
+        description: 'Browse older issues of Hacks & Happenings from IndyHackers.'
+      }
+    },
+    {
+      path: '/newsletter/archive',
+      redirect: { name: 'newsletter-page', params: { page: 2 } }
     },
     {
       path: '/newsletter/:slug',

@@ -8,29 +8,21 @@
           developer-centric events, delivered straight to your inbox.
         </p>
 
-        <div v-if="subscribed" class="signup-success">
-          You're in. Check your inbox to confirm.
-        </div>
-        <form v-else class="signup-form" @submit.prevent="subscribe">
-          <input
-            v-model="email"
-            type="email"
-            required
-            placeholder="you@example.com"
-            class="signup-form__input"
-            aria-label="Email address"
-            :disabled="submitting"
-          />
-          <button type="submit" class="ih-btn-primary signup-form__btn" :disabled="submitting">
-            {{ submitting ? 'Subscribing...' : 'Subscribe' }}
-          </button>
-        </form>
-        <div v-if="subscribeError" class="signup-error">{{ subscribeError }}</div>
+        <NewsletterSubscribe />
       </div>
     </section>
 
     <section class="newsletter-content ih-full-bleed">
       <div class="ih-container">
+        <div v-if="isAdmin" class="newsletter-dev-bar">
+          <div>
+            <span class="newsletter-dev-bar__label">Admin session active</span>
+          </div>
+          <RouterLink to="/admin/newsletter/new" class="ih-btn-primary newsletter-dev-bar__link">
+            + Create Post
+          </RouterLink>
+        </div>
+
         <div v-if="loading" class="newsletter-loading">
           <div class="spinner-border" role="status">
             <span class="visually-hidden">Loading...</span>
@@ -40,55 +32,104 @@
         <div v-else-if="error" class="newsletter-error">{{ error }}</div>
 
         <template v-else-if="posts.length > 0">
-          <article class="featured-issue">
-            <p class="featured-issue__label">Latest Issue</p>
-            <h2 class="featured-issue__title">
-              <RouterLink
-                :to="{ name: 'newsletter-issue', params: { slug: visiblePosts[0].slug || visiblePosts[0].id } }"
+          <template v-if="visiblePosts.length && archivePage === 1">
+            <article class="newsletter-featured" aria-labelledby="newsletter-latest-title">
+              <p class="newsletter-featured__label">Latest Issue</p>
+              <h2 id="newsletter-latest-title" class="newsletter-featured__title">
+                <RouterLink
+                  :to="{
+                    name: 'newsletter-issue',
+                    params: { slug: visiblePosts[0].slug || visiblePosts[0].id }
+                  }"
+                >
+                  {{ visiblePosts[0].title }}
+                </RouterLink>
+              </h2>
+              <time
+                v-if="visiblePosts[0].pubDate"
+                class="newsletter-featured__date"
+                :datetime="visiblePosts[0].pubDate.toISOString()"
               >
-                {{ visiblePosts[0].title }}
-              </RouterLink>
-            </h2>
-            <p class="featured-issue__date">{{ visiblePosts[0].pubDateFormatted }}</p>
-            <div
-              class="featured-issue__excerpt"
-              v-html="sanitizeHtml(visiblePosts[0].description)"
-            ></div>
-            <RouterLink
-              :to="{ name: 'newsletter-issue', params: { slug: visiblePosts[0].slug || visiblePosts[0].id } }"
-              class="featured-issue__read"
-            >
-              Read the full issue →
-            </RouterLink>
-          </article>
-
-          <div v-if="visiblePosts.length > 1" class="older-issues">
-            <h3 class="older-issues__heading">Previous Issues</h3>
-            <div v-for="post in visiblePosts.slice(1)" :key="post.guid" class="older-issue">
+                {{ visiblePosts[0].pubDateFormatted }}
+              </time>
+              <p
+                class="newsletter-featured__excerpt"
+                v-html="visiblePosts[0].featuredExcerptHtml"
+              ></p>
               <RouterLink
-                :to="{ name: 'newsletter-issue', params: { slug: post.slug || post.id } }"
-                class="older-issue__title"
+                :to="{
+                  name: 'newsletter-issue',
+                  params: { slug: visiblePosts[0].slug || visiblePosts[0].id }
+                }"
+                class="newsletter-featured__read"
               >
-                {{ post.title }}
+                Read the full issue →
               </RouterLink>
-              <span class="older-issue__date">{{ post.pubDateFormatted }}</span>
-            </div>
-          </div>
+            </article>
 
-          <div v-if="hasMore" class="newsletter-load-more">
-            <button class="ih-btn-outline" @click="loadMore">Older Issues</button>
-          </div>
+            <hr v-if="visiblePosts.length > 1" class="newsletter-feed__divider" />
 
-          <p class="newsletter-archive">
-            Browse the <a href="https://buttondown.email/indyhackers/archive/">full archive</a>
-            or the <a href="https://www.indyhackers.org/newsletter/archive">older archive</a>.
+            <section v-if="visiblePosts.length > 1" class="newsletter-previous">
+              <h2 class="newsletter-previous__heading">Previous Issues</h2>
+              <div class="newsletter-feed">
+                <article
+                  v-for="post in visiblePosts.slice(1)"
+                  :key="post.guid"
+                  class="newsletter-issue-card"
+                >
+                  <time
+                    v-if="post.pubDate"
+                    class="newsletter-issue-card__date"
+                    :datetime="post.pubDate.toISOString()"
+                  >
+                    {{ post.pubDateFormatted }}
+                  </time>
+                  <h3 class="newsletter-issue-card__title">
+                    <RouterLink
+                      :to="{ name: 'newsletter-issue', params: { slug: post.slug || post.id } }"
+                    >
+                      {{ post.title }}
+                    </RouterLink>
+                  </h3>
+                  <p class="newsletter-issue-card__excerpt" v-html="post.excerptHtml"></p>
+                </article>
+              </div>
+            </section>
+          </template>
+
+          <div v-else-if="visiblePosts.length" class="newsletter-feed">
+            <article v-for="post in visiblePosts" :key="post.guid" class="newsletter-issue-card">
+              <time
+                v-if="post.pubDate"
+                class="newsletter-issue-card__date"
+                :datetime="post.pubDate.toISOString()"
+              >
+                {{ post.pubDateFormatted }}
+              </time>
+              <h2 class="newsletter-issue-card__title">
+                <RouterLink
+                  :to="{ name: 'newsletter-issue', params: { slug: post.slug || post.id } }"
+                >
+                  {{ post.title }}
+                </RouterLink>
+              </h2>
+              <p class="newsletter-issue-card__excerpt" v-html="post.excerptHtml"></p>
+            </article>
+          </div>
+          <p v-else class="newsletter-empty">
+            No issues are available on this archive page.
+            <RouterLink to="/newsletter">Return to the latest issues</RouterLink>
           </p>
+
+          <div v-if="hasMore" class="newsletter-archive">
+            <button type="button" @click="loadMore">Older archives →</button>
+          </div>
         </template>
 
         <div v-else class="newsletter-empty">
           No recent issues are available here. Browse the
           <a href="https://buttondown.email/indyhackers/archive/">full archive</a>
-          or the <a href="https://www.indyhackers.org/newsletter/archive">older archive</a>.
+          or the <RouterLink to="/newsletter/archive">older archive</RouterLink>.
         </div>
       </div>
     </section>
@@ -96,55 +137,43 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { inject, onMounted, onUnmounted, ref } from 'vue'
 import { useNewsletter } from '@/composables/useNewsletter'
-import DOMPurify from 'dompurify'
+import { hasAdminRole } from '@/utils/authSession'
+import NewsletterSubscribe from './NewsletterSubscribe.vue'
 
-const { posts, visiblePosts, hasMore, loadMore, loading, error, fetchNewsletter } = useNewsletter({
-  initialCount: 5,
-  loadMoreCount: 10
-})
+const pocketbase = inject('pocketbase')
+const isAdmin = ref(false)
+let authUnsubscribe
 
-const email = ref('')
-const submitting = ref(false)
-const subscribed = ref(false)
-const subscribeError = ref(null)
-
-const subscribe = async () => {
-  submitting.value = true
-  subscribeError.value = null
+const updateAdminStatus = async () => {
+  const authRecord = pocketbase.authStore.record
+  const userId = authRecord?.id
+  isAdmin.value = pocketbase.authStore.isValid && hasAdminRole(authRecord)
+  if (!pocketbase.authStore.isValid || isAdmin.value || !userId) return
 
   try {
-    const form = new FormData()
-    form.append('email', email.value)
-
-    const response = await fetch(
-      'https://buttondown.email/api/emails/embed-subscribe/indyhackers',
-      { method: 'POST', body: form }
-    )
-
-    if (response.ok || response.status === 201) {
-      subscribed.value = true
-    } else {
-      subscribeError.value = 'Something went wrong. Try again?'
-    }
-  } catch {
-    subscribeError.value = 'Could not connect. Check your connection and try again.'
-  } finally {
-    submitting.value = false
+    const user = await pocketbase.collection('users').getOne(userId, { expand: 'roles' })
+    isAdmin.value =
+      pocketbase.authStore.isValid &&
+      pocketbase.authStore.record?.id === userId &&
+      hasAdminRole(user)
+  } catch (error) {
+    console.error('Could not verify newsletter admin status:', error)
+    isAdmin.value = false
   }
 }
 
-const sanitizeHtml = (html) => {
-  const clean = DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'img'],
-    ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title', 'class']
-  })
-  return clean.replace(/<img(?![^>]*\balt=)/gi, '<img alt=""')
-}
+const { posts, visiblePosts, hasMore, loadMore, archivePage, loading, error, fetchNewsletter } =
+  useNewsletter({ initialCount: 5, loadMoreCount: 10 })
 
 onMounted(() => {
+  authUnsubscribe = pocketbase.authStore.onChange(updateAdminStatus, true)
   fetchNewsletter()
+})
+
+onUnmounted(() => {
+  authUnsubscribe?.()
 })
 </script>
 
@@ -167,65 +196,40 @@ onMounted(() => {
   margin-bottom: 2rem;
 }
 
-/* Signup form */
-.signup-form {
-  display: flex;
-  gap: 0.75rem;
-  max-width: 28rem;
-}
-
-.signup-form__input {
-  flex: 1;
-  padding: 0.875rem 1rem;
-  font-family: var(--font-sans);
-  font-size: 1rem;
-  color: var(--text-primary);
-  background: var(--surface-1);
-  border: 1px solid color-mix(in srgb, var(--border) 25%, transparent);
-  border-radius: var(--radius-md);
-  outline: none;
-  transition: border-color 0.2s ease;
-}
-
-.signup-form__input::placeholder {
-  color: var(--text-muted);
-}
-
-.signup-form__input:focus {
-  border-color: var(--focus-ring);
-}
-
-.signup-form__input:disabled {
-  opacity: 0.6;
-}
-
-.signup-form__btn {
-  flex-shrink: 0;
-}
-
-.signup-form__btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.signup-success {
-  font-family: var(--font-mono);
-  font-size: 0.9375rem;
-  font-weight: bold;
-  color: var(--success);
-}
-
-.signup-error {
-  font-size: 0.875rem;
-  color: var(--danger);
-  margin-top: 0.5rem;
-}
-
 /* Content section */
 .newsletter-content {
   padding: 3rem 0 4rem;
   background: var(--surface-2);
   border-top: 1px solid color-mix(in srgb, var(--border) 10%, transparent);
+}
+
+.newsletter-dev-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px dashed color-mix(in srgb, var(--focus-ring) 45%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--focus-ring) 5%, transparent);
+}
+
+.newsletter-dev-bar__label {
+  color: var(--focus-ring);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.newsletter-dev-bar__description {
+  margin: 0.2rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.newsletter-dev-bar__link {
+  flex-shrink: 0;
 }
 
 .newsletter-loading {
@@ -245,148 +249,172 @@ onMounted(() => {
   color: var(--text-secondary);
 }
 
-/* Featured issue */
-.featured-issue {
-  max-width: 40rem;
+@media (max-width: 30rem) {
+  .newsletter-dev-bar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
-.featured-issue__label {
+.newsletter-feed {
+  max-width: 48rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.newsletter-featured {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--accent-deep) 28%, var(--border));
+  border-left: 3px solid var(--accent-deep);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-1) 72%, transparent);
+}
+
+.newsletter-featured__label {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: bold;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent-deep);
-  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
 }
 
-.featured-issue__title {
-  font-size: clamp(1.5rem, 3vw, 2rem);
+.newsletter-featured__title {
+  font-family: var(--font-mono);
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: bold;
   line-height: 1.2;
   margin: 0 0 0.5rem;
 }
 
-.featured-issue__title a {
+.newsletter-featured__title a {
   color: var(--text-primary);
   text-decoration: none;
 }
 
-.featured-issue__title a:hover {
+.newsletter-featured__title a:hover {
   color: var(--link-hover);
 }
 
-.featured-issue__date {
-  font-size: 0.875rem;
+.newsletter-featured__date {
+  display: block;
+  font-size: 1rem;
   color: var(--text-muted);
-  margin: 0 0 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
-.featured-issue__excerpt {
+.newsletter-featured__excerpt {
   color: var(--text-secondary);
+  font-size: 1.125rem;
   line-height: 1.7;
-  max-height: 12em;
-  overflow: hidden;
-  margin-bottom: 1.25rem;
+  margin: 0;
 }
 
-.featured-issue__excerpt :deep(p) {
-  margin: 0 0 0.75rem;
+.newsletter-featured__excerpt :deep(a),
+.newsletter-issue-card__excerpt :deep(a) {
+  color: var(--accent-deep);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
 }
 
-.featured-issue__excerpt :deep(a) {
+.newsletter-featured__excerpt :deep(a:hover),
+.newsletter-issue-card__excerpt :deep(a:hover) {
+  color: var(--link-hover);
+}
+
+.newsletter-featured__read {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--accent-deep);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+
+.newsletter-featured__read:hover {
   color: var(--text-primary);
   text-decoration: underline;
 }
 
-.featured-issue__read {
+.newsletter-feed__divider {
+  max-width: 48rem;
+  width: 100%;
+  margin: 3rem auto;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 20%, transparent);
+}
+
+.newsletter-previous {
+  margin: 0 auto;
+}
+
+.newsletter-previous__heading {
+  max-width: 48rem;
+  margin: 0 auto 2rem;
+  font-size: 1.25rem;
+}
+
+.newsletter-previous .newsletter-issue-card:not(:last-child) {
+  padding-bottom: 2rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 14%, transparent);
+}
+
+.newsletter-issue-card__date {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.newsletter-issue-card__title {
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: 1.125rem;
   font-weight: bold;
-  color: var(--accent-deep);
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+
+.newsletter-issue-card__title a {
+  color: var(--text-secondary);
   text-decoration: none;
 }
 
-.featured-issue__read:hover {
-  color: var(--text-primary);
-}
-
-/* Older issues — compact list */
-.older-issues {
-  margin-top: 2.5rem;
-  padding-top: 2rem;
-  border-top: 1px solid color-mix(in srgb, var(--border) 12%, transparent);
-}
-
-.older-issues__heading {
-  font-size: 1rem;
-  margin-bottom: 1rem;
-}
-
-.older-issue {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 0.625rem 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 8%, transparent);
-}
-
-.older-issue:last-child {
-  border-bottom: none;
-}
-
-.older-issue__title {
-  font-family: var(--font-mono);
-  font-size: 0.9375rem;
-  font-weight: bold;
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-.older-issue__title:hover {
+.newsletter-issue-card__title a:hover {
   color: var(--link-hover);
 }
 
-.older-issue__date {
-  font-size: 0.8125rem;
+.newsletter-issue-card__excerpt {
   color: var(--text-muted);
-  flex-shrink: 0;
-  margin-left: 1.5rem;
-}
-
-/* Load more + archive */
-.newsletter-load-more {
-  text-align: center;
-  padding-top: 1.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  margin: 0;
 }
 
 .newsletter-archive {
+  max-width: 48rem;
+  margin: 3rem auto 0;
   font-size: 0.875rem;
   color: var(--text-muted);
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid color-mix(in srgb, var(--border) 8%, transparent);
+  padding: 3rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 12%, transparent);
 }
 
-.newsletter-archive a {
+.newsletter-archive button {
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--accent-deep);
+  font: inherit;
+  cursor: pointer;
 }
 
-.newsletter-archive a:hover {
+.newsletter-archive button:hover {
   color: var(--text-primary);
-}
-
-@media (max-width: 480px) {
-  .signup-form {
-    flex-direction: column;
-  }
-
-  .older-issue {
-    flex-direction: column;
-    gap: 0.125rem;
-  }
-
-  .older-issue__date {
-    margin-left: 0;
-  }
+  text-decoration: underline;
 }
 </style>

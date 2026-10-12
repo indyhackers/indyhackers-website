@@ -14,9 +14,11 @@
 
     <section class="newsletter-content ih-full-bleed">
       <div class="ih-container">
-        <div v-if="isAdmin" class="newsletter-dev-bar">
+        <div v-if="showNewsletterTools" class="newsletter-dev-bar">
           <div>
-            <span class="newsletter-dev-bar__label">Admin session active</span>
+            <span class="newsletter-dev-bar__label">
+              {{ isAdmin ? 'Admin session active' : 'Local development mode' }}
+            </span>
           </div>
           <RouterLink to="/admin/newsletter/new" class="ih-btn-primary newsletter-dev-bar__link">
             + Create Post
@@ -137,13 +139,20 @@
 </template>
 
 <script setup>
-import { inject, onMounted, onUnmounted, ref } from 'vue'
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue'
 import { useNewsletter } from '@/composables/useNewsletter'
 import { hasAdminRole } from '@/utils/authSession'
 import NewsletterSubscribe from './NewsletterSubscribe.vue'
 
 const pocketbase = inject('pocketbase')
 const isAdmin = ref(false)
+const showNewsletterTools = computed(
+  () =>
+    isAdmin.value ||
+    import.meta.env.DEV ||
+    (typeof window !== 'undefined' &&
+      ['localhost', '127.0.0.1'].includes(window.location.hostname))
+)
 let authUnsubscribe
 
 const updateAdminStatus = async () => {

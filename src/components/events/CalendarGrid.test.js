@@ -108,6 +108,77 @@ describe('CalendarGrid', () => {
     expect(wrapper.find('[aria-label="Previous month"]').attributes('disabled')).toBeUndefined()
   })
 
+  describe('selected day (mobile)', () => {
+    const agendaTitles = (wrapper) => wrapper.findAll('.cal__agenda-name').map((t) => t.text())
+    const dayButton = (wrapper, day) =>
+      wrapper
+        .findAll('.cal__daybtn')
+        .find((b) => b.attributes('aria-label').startsWith(`June ${day},`))
+
+    it('starts on today in the current month', () => {
+      const wrapper = mountGrid({ 14: 1, 16: 2 })
+
+      expect(wrapper.find('.cal__agenda-title').text()).toBe('Sunday, June 14')
+      expect(agendaTitles(wrapper)).toEqual(['Event d14_0'])
+      expect(dayButton(wrapper, 14).attributes('aria-pressed')).toBe('true')
+    })
+
+    it('says so when the selected day has nothing on', () => {
+      const wrapper = mountGrid({ 16: 2 })
+
+      expect(wrapper.find('.cal__agenda-empty').text()).toBe('No events on this day.')
+    })
+
+    it('lists a tapped day in full, linking each event', async () => {
+      const wrapper = mountGrid({ 16: 2 })
+      await dayButton(wrapper, 16).trigger('click')
+
+      expect(wrapper.find('.cal__agenda-title').text()).toBe('Tuesday, June 16')
+      expect(agendaTitles(wrapper)).toEqual(['Event d16_0', 'Event d16_1'])
+      const links = wrapper
+        .findAllComponents(RouterLinkStub)
+        .filter((l) => l.classes().includes('cal__agenda-item'))
+      expect(links.map((l) => l.props().to)).toEqual(['/event/d16_0', '/event/d16_1'])
+      expect(wrapper.find('.cal__agenda-time').text()).toBe('6:00 PM – 8:00 PM')
+      expect(dayButton(wrapper, 16).attributes('aria-pressed')).toBe('true')
+      expect(dayButton(wrapper, 14).attributes('aria-pressed')).toBe('false')
+    })
+
+    it('labels each day button with its event count', () => {
+      const wrapper = mountGrid({ 16: 2, 18: 1 })
+
+      expect(dayButton(wrapper, 16).attributes('aria-label')).toBe('June 16, 2 events')
+      expect(dayButton(wrapper, 18).attributes('aria-label')).toBe('June 18, 1 event')
+      expect(dayButton(wrapper, 17).attributes('aria-label')).toBe('June 17, no events')
+    })
+
+    it('opens a later month on its first day with events', () => {
+      // July's grid here is still the test WEEK, so "in month" fails for all of
+      // it; give it a July week instead.
+      const july = Array.from({ length: 7 }, (_, i) => new Date(2026, 6, 5 + i))
+      const map = {}
+      map[dateKey(new Date(2026, 6, 8))] = [
+        event('j8', 8, { start: new Date(2026, 6, 8, 18).toISOString() })
+      ]
+      const wrapper = mount(CalendarGrid, {
+        props: { month: new Date(2026, 6, 1), weeks: [july], eventsByDate: map },
+        global: { stubs: { RouterLink: RouterLinkStub } }
+      })
+
+      expect(wrapper.find('.cal__agenda-title').text()).toBe('Wednesday, July 8')
+      expect(agendaTitles(wrapper)).toEqual(['Event j8'])
+    })
+
+    it('drops the tapped day when the month changes', async () => {
+      const wrapper = mountGrid({ 16: 2 })
+      await dayButton(wrapper, 16).trigger('click')
+      await wrapper.setProps({ month: new Date(2026, 6, 1) })
+      await wrapper.setProps({ month: new Date(2026, 5, 1) })
+
+      expect(wrapper.find('.cal__agenda-title').text()).toBe('Sunday, June 14')
+    })
+  })
+
   describe('hover detail', () => {
     const hoverChip = async (wrapper, index = 0) => {
       await wrapper.findAll('.cal__chip')[index].trigger('mouseenter')

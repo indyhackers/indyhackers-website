@@ -165,6 +165,33 @@ export function upcomingEvents(list) {
     .sort((a, b) => new Date(a.start) - new Date(b.start))
 }
 
+// Upcoming events grouped by the day they fall on, each group
+// { key, date, label, events }. Every occurrence is kept: the list reads as an
+// agenda, so a weekly meetup appears on each date it actually happens.
+export function upcomingByDay(list) {
+  const groups = []
+  const index = {}
+  upcomingEvents(list).forEach((event) => {
+    const key = dateKey(event.start)
+    if (!index[key]) {
+      const date = new Date(event.start)
+      index[key] = {
+        key,
+        date,
+        label: date.toLocaleDateString('en-US', {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric'
+        }),
+        events: []
+      }
+      groups.push(index[key])
+    }
+    index[key].events.push(event)
+  })
+  return groups
+}
+
 // One entry per recurring series: a weekly meetup shouldn't fill the grid with
 // twelve near-identical tiles. The occurrence kept is the soonest one, since
 // that's the next chance to attend; the tile labels its cadence from the

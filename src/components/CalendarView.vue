@@ -20,6 +20,13 @@
             <div class="tabs">
               <button
                 class="tabs__btn"
+                :class="{ 'tabs__btn--active': view === 'list' }"
+                @click="view = 'list'"
+              >
+                List
+              </button>
+              <button
+                class="tabs__btn"
                 :class="{ 'tabs__btn--active': view === 'calendar' }"
                 @click="view = 'calendar'"
               >
@@ -34,8 +41,8 @@
               </button>
             </div>
 
-            <!-- Filters both views: the map legend and the month grid read from
-                 the same filtered list. -->
+            <!-- Filters every view: the list, the map legend and the month grid
+                 all read from the same filtered list. -->
             <label class="calendar-recurring">
               <input v-model="showRecurring" type="checkbox" class="calendar-recurring__box" />
               Show recurring events
@@ -57,8 +64,9 @@
         </p>
 
         <template v-else>
+          <EventList v-if="view === 'list'" :groups="listGroups" />
           <CalendarGrid
-            v-if="view === 'calendar'"
+            v-else-if="view === 'calendar'"
             :month="month"
             :weeks="grid.weeks"
             :events-by-date="grid.eventsByDate"
@@ -70,8 +78,8 @@
         </template>
 
         <!-- Subscribing pulls the whole calendar into your own, so it belongs
-             with the month view rather than the map. -->
-        <p v-if="view === 'calendar'" class="calendar-subscribe">
+             with the date-based views rather than the map. -->
+        <p v-if="view !== 'map'" class="calendar-subscribe">
           <a
             class="calendar-subscribe__link"
             href="webcal://calendar.google.com/calendar/ical/ig7e0j6v8ub9q6kga256n77048%40group.calendar.google.com/public/basic.ics"
@@ -86,20 +94,24 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import CalendarGrid from './events/CalendarGrid.vue'
+import EventList from './events/EventList.vue'
 import EventMap from './events/EventMap.vue'
 import {
   useEvents,
   filterEvents,
   upcomingEvents,
   collapseSeries,
+  upcomingByDay,
   buildMonthGrid
 } from '@/composables/useEvents'
 
 const { events, loading, error, fetchAll } = useEvents()
 
-// The month grid is the landing view: it answers "what's on when" at a glance.
-// The map stays a click away for anyone asking "what's near me" — and the home
-// page already carries a map of the recurring series.
+// The month grid is the landing view on a wide screen: it answers "what's on
+// when" at a glance. On a phone the grid's columns are too narrow for titles, so
+// the agenda-style list lands instead (see onMounted). The map stays a click
+// away for anyone asking "what's near me" — and the home page already carries a
+// map of the recurring series.
 const view = ref('calendar')
 const query = ref('')
 // On by default, so the calendar shows everything until someone narrows it.
@@ -121,6 +133,9 @@ const filtered = computed(() => {
 // below keeps every occurrence, since a calendar should mark each date the
 // event actually happens.
 const visibleEvents = computed(() => collapseSeries(upcomingEvents(filtered.value)))
+// Every occurrence, like the month grid: the list is an agenda, so a weekly
+// meetup belongs under each date it happens.
+const listGroups = computed(() => upcomingByDay(filtered.value))
 const grid = computed(() => buildMonthGrid(month.value, filtered.value))
 
 function changeMonth(delta) {
@@ -136,7 +151,16 @@ function goToday() {
   month.value = startOfMonth(new Date())
 }
 
-onMounted(fetchAll)
+// Matches the breakpoint where CalendarGrid swaps titled chips for dots.
+const NARROW_SCREEN = '(max-width: 639px)'
+
+onMounted(() => {
+  // Decided once, on load: the page is prerendered without a window, and
+  // flipping views when a phone rotates would yank the reader out of what they
+  // were looking at.
+  if (window.matchMedia?.(NARROW_SCREEN).matches) view.value = 'list'
+  fetchAll()
+})
 </script>
 
 <style scoped>

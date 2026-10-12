@@ -53,7 +53,7 @@ describe('CalendarView', () => {
     expect(text).toContain('Indy .NET User Group')
   })
 
-  it('lands on the month calendar', async () => {
+  it('lands on the month calendar on a wide screen', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
 
@@ -62,11 +62,81 @@ describe('CalendarView', () => {
     expect(tabButton(wrapper, 'Calendar').classes()).toContain('tabs__btn--active')
   })
 
-  it('offers only Calendar and Map tabs, in that order', async () => {
+  it('offers List, Calendar and Map tabs, in that order', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
 
-    expect(wrapper.findAll('.tabs__btn').map((b) => b.text())).toEqual(['Calendar', 'Map'])
+    expect(wrapper.findAll('.tabs__btn').map((b) => b.text())).toEqual(['List', 'Calendar', 'Map'])
+  })
+
+  describe('list view', () => {
+    // A phone-width screen: jsdom has no matchMedia, so each test stubs one.
+    function stubScreen(narrow) {
+      window.matchMedia = vi.fn((query) => ({
+        matches: narrow && query.includes('max-width: 639px'),
+        media: query
+      }))
+    }
+
+    afterEach(() => {
+      delete window.matchMedia
+    })
+
+    it('lands on the list on a narrow screen', async () => {
+      stubScreen(true)
+      const wrapper = mountCalendarView()
+      await flushPromises()
+
+      expect(tabButton(wrapper, 'List').classes()).toContain('tabs__btn--active')
+      expect(wrapper.find('.event-list').exists()).toBe(true)
+      expect(wrapper.find('.cal').exists()).toBe(false)
+    })
+
+    it('still lands on the calendar on a wide screen', async () => {
+      stubScreen(false)
+      const wrapper = mountCalendarView()
+      await flushPromises()
+
+      expect(tabButton(wrapper, 'Calendar').classes()).toContain('tabs__btn--active')
+      expect(wrapper.find('.event-list').exists()).toBe(false)
+    })
+
+    it('groups upcoming events under their day, linking each to its page', async () => {
+      const wrapper = mountCalendarView()
+      await flushPromises()
+      await tabButton(wrapper, 'List').trigger('click')
+
+      const days = wrapper.findAll('.event-list__day-label')
+      expect(days.length).toBeGreaterThan(0)
+      const card = wrapper
+        .findAllComponents(RouterLinkStub)
+        .find((l) => l.classes().includes('event-card'))
+      expect(card.props().to).toMatch(/^\/event\//)
+    })
+
+    it('honours the search box and the recurring checkbox', async () => {
+      const wrapper = mountCalendarView()
+      await flushPromises()
+      await tabButton(wrapper, 'List').trigger('click')
+
+      const titles = () => wrapper.findAll('.event-card__title').map((t) => t.text())
+      expect(titles()).toContain('Hackers Coffee')
+
+      await wrapper.find('.calendar-recurring__box').setValue(false)
+      expect(titles()).not.toContain('Hackers Coffee')
+      await wrapper.find('.calendar-recurring__box').setValue(true)
+
+      await wrapper.find('.search').setValue('zzz-no-such-event')
+      expect(wrapper.find('.event-list__empty').exists()).toBe(true)
+    })
+
+    it('offers the calendar subscription', async () => {
+      const wrapper = mountCalendarView()
+      await flushPromises()
+      await tabButton(wrapper, 'List').trigger('click')
+
+      expect(wrapper.find('.calendar-subscribe__link').exists()).toBe(true)
+    })
   })
 
   it('no longer shows the topic filter sidebar', async () => {
@@ -104,7 +174,7 @@ describe('CalendarView', () => {
     expect(wrapper.text()).not.toContain('Recommend an Event')
   })
 
-  it('offers the calendar subscription only on the month view', async () => {
+  it('offers the calendar subscription on the month view but not the map', async () => {
     const wrapper = mountCalendarView()
     await flushPromises()
 

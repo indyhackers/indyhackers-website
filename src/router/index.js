@@ -69,7 +69,8 @@ export const routes = [
     {
       path: '/privacy',
       name: 'Privacy',
-      component: () => import('../views/PrivacyView.vue'),
+      component: () => import('../views/LegalDocument.vue'),
+      props: { slug: 'privacy' },
       meta: {
         title: 'Privacy Policy',
         description: 'How IndyHackers collects, uses, and protects your data.'
@@ -78,7 +79,8 @@ export const routes = [
     {
       path: '/terms',
       name: 'Terms',
-      component: () => import('../views/TermsView.vue'),
+      component: () => import('../views/LegalDocument.vue'),
+      props: { slug: 'terms' },
       meta: {
         title: 'Terms of Service',
         description: 'The terms of service for using the IndyHackers website and community.'
@@ -206,7 +208,8 @@ export const routes = [
     {
       path: '/code-of-conduct',
       name: 'CodeOfConduct',
-      component: () => import('../components/CodeOfConduct.vue'),
+      component: () => import('../views/LegalDocument.vue'),
+      props: { slug: 'code-of-conduct' },
       meta: {
         title: 'Code of Conduct',
         description: 'The code of conduct for the IndyHackers community, events, and Slack.'

@@ -142,6 +142,18 @@ const sponsors = ref([
     name: 'Panfactum',
     link: 'https://panfactum.com/?utm_campaign=indy_hackers',
     logo: '/images/sponsors/panfactum-logo.png'
+  },
+  {
+    id: 6,
+    name: 'Statewright.ai',
+    link: 'https://statewright.ai/?utm_campaign=indy_hackers',
+    logo: '/images/sponsors/statewright-logo.png'
+  },
+  {
+    id: 7,
+    name: 'Axiomatic Consulting',
+    link: 'https://getaxiomatic.com/?utm_campaign=indy_hackers',
+    logo: '/images/sponsors/axiomatic-logo.svg'
   }
 ])
 

@@ -14,7 +14,6 @@
             alert.message
           }}</b-alert>
           <b-form @submit.prevent="submitForm">
-
             <!-- Contact Info Section -->
             <b-row>
               <b-col cols="12">
@@ -89,6 +88,26 @@
               </b-col>
             </b-row>
 
+            <b-row class="mt-3">
+              <b-col cols="12">
+                <b-form-checkbox
+                  id="agree-policy"
+                  name="agree-policy"
+                  v-model="agreedToPolicy"
+                  required
+                >
+                  I have read and agree to the
+                  <router-link
+                    to="/job-board-policy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    @click.stop
+                    >Job Board Policy</router-link
+                  >.
+                </b-form-checkbox>
+              </b-col>
+            </b-row>
+
             <!-- Submit Button -->
             <b-row class="mt-3">
               <b-col cols="12" class="text-right">
@@ -96,7 +115,6 @@
                 <b-button variant="primary" type="submit" class="ml-2">Submit</b-button>
               </b-col>
             </b-row>
-
           </b-form>
         </b-card>
       </div>
@@ -129,7 +147,8 @@ export default defineComponent({
         message: '',
         visible: false,
         variant: 'success'
-      }
+      },
+      agreedToPolicy: false
     }
   },
   methods: {
@@ -189,6 +208,7 @@ export default defineComponent({
         description: '',
         how_to_apply: ''
       }
+      this.agreedToPolicy = false
     },
     scrollTop() {
       if (typeof window !== 'undefined') window.scrollTo({ top: 0 })

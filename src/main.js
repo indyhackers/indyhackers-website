@@ -27,6 +27,7 @@ const PRERENDER_ROUTES = new Set([
   '/code-of-conduct',
   '/privacy',
   '/terms',
+  '/job-board-policy',
   '/support'
 ])
 

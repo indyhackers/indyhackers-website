@@ -87,6 +87,16 @@ export const routes = [
       }
     },
     {
+      path: '/job-board-policy',
+      name: 'JobBoardPolicy',
+      component: () => import('../views/LegalDocument.vue'),
+      props: { slug: 'job-board-policy' },
+      meta: {
+        title: 'Job Board Policy',
+        description: 'Guidelines for posting jobs on the IndyHackers job board.'
+      }
+    },
+    {
       path: '/support',
       name: 'Support',
       component: () => import('../views/SupportView.vue'),

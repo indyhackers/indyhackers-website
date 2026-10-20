@@ -39,3 +39,4 @@ test-results/
 playwright-report/
 tmp/
 docs/superpowers/
+pb/data_backup/

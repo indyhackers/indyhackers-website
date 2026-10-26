@@ -32,7 +32,9 @@ jobs:
 
   playwright:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, which Playwright 1.57 can't install
+    # browsers on. Revisit after a Playwright upgrade that supports it.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4

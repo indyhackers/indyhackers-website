@@ -202,6 +202,32 @@ let manageJob = {
   expiry_reminder_sent: false
 }
 
+// Dev/test admin session. PocketBase's authStore.isValid decodes the JWT
+// expiry, so the mock token must be a real JWT with a future `exp` or the
+// session won't stick.
+function devAdminAuth(identity) {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+  const payload = btoa(
+    JSON.stringify({
+      id: 'devadmin',
+      type: 'auth',
+      collectionId: '_pb_users_auth_',
+      exp: 4102444800
+    })
+  )
+  return HttpResponse.json({
+    token: `${header}.${payload}.dev-signature`,
+    record: {
+      id: 'devadmin',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      email: identity,
+      verified: true,
+      expand: { roles: [{ id: 'roleadmin', name: 'admin' }] }
+    }
+  })
+}
+
 export const handlers = [
   // Event cover images. PocketBase serves uploads from /api/files/...; in dev
   // there is no file store, so point the one seeded cover (and any image
@@ -291,31 +317,11 @@ export const handlers = [
       }
     })
   }),
+  // The client refreshes a stored session on every page load (src/main.js).
+  http.post('/api/collections/users/auth-refresh', () => devAdminAuth('admin@indyhackers.org')),
   http.post('/api/collections/users/auth-with-password', async ({ request }) => {
     const body = await request.json().catch(() => ({}))
-    const identity = body.identity || 'admin@indyhackers.org'
-    // PocketBase's authStore.isValid decodes the JWT expiry, so the mock token
-    // must be a real JWT with a future `exp` or the session won't stick.
-    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
-    const payload = btoa(
-      JSON.stringify({
-        id: 'devadmin',
-        type: 'auth',
-        collectionId: '_pb_users_auth_',
-        exp: 4102444800
-      })
-    )
-    return HttpResponse.json({
-      token: `${header}.${payload}.dev-signature`,
-      record: {
-        id: 'devadmin',
-        collectionId: '_pb_users_auth_',
-        collectionName: 'users',
-        email: identity,
-        verified: true,
-        expand: { roles: [{ id: 'roleadmin', name: 'admin' }] }
-      }
-    })
+    return devAdminAuth(body.identity || 'admin@indyhackers.org')
   }),
   // Jobs queue (dev): filter-aware so the public list (approved) and the admin
   // approval screen (pending) both work off the same mock data.

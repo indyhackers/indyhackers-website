@@ -79,7 +79,23 @@ export const createApp = ViteSSG(
       // submission and the "my events" dashboard).
       const requiresAuth = (path) => path === '/events/submit' || path === '/events/mine'
 
+      // Sliding session: on each page load, trade a still-valid token for a
+      // fresh one so regular visitors never hit the token's expiry (see
+      // pb/migrations/037_extend_user_auth_token.js for the idle timeout).
+      // Started before the guard so /admin can wait on it; a 401/404 means the
+      // session was revoked or the user deleted, so drop it. Network errors
+      // keep the existing token rather than logging people out while offline.
+      const sessionRefresh = pocketbase.authStore.isValid
+        ? pocketbase
+            .collection(pocketbase.authStore.record?.collectionName || 'users')
+            .authRefresh({ expand: 'roles' })
+            .catch((err) => {
+              if (err?.status === 401 || err?.status === 404) pocketbase.authStore.clear()
+            })
+        : Promise.resolve()
+
       router.beforeEach(async (to) => {
+        await sessionRefresh
         // Signed-in-only routes: any valid session is enough.
         if (requiresAuth(to.path)) {
           if (!pocketbase.authStore.isValid) {

@@ -10,11 +10,13 @@ import MarkdownIt from 'markdown-it'
 import terms from '../../legal/terms.md?raw'
 import privacy from '../../legal/privacy.md?raw'
 import codeOfConduct from '../../legal/code-of-conduct.md?raw'
+import jobBoardPolicy from '../../legal/job-board-policy.md?raw'
 
 const documents = {
   terms,
   privacy,
-  'code-of-conduct': codeOfConduct
+  'code-of-conduct': codeOfConduct,
+  'job-board-policy': jobBoardPolicy
 }
 
 const props = defineProps({

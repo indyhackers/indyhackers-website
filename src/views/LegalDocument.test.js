@@ -6,7 +6,8 @@ describe('LegalDocument', () => {
   it.each([
     ['terms', 'Terms of Service'],
     ['privacy', 'Privacy Policy'],
-    ['code-of-conduct', 'Indy Hackers Community Code of Conduct']
+    ['code-of-conduct', 'Indy Hackers Community Code of Conduct'],
+    ['job-board-policy', 'Job Board Policy']
   ])('renders the %s heading', (slug, heading) => {
     const wrapper = mount(LegalDocument, { props: { slug } })
     expect(wrapper.find('h1').text()).toBe(heading)

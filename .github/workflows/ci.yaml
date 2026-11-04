@@ -147,7 +147,7 @@ jobs:
     with:
       image: ${{ needs.build.outputs.image }}
       ssh_user: indyhackers
-      ssh_host: prod-vm.indyhackers.org
+      ssh_host: indyhackers-prod.tail7a4ffd.ts.net
     secrets:
       ssh_key: ${{ secrets.SSH_KEY_PROD }}
       ts_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
@@ -161,7 +161,7 @@ jobs:
     with:
       image: ${{ needs.build.outputs.image }}
       ssh_user: indyhackers
-      ssh_host: dev-vm.indyhackers.org
+      ssh_host: indyhackers-dev.tail7a4ffd.ts.net
     secrets:
       ssh_key: ${{ secrets.SSH_KEY_PROD }}
       ts_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}

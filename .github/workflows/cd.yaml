@@ -46,7 +46,7 @@ jobs:
           ssh -o StrictHostKeyChecking=accept-new ${{ inputs.SSH_USER }}@${{ inputs.SSH_HOST }} docker rm indyhackers || true
           
           #run new image
-          ssh -o StrictHostKeyChecking=accept-new ${{ inputs.SSH_USER }}@${{ inputs.SSH_HOST }} docker run --name indyhackers --env-file=.env --restart always -p 32768:8090 -v ./pb/data:/pb_data -d ${{ inputs.image }}
+          ssh -o StrictHostKeyChecking=accept-new ${{ inputs.SSH_USER }}@${{ inputs.SSH_HOST }} docker run --name indyhackers --env-file=.env --restart always -p 127.0.0.1:32768:8090 -p "'[::1]:32768:8090'" -v ./pb/data:/pb_data -d ${{ inputs.image }}
 
           curl -X POST -H 'Content-type: application/json' \
             --data '{"text":"New image deployed to ${{ inputs.SSH_HOST }}: `${{ inputs.image }}`"}' \

@@ -10,6 +10,27 @@
       <tip-tap-editor class="event-form__desc" v-model="form.description" />
     </b-form-group>
 
+    <b-form-group label="Cover image (optional)" label-for="event-image" class="mt-3">
+      <p class="event-form__hint">
+        Shown on the grid view of the calendar. Landscape images look best (16:9, up to 5 MB).
+        Without one, we draw a placeholder from the event's topic.
+      </p>
+
+      <div v-if="imagePreview" class="event-form__image">
+        <img :src="imagePreview" alt="Cover image preview" class="event-form__image-preview" />
+        <b-button size="sm" variant="tertiary" type="button" @click="removeImage">Remove</b-button>
+      </div>
+
+      <input
+        id="event-image"
+        ref="imageInput"
+        class="form-control"
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        @change="onImagePicked"
+      />
+    </b-form-group>
+
     <b-row class="mt-3">
       <b-col md="6">
         <b-form-group label="Location" label-for="event-location">
@@ -74,7 +95,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, inject, onMounted, watch } from 'vue'
+import { computed, reactive, ref, inject, onMounted, onBeforeUnmount, watch } from 'vue'
 import TipTapEditor from '../TipTapEditor.vue'
 
 const props = defineProps({
@@ -89,6 +110,53 @@ const pocketbase = inject('pocketbase')
 const topics = ref([])
 
 const alert = reactive({ visible: false, variant: 'danger', message: '' })
+
+// Cover image. Three states the payload has to distinguish:
+//   newImage set        -> upload this File
+//   imageCleared        -> send null so PocketBase deletes the stored file
+//   neither             -> leave the field out entirely and keep what's there
+const imageInput = ref(null)
+const newImage = ref(null)
+const imageCleared = ref(false)
+const existingImageUrl = ref('')
+// Object URL for the locally picked file, revoked when it's replaced so the
+// preview doesn't leak blobs across repeated picks.
+const localPreview = ref('')
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+
+const imagePreview = computed(() => localPreview.value || (imageCleared.value ? '' : existingImageUrl.value))
+
+function releaseLocalPreview() {
+  if (localPreview.value) {
+    URL.revokeObjectURL(localPreview.value)
+    localPreview.value = ''
+  }
+}
+
+function onImagePicked(event) {
+  const file = event.target.files && event.target.files[0]
+  if (!file) return
+  if (file.size > MAX_IMAGE_BYTES) {
+    event.target.value = ''
+    return fail('That image is larger than 5 MB. Please pick a smaller one.')
+  }
+  releaseLocalPreview()
+  newImage.value = file
+  imageCleared.value = false
+  localPreview.value = URL.createObjectURL(file)
+}
+
+function removeImage() {
+  releaseLocalPreview()
+  newImage.value = null
+  // Only a stored image needs an explicit delete; discarding an unsaved pick
+  // just resets the field.
+  imageCleared.value = !!existingImageUrl.value
+  if (imageInput.value) imageInput.value.value = ''
+}
+
+onBeforeUnmount(releaseLocalPreview)
 
 // A datetime stored as ISO needs to render in the browser-local <input> value
 // format (YYYY-MM-DDTHH:mm), and vice versa on save.
@@ -131,6 +199,22 @@ function prefill(record) {
   // topics can arrive as an array of ids or expanded records.
   const t = record.topics || []
   form.topics = t.map((x) => (typeof x === 'object' ? x.id : x))
+
+  releaseLocalPreview()
+  newImage.value = null
+  imageCleared.value = false
+  existingImageUrl.value = record.image ? fileUrl(record, record.image) : ''
+  if (imageInput.value) imageInput.value.value = ''
+}
+
+// The stored cover needs the client's baseURL to render; a test double without
+// a file service just shows no preview.
+function fileUrl(record, filename) {
+  try {
+    return pocketbase.files.getURL(record, filename) || ''
+  } catch {
+    return ''
+  }
 }
 
 watch(() => props.event, prefill, { immediate: true })
@@ -162,7 +246,7 @@ function onSubmit() {
     return fail('The end time is before the start time.')
   }
 
-  emit('submit', {
+  const payload = {
     title: form.title.trim(),
     // Keep empty descriptions empty rather than "<p></p>".
     description: stripTags(form.description) ? form.description : '',
@@ -173,7 +257,14 @@ function onSubmit() {
     ends_at,
     status: 'confirmed',
     topics: form.topics
-  })
+  }
+
+  // A File here makes the SDK send the whole payload as multipart; null tells
+  // PocketBase to drop the stored file. Untouched images send neither.
+  if (newImage.value) payload.image = newImage.value
+  else if (imageCleared.value) payload.image = null
+
+  emit('submit', payload)
 }
 
 function fail(message) {
@@ -202,6 +293,21 @@ defineExpose({ showError: fail })
 
 .event-form__actions {
   text-align: right;
+}
+
+.event-form__image {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.event-form__image-preview {
+  width: 200px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border) 12%, transparent);
 }
 
 :deep(.event-form__desc .tiptap.ProseMirror) {

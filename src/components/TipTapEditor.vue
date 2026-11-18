@@ -121,7 +121,10 @@ export default {
   mounted() {
     this.editor = new Editor({
       content: this.modelValue,
-      extensions: [StarterKit],
+      // TipTap v3's StarterKit also bundles Link, Underline and TrailingNode.
+      // They're off to keep the saved HTML identical to v2: there's no toolbar
+      // control for links/underline, and TrailingNode appends an empty <p>.
+      extensions: [StarterKit.configure({ link: false, underline: false, trailingNode: false })],
       onUpdate: ({ editor }) => {
         this.$emit('update:modelValue', editor.getHTML())
       }
@@ -131,7 +134,7 @@ export default {
   watch: {
     modelValue(newValue) {
       if (this.editor && newValue !== this.editor.getHTML()) {
-        this.editor.commands.setContent(newValue, false)
+        this.editor.commands.setContent(newValue, { emitUpdate: false })
       }
     }
   },

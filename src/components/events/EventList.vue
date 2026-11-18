@@ -1,8 +1,6 @@
 <template>
   <div class="event-list">
-    <p v-if="!groups.length" class="event-list__empty">
-      No upcoming events match your filters.
-    </p>
+    <p v-if="!groups.length" class="event-list__empty">No upcoming events match your filters.</p>
 
     <section v-for="group in groups" :key="group.key" class="event-list__day">
       <h3 class="event-list__day-label">{{ group.label }}</h3>

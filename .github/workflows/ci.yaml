@@ -21,7 +21,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -32,7 +32,9 @@ jobs:
 
   playwright:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, which Playwright 1.57 can't install
+    # browsers on. Revisit after a Playwright upgrade that supports it.
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,7 +42,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -145,7 +147,7 @@ jobs:
     with:
       image: ${{ needs.build.outputs.image }}
       ssh_user: indyhackers
-      ssh_host: prod-vm.indyhackers.org
+      ssh_host: indyhackers-prod.tail7a4ffd.ts.net
     secrets:
       ssh_key: ${{ secrets.SSH_KEY_PROD }}
       ts_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
@@ -159,7 +161,7 @@ jobs:
     with:
       image: ${{ needs.build.outputs.image }}
       ssh_user: indyhackers
-      ssh_host: dev-vm.indyhackers.org
+      ssh_host: indyhackers-dev.tail7a4ffd.ts.net
     secrets:
       ssh_key: ${{ secrets.SSH_KEY_PROD }}
       ts_oauth_client_id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
